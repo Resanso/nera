@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { POCKET_CATEGORIES, useEmailSpending } from "../../../lib/emailSpending";
+import { PeriodFilter, periodRange } from "../../../components/insights/PeriodFilter";
+import { presetPeriod, type Period } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
@@ -279,25 +281,48 @@ export default function PocketsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showBalances, setShowBalances] = useState(true);
+  const [period, setPeriod] = useState<Period>(() => presetPeriod("this_month"));
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // spending budgets also count receipts imported from email (other banks, e-wallets);
   // only the "used" figure changes, the pocket balance is BNI money and stays as is
   const emailSpending = useEmailSpending();
+  // the pocket detail is always about this month's budget
   const withEmail = (p: BudgetPocket): BudgetPocket =>
     p.kind === "spending" ? { ...p, spentThisMonth: p.spentThisMonth + emailSpending.spentForPocket(p.icon) } : p;
+
+  // the summary and cards follow the period filter. BNI pocket spending only exists for
+  // this month, so other periods show email spending alone against the budget scaled to
+  // the period's length (from the oldest imported receipt when the period starts earlier)
+  const isThisMonth = period.key === "this_month";
+  const periodEmail = emailSpending.inPeriod(period);
+  const oldestEmail = emailSpending.recent.reduce((min, t) => Math.min(min, Date.parse(t.occurredAt)), Date.now());
+  const periodDays = Math.max(
+    1,
+    (Math.min(period.to.getTime(), Date.now()) - Math.max(period.from.getTime(), oldestEmail)) / 86_400_000,
+  );
+  const budgetScale = isThisMonth ? 1 : periodDays / 30.44;
+  const emailLabel = isThisMonth ? "bulan ini" : period.key === "custom" ? "di rentang ini" : period.label.toLowerCase();
+  const forPeriod = (p: BudgetPocket): BudgetPocket =>
+    p.kind === "spending"
+      ? {
+          ...p,
+          spentThisMonth: (isThisMonth ? p.spentThisMonth : 0) + periodEmail.spentForPocket(p.icon),
+          targetAmount: Math.round(p.targetAmount * budgetScale),
+        }
+      : p;
   const spentFromEmail = budgetPockets
     .filter((p) => p.kind === "spending")
-    .reduce((sum, p) => sum + emailSpending.spentForPocket(p.icon), 0);
+    .reduce((sum, p) => sum + periodEmail.spentForPocket(p.icon), 0);
   // email spending in categories no pocket covers, so this page adds up with /email
   const coveredIcons = new Set(budgetPockets.filter((p) => p.kind === "spending").map((p) => p.icon));
-  const uncovered = emailSpending.byCategory.filter(
+  const uncovered = periodEmail.byCategory.filter(
     (c) => !Object.entries(POCKET_CATEGORIES).some(([icon, cats]) => coveredIcons.has(icon as BudgetPocket["icon"]) && cats?.includes(c.category)),
   );
   const uncoveredTotal = uncovered.reduce((sum, c) => sum + c.amount, 0);
 
-  const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(withEmail);
+  const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(forPeriod);
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
   const selectedPocket = budgetPockets.find((p) => p.id === selectedId) ?? null;
 
@@ -611,9 +636,9 @@ export default function PocketsPage() {
                       <p className={cn("mt-1 text-[11px] font-medium", tone.muted)}>
                         {pocketSubtitle(pocket)}
                       </p>
-                      {showBalances && pocket.kind === "spending" && emailSpending.spentForPocket(pocket.icon) > 0 && (
+                      {showBalances && pocket.kind === "spending" && periodEmail.spentForPocket(pocket.icon) > 0 && (
                         <p className={cn("mt-0.5 text-[10px] font-medium", tone.muted)}>
-                          +{formatRupiahShort(emailSpending.spentForPocket(pocket.icon))} dari email bulan ini
+                          +{formatRupiahShort(periodEmail.spentForPocket(pocket.icon))} dari email {emailLabel}
                         </p>
                       )}
                     </div>
@@ -652,17 +677,28 @@ export default function PocketsPage() {
         {/* BUDGET SUMMARY */}
         {spendingPockets.length > 0 && (
           <section className="rounded-[20px] bg-white px-4 py-3.5">
+            <div className="mb-3 flex items-center justify-between gap-2 border-b border-[#F1EEE8] pb-3">
+              <p className="min-w-0 truncate text-[11px] text-[#736B60]">{periodRange(period)}</p>
+              <PeriodFilter value={period} onChange={setPeriod} />
+            </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FFF0BD] text-[#6D4C00]">
                   <Target size={16} />
                 </div>
                 <div>
-                  <p className="text-[12px] font-semibold text-[#2F240E]">Budget bulan ini</p>
+                  <p className="text-[12px] font-semibold text-[#2F240E]">
+                    {isThisMonth ? "Budget bulan ini" : `Budget ${period.key === "custom" ? "rentang ini" : period.label.toLowerCase()}`}
+                  </p>
                   <p className="text-[10px] text-[#736B60]">
                     {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
-                    {spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
+                    {isThisMonth && spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
                   </p>
+                  {!isThisMonth && (
+                    <p className="text-[10px] text-[#736B60]">
+                      Hanya dari email; kantong BNI baru punya data bulan ini. Budget disesuaikan ke {Math.round(periodDays)} hari.
+                    </p>
+                  )}
                   {uncoveredTotal > 0 && (
                     <p className="text-[10px] text-[#736B60]">
                       {formatRupiah(uncoveredTotal)} dari email belum masuk kantong ({uncovered.map((c) => c.label).join(", ")})

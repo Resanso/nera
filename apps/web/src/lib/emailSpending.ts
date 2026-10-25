@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import type { BudgetPocketIcon } from "@nera/core";
 import { CATEGORY_LABEL, NotSignedIn, emailApi, type EmailCategory, type EmailTransaction } from "./emailImport";
+import { inPeriod, type Period } from "./period";
 
 /**
  * Spending imported from email receipts (other banks, e-wallets, merchants), shared by
@@ -56,14 +57,34 @@ export const POCKET_CATEGORIES: Partial<Record<BudgetPocketIcon, EmailCategory[]
   travel: ["travel"],
 };
 
+export type SpendingTotals = {
+  total: number;
+  byCategory: { category: EmailCategory; label: string; amount: number }[];
+  spentForPocket: (icon: BudgetPocketIcon) => number;
+};
+
+function summarize(spends: EmailTransaction[]): SpendingTotals {
+  const totals = new Map<EmailCategory, number>();
+  for (const t of spends) totals.set(t.category, (totals.get(t.category) ?? 0) + t.amount);
+  return {
+    total: spends.reduce((sum, t) => sum + t.amount, 0),
+    byCategory: [...totals]
+      .map(([category, amount]) => ({ category, label: CATEGORY_LABEL[category], amount }))
+      .sort((a, b) => b.amount - a.amount),
+    spentForPocket: (icon) => (POCKET_CATEGORIES[icon] ?? []).reduce((sum, c) => sum + (totals.get(c) ?? 0), 0),
+  };
+}
+
 export type EmailSpending = {
   ready: boolean;
   aiConsent: boolean;
   monthTotal: number;
-  byCategory: { category: EmailCategory; label: string; amount: number }[];
+  byCategory: SpendingTotals["byCategory"];
   /** newest first, counted spending and income, for transaction lists */
   recent: EmailTransaction[];
   spentForPocket: (icon: BudgetPocketIcon) => number;
+  /** the same figures for any period (Kantong's period filter) */
+  inPeriod: (p: Period) => SpendingTotals;
 };
 
 export function useEmailSpending(): EmailSpending {
@@ -72,19 +93,17 @@ export function useEmailSpending(): EmailSpending {
     load();
   }, [load]);
 
-  const month = transactions.filter((t) => isCountedSpend(t) && thisMonth(t.occurredAt));
-  const totals = new Map<EmailCategory, number>();
-  for (const t of month) totals.set(t.category, (totals.get(t.category) ?? 0) + t.amount);
+  const spends = transactions.filter(isCountedSpend);
+  const month = summarize(spends.filter((t) => thisMonth(t.occurredAt)));
 
   return {
     ready: status === "ready",
     aiConsent,
-    monthTotal: month.reduce((sum, t) => sum + t.amount, 0),
-    byCategory: [...totals]
-      .map(([category, amount]) => ({ category, label: CATEGORY_LABEL[category], amount }))
-      .sort((a, b) => b.amount - a.amount),
+    monthTotal: month.total,
+    byCategory: month.byCategory,
     recent: transactions.filter((t) => isCountedSpend(t) || t.type === "income"),
-    spentForPocket: (icon) => (POCKET_CATEGORIES[icon] ?? []).reduce((sum, c) => sum + (totals.get(c) ?? 0), 0),
+    spentForPocket: month.spentForPocket,
+    inPeriod: (p) => summarize(spends.filter((t) => inPeriod(t.occurredAt, p))),
   };
 }
 

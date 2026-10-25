@@ -21,6 +21,8 @@ import {
   type SyncSummary,
 } from "../../../lib/emailImport";
 
+const PAGE_SIZE = 20;
+
 const formatRupiah = (val: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
 
@@ -153,6 +155,9 @@ export default function EmailImportPage() {
   // one period drives the stats, the analysis and the list
   const [period, setPeriod] = useState<Period>(() => presetPeriod("this_month"));
   const periodTxs = useMemo(() => txs.filter((t) => inPeriod(t.occurredAt, period)), [txs, period]);
+  // a year of receipts is a thousand rows: render a page at a time
+  const [shown, setShown] = useState(PAGE_SIZE);
+  useEffect(() => setShown(PAGE_SIZE), [period]);
   const periodCounted = periodTxs.filter((t) => t.countsTowardSpending && !t.needsReview);
   const periodSpend = periodCounted.reduce((sum, t) => sum + t.amount, 0);
   const byId = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs]);
@@ -519,7 +524,7 @@ export default function EmailImportPage() {
                 </h3>
                 {periodTxs.length === 0 && <p className="rounded-[20px] bg-white px-4 py-6 text-center text-xs text-[#736B60]">Tidak ada transaksi di periode ini.</p>}
                 <ul className="divide-y divide-[#F1EEE8] rounded-[24px] bg-white px-4">
-                  {periodTxs.map((t) => (
+                  {periodTxs.slice(0, shown).map((t) => (
                     <li key={t.id} className="py-3.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -562,6 +567,16 @@ export default function EmailImportPage() {
                     </li>
                   ))}
                 </ul>
+                {periodTxs.length > shown && (
+                  <button
+                    type="button"
+                    onClick={() => setShown((n) => n + PAGE_SIZE)}
+                    className="h-11 w-full rounded-[16px] border border-[#E9E5DD] bg-white text-[13px] font-semibold text-[#2F240E] hover:bg-[#FFF8E6]"
+                  >
+                    Tampilkan {Math.min(PAGE_SIZE, periodTxs.length - shown)} lagi
+                    <span className="font-medium text-[#736B60]"> · {shown} dari {periodTxs.length}</span>
+                  </button>
+                )}
               </section>
             )}
 

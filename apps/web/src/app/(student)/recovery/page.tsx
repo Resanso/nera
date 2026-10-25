@@ -297,15 +297,17 @@ export default function RecoveryPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-white">
+    // 0px basis (0% counts as content height here): fill the frame's visible height, so only the thread
+    // scrolls and the input stays put; the negative margin reaches under the bottom nav
+    <div className="-mb-[calc(5.25rem+env(safe-area-inset-bottom))] flex min-h-0 flex-[1_1_0px] flex-col bg-white">
       {/* 1. TOP APP BAR (Edge to edge, no extra outer padding) */}
       <TopAppBar title="Nera AI Consultant" showBack />
 
       {/* 2. CHAT MESSAGES FULL AREA (ChatGPT style layout) */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 py-3">
         {/* Welcome Hero when chat has 1 message */}
         {messages.length <= 1 && (
-          <div className="flex flex-col items-center text-center py-6 space-y-2">
+          <div className="my-auto flex flex-col items-center space-y-2 py-6 text-center">
             <NeraOrb mood="wave" size={88} />
             <h2 className="text-base font-bold text-[#2F240E]">
               👋 Halo, {userName || "Sobat Nera"}!
@@ -326,7 +328,7 @@ export default function RecoveryPage() {
         )}
 
         {/* Message Thread */}
-        <div className="space-y-4">
+        <div className="space-y-4 pb-1">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -347,7 +349,7 @@ export default function RecoveryPage() {
 
               {/* Message Bubble */}
               <div
-                className={`text-xs leading-relaxed max-w-[88%] ${
+                className={`text-[13px] leading-relaxed max-w-[86%] break-words ${
                   msg.role === "user"
                     ? "bg-[#2F240E] text-white px-4 py-2.5 rounded-[20px] rounded-tr-xs shadow-xs font-normal whitespace-pre-line"
                     : "bg-[#F7F5F0] border border-[#E9E5DD] text-[#2F240E] px-4 py-3 rounded-[20px] rounded-tl-xs shadow-xs font-normal"
@@ -409,7 +411,8 @@ export default function RecoveryPage() {
       </div>
 
       {/* 3. CHATGPT-STYLE BOTTOM DOCKED AREA (Chips + Input) */}
-      <div className="p-3 bg-white border-t border-[#F0EEE9] space-y-2.5">
+      {/* runs under the bottom nav (white, no grey strip); padding keeps the input above it */}
+      <div className="shrink-0 space-y-2 border-t border-[#F0EEE9] bg-white px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-2.5">
         {/* Suggestion Chips (Horizontal scrollable or neat wrap) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           {quickChips.map((chip, idx) => (
@@ -446,12 +449,14 @@ export default function RecoveryPage() {
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Tanya Nera apa saja..."
             disabled={isStreaming}
-            className="flex-1 bg-transparent text-xs text-[#2F240E] placeholder-[#817B70] focus:outline-none"
+            enterKeyHint="send"
+            // 16px keeps iOS Safari from zooming into the field
+            className="min-w-0 flex-1 bg-transparent text-[16px] leading-6 text-[#2F240E] placeholder-[#817B70] focus:outline-none"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isStreaming}
-            className="w-8 h-8 rounded-full bg-[#BA8500] hover:bg-[#966600] disabled:bg-[#D8D3C9] active:scale-95 text-white flex items-center justify-center transition-all shadow-xs shrink-0"
+            className="w-9 h-9 rounded-full bg-[#BA8500] hover:bg-[#966600] disabled:bg-[#D8D3C9] active:scale-95 text-white flex items-center justify-center transition-all shadow-xs shrink-0"
             aria-label="Kirim Pesan"
           >
             <Send size={14} className="-ml-0.5" />
