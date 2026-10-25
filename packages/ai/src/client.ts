@@ -47,6 +47,43 @@ export class MaiaAIClient {
     }
   }
 
+  /** Whether a real model is configured (fallback responses are used otherwise). */
+  get isConfigured(): boolean {
+    return Boolean(this.apiKey);
+  }
+
+  /**
+   * One-shot structured extraction: no Nera persona, deterministic, JSON only.
+   * Returns null when no model is configured or the call fails, so callers keep their own fallback.
+   */
+  async extractJson(system: string, user: string): Promise<unknown | null> {
+    if (!this.apiKey) return null;
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0,
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      return typeof content === "string" ? JSON.parse(content) : null;
+    } catch {
+      return null;
+    }
+  }
+
   private getFallbackResponse(userMessage: string): string {
     const lower = userMessage.toLowerCase();
     if (lower.includes("uang saku") || lower.includes("allowance") || lower.includes("budget")) {

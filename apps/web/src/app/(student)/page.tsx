@@ -30,6 +30,7 @@ import {
   PiggyBank,
   Gift,
   Layers,
+  Mail,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -485,6 +486,17 @@ export default function HomePage() {
             <h3 className="text-[16px] font-semibold text-[#2F240E]">Transaksi Terakhir</h3>
             <span className="text-xs font-medium text-[#736B60]">{transactions.length} total</span>
           </div>
+
+          <Link
+            href="/email"
+            className="flex items-center gap-3 rounded-[19px] bg-[#FFF3D6] px-4 py-3 text-[#5B410C] transition-colors hover:bg-[#FFEBC0]"
+          >
+            <Mail size={18} className="shrink-0" />
+            <span className="flex-1 text-xs font-semibold leading-snug">
+              Ada transaksi GoPay, OVO atau Shopee? Impor dari email
+            </span>
+            <ChevronRight size={16} className="shrink-0" />
+          </Link>
 
           <div className="bg-white rounded-[24px] overflow-hidden">
             {recentTransactions.map((tx, idx) => {

@@ -1,0 +1,57 @@
+.n3-bubble { position:absolute; right:4%; top:6%; display:flex; gap:6px; padding:10px 14px; background:#fff; border-radius:999px;
+  box-shadow:0 3px 0 rgba(47,36,14,.1); opacity:0; transform:scale(.4); transform-origin:15% 120%;
+  transition:opacity .2s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+.n3-bubble.on { opacity:1; transform:scale(1); }
+.n3-bubble i { width:9px; height:9px; border-radius:50%; background:#76520E; animation:n3-dot .9s ease-in-out infinite; }
+.n3-bubble i:nth-child(2) { animation-delay:.15s; } .n3-bubble i:nth-child(3) { animation-delay:.3s; }
+.n3-alert { position:absolute; right:10%; top:8%; width:40px; height:40px; border-radius:50%; background:#FF4B4B; color:#fff;
+  font:800 26px/40px system-ui; text-align:center; box-shadow:0 3px 0 #C92A2A; opacity:0; transform:scale(0) rotate(-30deg);
+  transition:opacity .15s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+.n3-alert.on { opacity:1; transform:scale(1) rotate(0); }
+.n3-sparkles { position:absolute; inset:0; opacity:0; transition:opacity .2s; }
+.n3-sparkles.on { opacity:1; }
+.n3-sparkles b { position:absolute; width:16px; height:16px; clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
+  animation:n3-spark 1.1s ease-out infinite; }
+.n3-sparkles b:nth-child(1){left:10%;top:18%} .n3-sparkles b:nth-child(2){left:86%;top:24%} .n3-sparkles b:nth-child(3){left:6%;top:50%}
+.n3-sparkles b:nth-child(4){left:90%;top:52%} .n3-sparkles b:nth-child(5){left:26%;top:4%} .n3-sparkles b:nth-child(6){left:72%;top:6%}
+@keyframes n3-dot { 0%,100% { transform:translateY(0); opacity:.45 } 50% { transform:translateY(-4px); opacity:1 } }
+@keyframes n3-spark { 0% { transform:scale(0) rotate(0) } 40% { transform:scale(1.3) rotate(45deg) } 100% { transform:scale(0) rotate(90deg) translateY(-8px) } }
+@media (prefers-reduced-motion: reduce) { .n3-bubble i, .n3-sparkles b { animation:none } }
+
+/* WebGL-less fallback for the 3D option: the rendered mascot, moved with CSS */
+.n3-fallback { position:absolute; inset:6% 12% 4%; display:flex; align-items:flex-end; justify-content:center; }
+.n3-fallback img { height:100%; width:auto; transform-origin:50% 100%; }
+.n3-fallback::after { content:""; position:absolute; bottom:-2%; left:22%; right:22%; height:7%; border-radius:50%; background:rgba(47,36,14,.16); z-index:-1; }
+.n3-fallback[data-mood="idle"] img { animation:n3f-breathe 3.2s ease-in-out infinite; }
+.n3-fallback[data-mood="wave"] img { animation:n3f-rock 1.2s ease-in-out infinite; }
+.n3-fallback[data-mood="happy"] img { animation:n3f-hop .8s ease-in-out infinite; }
+.n3-fallback[data-mood="celebrate"] img { animation:n3f-jump 1.1s ease-in-out infinite; }
+.n3-fallback[data-mood="thinking"] img { animation:n3f-think 2.6s ease-in-out infinite; }
+.n3-fallback[data-mood="alert"] img { animation:n3f-shake 2s ease-out infinite; }
+.n3-fallback.poke img { animation:n3f-poke .55s cubic-bezier(.34,1.56,.64,1); }
+@keyframes n3f-rock { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg) translateY(-4px); } }
+@keyframes n3f-think { 0%,100% { transform:rotate(-6deg); } 50% { transform:rotate(-6deg) translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .n3-fallback img { animation:none !important; } }
+
+@keyframes n3f-breathe { 0%,100% { transform: translateY(0) scale(1,1); } 50% { transform: translateY(-4px) scale(1.01,1.015); } }
+@keyframes n3f-hop {
+  0% { transform: translateY(0) scale(1.08,.9); }
+  18% { transform: translateY(-4px) scale(.96,1.06); }
+  48% { transform: translateY(-26px) scale(.97,1.04); }
+  78% { transform: translateY(0) scale(1.1,.88); }
+  100% { transform: translateY(0) scale(1.08,.9); }
+}
+@keyframes n3f-jump {
+  0% { transform: translateY(0) scale(1,1); }
+  16% { transform: translateY(6px) scale(1.14,.84); }
+  30% { transform: translateY(-30px) scale(.88,1.14); }
+  52% { transform: translateY(-58px) scale(.97,1.03); }
+  76% { transform: translateY(0) scale(1.16,.84); }
+  88% { transform: translateY(-4px) scale(.98,1.03); }
+  100% { transform: translateY(0) scale(1,1); }
+}
+@keyframes n3f-shake {
+  0% { transform: translateX(0); } 4% { transform: translateX(-8px) rotate(-2deg); } 8% { transform: translateX(8px) rotate(2deg); }
+  12% { transform: translateX(-6px); } 16% { transform: translateX(5px); } 20% { transform: translateX(-2px); } 24%,100% { transform: translateX(0); }
+}
+@keyframes n3f-poke { 0% { transform: scale(1.18,.82); } 40% { transform: scale(.92,1.08); } 100% { transform: scale(1,1); } }

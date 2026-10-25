@@ -1,0 +1,22 @@
+From: GoFood <no-reply@gojek.com>
+To: budi.santoso@gmail.com
+Subject: Pesanan GoFood kamu sudah sampai
+Date: Mon, 20 Oct 2026 12:41:00 +0700
+Message-ID: <sample-gofood-001@gojek.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
+
+<html><body>
+<p>Halo Budi Santoso,</p>
+<p>Terima kasih sudah pesan GoFood. Pesananmu sudah diantar ke Jl. Margonda Raya No. 12, Depok.</p>
+<table>
+<tr><td>Restoran:</td><td>Ayam Geprek Bu Rum</td></tr>
+<tr><td>Order ID:</td><td>F-1234567890</td></tr>
+<tr><td>Ayam Geprek Level 3</td><td>Rp18.000</td></tr>
+<tr><td>Es Teh Manis</td><td>Rp5.000</td></tr>
+<tr><td>Ongkos kirim</td><td>Rp8.000</td></tr>
+<tr><td>Diskon</td><td>-Rp6.000</td></tr>
+<tr><td><b>Total Pembayaran</b></td><td><b>Rp25.000</b></td></tr>
+</table>
+<p>Dibayar dengan GoPay. Hubungi kami di 081234567890.</p>
+</body></html>

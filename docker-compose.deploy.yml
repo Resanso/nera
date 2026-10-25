@@ -1,0 +1,28 @@
+# Production-ish deploy behind a host nginx that proxies:
+#   /      -> 127.0.0.1:3100 (web)
+#   /api/  -> 127.0.0.1:4100 (api)
+# Usage: PUBLIC_URL=https://example.com docker compose -f docker-compose.deploy.yml up -d --build
+services:
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+    ports:
+      - "127.0.0.1:3100:3000"
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      target: api
+    # secrets (EMAIL_TOKEN_KEY, INBOUND_WEBHOOK_SECRET, GOOGLE_*, MAIA_*); see .env.example
+    env_file: .env.deploy
+    environment:
+      PORT: "4000"
+      WEB_APP_URL: ${PUBLIC_URL}
+      GOOGLE_REDIRECT_URI: ${PUBLIC_URL}/api/email/gmail/callback
+    ports:
+      - "127.0.0.1:4100:4000"
+    restart: unless-stopped

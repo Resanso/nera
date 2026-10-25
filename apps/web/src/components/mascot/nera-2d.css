@@ -1,0 +1,138 @@
+.nera2d { overflow: visible; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.nera2d g { transform-box: view-box; }
+
+/* pivots, in viewBox coordinates */
+.nera2d .n-root { transform-origin: 150px 326px; }
+.nera2d .n-head-pose, .nera2d .n-head-loop { transform-origin: 150px 214px; }
+.nera2d .n-antenna { transform-origin: 150px 54px; }
+.nera2d .n-armL-pose, .nera2d .n-armL-loop { transform-origin: 110px 222px; }
+.nera2d .n-armR-pose, .nera2d .n-armR-loop { transform-origin: 190px 222px; }
+.nera2d .n-legL { transform-origin: 125px 280px; }
+.nera2d .n-legR { transform-origin: 175px 280px; }
+.nera2d .n-poke { transform-origin: 150px 326px; animation: n-poke .55s cubic-bezier(.34,1.56,.64,1); }
+.nera2d .n-shadow { transform-box: fill-box; transform-origin: center; }
+
+.nera2d .n-head-pose, .nera2d .n-armL-pose, .nera2d .n-armR-pose { transition: transform .5s cubic-bezier(.34,1.56,.64,1); }
+
+/* expression switching */
+.nera2d .n-eyes-open, .nera2d .n-eyes-happy, .nera2d .n-eyes-alert,
+.nera2d [class^="n-mouth"] { transition: opacity .16s ease-out; opacity: 0; }
+.nera2d .n-eye { transform-box: fill-box; transform-origin: center; transition: transform .07s ease-out; }
+.nera2d.is-blink .n-eye { transform: scaleY(.1); }
+
+.nera2d[data-mood="idle"] .n-eyes-open, .nera2d[data-mood="thinking"] .n-eyes-open,
+.nera2d[data-mood="happy"] .n-eyes-happy, .nera2d[data-mood="wave"] .n-eyes-happy,
+.nera2d[data-mood="celebrate"] .n-eyes-happy, .nera2d[data-mood="alert"] .n-eyes-alert { opacity: 1; }
+.nera2d[data-mood="idle"] .n-mouth-smile, .nera2d[data-mood="wave"] .n-mouth-smile,
+.nera2d[data-mood="happy"] .n-mouth-open, .nera2d[data-mood="celebrate"] .n-mouth-open,
+.nera2d[data-mood="thinking"] .n-mouth-o, .nera2d[data-mood="alert"] .n-mouth-wavy { opacity: 1; }
+
+.nera2d .n-mouth-open { transform-box: fill-box; transform-origin: top; animation: n-talk .5s ease-in-out infinite; }
+.nera2d .n-chest { animation: n-pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+/* idle: breathe, sway, antenna lags behind (follow-through) */
+.nera2d[data-mood="idle"] .n-root { animation: n-breathe 3.2s ease-in-out infinite; }
+.nera2d[data-mood="idle"] .n-head-loop { animation: n-sway 4.4s ease-in-out infinite; }
+.nera2d[data-mood="idle"] .n-antenna { animation: n-antenna 4.4s ease-in-out .3s infinite; }
+.nera2d[data-mood="idle"] .n-armL-loop { animation: n-armIdle 3.2s ease-in-out infinite; }
+.nera2d[data-mood="idle"] .n-armR-loop { animation: n-armIdle 3.2s ease-in-out infinite reverse; }
+
+/* happy: hop with squash on landing, arms flap */
+.nera2d[data-mood="happy"] .n-root { animation: n-hop .8s ease-in-out infinite; }
+.nera2d[data-mood="happy"] .n-shadow { animation: n-shadowHop .8s ease-in-out infinite; }
+.nera2d[data-mood="happy"] .n-head-loop { animation: n-sway .8s ease-in-out infinite; }
+.nera2d[data-mood="happy"] .n-antenna { animation: n-antennaFast .8s ease-in-out .1s infinite; }
+.nera2d[data-mood="happy"] .n-armL-pose { transform: rotate(35deg); }
+.nera2d[data-mood="happy"] .n-armR-pose { transform: rotate(-35deg); }
+.nera2d[data-mood="happy"] .n-armL-loop { animation: n-flapL .4s ease-in-out infinite alternate; }
+.nera2d[data-mood="happy"] .n-armR-loop { animation: n-flapR .4s ease-in-out infinite alternate; }
+
+/* wave: arm swings in an arc from the elbow-less shoulder */
+.nera2d[data-mood="wave"] .n-root { animation: n-breathe 1.2s ease-in-out infinite; }
+.nera2d[data-mood="wave"] .n-head-pose { transform: rotate(5deg); }
+.nera2d[data-mood="wave"] .n-antenna { animation: n-antenna 1.2s ease-in-out .15s infinite; }
+.nera2d[data-mood="wave"] .n-armR-pose { transform: rotate(-112deg); }
+.nera2d[data-mood="wave"] .n-armR-loop { animation: n-wave .42s ease-in-out infinite alternate; }
+
+/* celebrate: anticipation crouch, launch, squash */
+.nera2d[data-mood="celebrate"] .n-root { animation: n-jump 1.1s ease-in-out infinite; }
+.nera2d[data-mood="celebrate"] .n-shadow { animation: n-shadowJump 1.1s ease-in-out infinite; }
+.nera2d[data-mood="celebrate"] .n-antenna { animation: n-antennaFast .55s ease-in-out infinite; }
+.nera2d[data-mood="celebrate"] .n-armL-pose { transform: rotate(118deg); }
+.nera2d[data-mood="celebrate"] .n-armR-pose { transform: rotate(-118deg); }
+.nera2d[data-mood="celebrate"] .n-armL-loop { animation: n-flapL .28s ease-in-out infinite alternate; }
+.nera2d[data-mood="celebrate"] .n-armR-loop { animation: n-flapR .28s ease-in-out infinite alternate; }
+.nera2d[data-mood="celebrate"] .n-legL { animation: n-kickL 1.1s ease-in-out infinite; }
+.nera2d[data-mood="celebrate"] .n-legR { animation: n-kickR 1.1s ease-in-out infinite; }
+
+/* thinking: head tilts, hand to chin, antenna ticks like a metronome */
+.nera2d[data-mood="thinking"] .n-root { animation: n-breathe 2.6s ease-in-out infinite; }
+.nera2d[data-mood="thinking"] .n-head-pose { transform: rotate(-8deg); }
+.nera2d[data-mood="thinking"] .n-antenna { animation: n-tick 1.3s ease-in-out infinite; }
+.nera2d[data-mood="thinking"] .n-armR-pose { transform: rotate(118deg); }
+.nera2d[data-mood="thinking"] .n-armR-loop { animation: n-tap 1.3s ease-in-out infinite; }
+
+/* alert: startled shake in bursts, hands up */
+.nera2d[data-mood="alert"] .n-root { animation: n-shake 2s ease-out infinite; }
+.nera2d[data-mood="alert"] .n-antenna { animation: n-antennaShake 2s ease-out infinite; }
+.nera2d[data-mood="alert"] .n-head-pose { transform: translateY(-3px); }
+.nera2d[data-mood="alert"] .n-armL-pose { transform: rotate(52deg); }
+.nera2d[data-mood="alert"] .n-armR-pose { transform: rotate(-52deg); }
+
+/* props */
+.nera2d .n-confetti, .nera2d .n-bubble, .nera2d .n-alert { opacity: 0; transition: opacity .2s; pointer-events: none; }
+.nera2d[data-mood="celebrate"] .n-confetti { opacity: 1; }
+.nera2d .n-confetti path { transform-box: fill-box; transform-origin: center; animation: n-sparkle 1.1s ease-out infinite; }
+.nera2d[data-mood="thinking"] .n-bubble { opacity: 1; }
+.nera2d .n-bubble { transform-origin: 222px 60px; transform: scale(.4); transition: opacity .2s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+.nera2d[data-mood="thinking"] .n-bubble { transform: scale(1); }
+.nera2d .n-bubble circle[cy="29"] { animation: n-dot .9s ease-in-out infinite; }
+.nera2d .n-alert { transform-origin: 262px 42px; transform: scale(0) rotate(-30deg); transition: opacity .15s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+.nera2d[data-mood="alert"] .n-alert { opacity: 1; transform: scale(1) rotate(0); animation: n-alertPulse 2s ease-out .45s infinite; }
+
+@keyframes n-breathe { 0%,100% { transform: translateY(0) scale(1,1); } 50% { transform: translateY(-4px) scale(1.01,1.015); } }
+@keyframes n-sway { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes n-antenna { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+@keyframes n-antennaFast { 0%,100% { transform: rotate(-16deg); } 50% { transform: rotate(16deg); } }
+@keyframes n-armIdle { 0%,100% { transform: rotate(3deg); } 50% { transform: rotate(-3deg); } }
+@keyframes n-hop {
+  0% { transform: translateY(0) scale(1.08,.9); }
+  18% { transform: translateY(-4px) scale(.96,1.06); }
+  48% { transform: translateY(-26px) scale(.97,1.04); }
+  78% { transform: translateY(0) scale(1.1,.88); }
+  100% { transform: translateY(0) scale(1.08,.9); }
+}
+@keyframes n-shadowHop { 0%,78%,100% { transform: scaleX(1); opacity: .16; } 48% { transform: scaleX(.72); opacity: .08; } }
+@keyframes n-jump {
+  0% { transform: translateY(0) scale(1,1); }
+  16% { transform: translateY(6px) scale(1.14,.84); }
+  30% { transform: translateY(-30px) scale(.88,1.14); }
+  52% { transform: translateY(-58px) scale(.97,1.03); }
+  76% { transform: translateY(0) scale(1.16,.84); }
+  88% { transform: translateY(-4px) scale(.98,1.03); }
+  100% { transform: translateY(0) scale(1,1); }
+}
+@keyframes n-shadowJump { 0%,76%,100% { transform: scaleX(1); opacity: .16; } 16% { transform: scaleX(1.12); opacity: .2; } 52% { transform: scaleX(.55); opacity: .06; } }
+@keyframes n-kickL { 0%,20%,76%,100% { transform: rotate(0); } 50% { transform: rotate(14deg); } }
+@keyframes n-kickR { 0%,20%,76%,100% { transform: rotate(0); } 50% { transform: rotate(-14deg); } }
+@keyframes n-flapL { from { transform: rotate(-10deg); } to { transform: rotate(14deg); } }
+@keyframes n-flapR { from { transform: rotate(10deg); } to { transform: rotate(-14deg); } }
+@keyframes n-wave { from { transform: rotate(-22deg); } to { transform: rotate(12deg); } }
+@keyframes n-tick { 0%,100% { transform: rotate(10deg); } 50% { transform: rotate(-4deg); } }
+@keyframes n-tap { 0%,60%,100% { transform: rotate(0); } 70% { transform: rotate(-6deg); } 80% { transform: rotate(0); } 90% { transform: rotate(-6deg); } }
+@keyframes n-shake {
+  0% { transform: translateX(0); } 4% { transform: translateX(-8px) rotate(-2deg); } 8% { transform: translateX(8px) rotate(2deg); }
+  12% { transform: translateX(-6px); } 16% { transform: translateX(5px); } 20% { transform: translateX(-2px); } 24%,100% { transform: translateX(0); }
+}
+@keyframes n-antennaShake { 0%,28%,100% { transform: rotate(0); } 6% { transform: rotate(-26deg); } 12% { transform: rotate(22deg); } 18% { transform: rotate(-12deg); } 24% { transform: rotate(6deg); } }
+@keyframes n-talk { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.7); } }
+@keyframes n-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.8); } }
+@keyframes n-sparkle { 0% { transform: scale(0) rotate(0); } 40% { transform: scale(1.3) rotate(45deg); } 100% { transform: scale(0) rotate(90deg) translateY(-6px); } }
+@keyframes n-dot { 0%,100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-4px); opacity: 1; } }
+@keyframes n-alertPulse { 0%,30%,100% { transform: scale(1); } 8% { transform: scale(1.18); } 16% { transform: scale(.95); } }
+@keyframes n-poke { 0% { transform: scale(1.18,.82); } 40% { transform: scale(.92,1.08); } 100% { transform: scale(1,1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .nera2d *, .nera2d { animation: none !important; transition-duration: 0s !important; }
+}
+

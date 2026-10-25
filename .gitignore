@@ -42,3 +42,5 @@ yarn-error.log*
 # agent stuff
 .agents
 .codegraph
+# Deploy secrets
+.env.deploy

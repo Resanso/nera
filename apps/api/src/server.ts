@@ -5,6 +5,7 @@ import { riskRouter } from "./routes/risk";
 import { simulationRouter } from "./routes/simulation";
 import { coachRouter } from "./routes/coach";
 import { bniMockRouter } from "./routes/bni-mock";
+import { emailRouter } from "./routes/email";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use("/api/risk", riskRouter);
 app.use("/api/simulation", simulationRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/bni", bniMockRouter);
+app.use("/api/email", emailRouter);
 
 app.get("/health", (_req, res) => {
   res.json({

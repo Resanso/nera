@@ -1,0 +1,104 @@
+.nera-orb { overflow: visible; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.nera-orb g { transform-box: view-box; }
+
+.nera-orb .o-root, .nera-orb .o-poke { transform-origin: 100px 182px; }
+.nera-orb .o-body { transform-origin: 100px 182px; }
+.nera-orb .o-shadow { transform-box: fill-box; transform-origin: center; }
+.nera-orb .o-antenna { transform-origin: 100px 52px; }
+.nera-orb .o-poke { animation: o-poke .6s cubic-bezier(.34,1.56,.64,1); }
+
+/* expressions */
+.nera-orb .o-eyes-open, .nera-orb .o-eyes-happy, .nera-orb .o-eyes-alert { opacity: 0; transition: opacity .14s ease-out; }
+.nera-orb[data-mood="idle"] .o-eyes-open,
+.nera-orb[data-mood="thinking"] .o-eyes-open,
+.nera-orb[data-mood="happy"] .o-eyes-happy,
+.nera-orb[data-mood="wave"] .o-eyes-happy,
+.nera-orb[data-mood="celebrate"] .o-eyes-happy,
+.nera-orb[data-mood="alert"] .o-eyes-alert { opacity: 1; }
+
+.nera-orb .o-eye, .nera-orb .o-eyes-alert circle { transform-box: fill-box; transform-origin: center; transition: transform .07s ease-out; }
+.nera-orb.is-blink .o-eye, .nera-orb.is-blink .o-eyes-alert circle { transform: scaleY(.1); }
+/* thinking squints a little */
+.nera-orb[data-mood="thinking"] .o-eyes-open { transform-origin: 100px 118px; transform: scaleY(.78); transition: opacity .14s, transform .3s; }
+.nera-orb[data-mood="alert"] .o-eyes-alert { transform-origin: 100px 119px; animation: o-pupil 2s ease-out infinite; }
+
+/* idle: slow breath, a squash you only notice when it stops */
+.nera-orb[data-mood="idle"] .o-body { animation: o-breathe 3s ease-in-out infinite; }
+
+/* wave: no arms, so the whole body rocks hello */
+.nera-orb[data-mood="wave"] .o-body { animation: o-rock .9s ease-in-out infinite; }
+
+/* happy: bouncy hop with squash on landing */
+.nera-orb[data-mood="happy"] .o-root { animation: o-hop .75s ease-in-out infinite; }
+.nera-orb[data-mood="happy"] .o-shadow { animation: o-shadowHop .75s ease-in-out infinite; }
+
+/* celebrate: crouch, launch, full spin, squash */
+.nera-orb[data-mood="celebrate"] .o-root { animation: o-jump 1.2s ease-in-out infinite; }
+.nera-orb[data-mood="celebrate"] .o-body { animation: o-spin 1.2s ease-in-out infinite; transform-origin: 100px 114px; }
+.nera-orb[data-mood="celebrate"] .o-shadow { animation: o-shadowJump 1.2s ease-in-out infinite; }
+
+/* thinking: tilt and hover */
+.nera-orb[data-mood="thinking"] .o-body { animation: o-ponder 2.6s ease-in-out infinite; }
+
+/* alert: recoil (anticipation), then shiver */
+.nera-orb[data-mood="alert"] .o-root { animation: o-startle 2s ease-out infinite; }
+
+/* antenna follow-through per mood */
+.nera-orb[data-mood="idle"] .o-antenna { animation: o-ant 3s ease-in-out .3s infinite; }
+.nera-orb[data-mood="wave"] .o-antenna { animation: o-antFast .9s ease-in-out .12s infinite; }
+.nera-orb[data-mood="happy"] .o-antenna { animation: o-antFast .75s ease-in-out .1s infinite; }
+.nera-orb[data-mood="celebrate"] .o-antenna { animation: o-antFast .4s ease-in-out infinite; }
+.nera-orb[data-mood="thinking"] .o-antenna { animation: o-tick 1.3s ease-in-out infinite; }
+.nera-orb[data-mood="alert"] .o-antenna { animation: o-antShake 2s ease-out infinite; }
+
+/* props */
+.nera-orb .o-sparks, .nera-orb .o-bubble, .nera-orb .o-alert { opacity: 0; transition: opacity .2s; pointer-events: none; }
+.nera-orb[data-mood="celebrate"] .o-sparks { opacity: 1; }
+.nera-orb .o-sparks path { transform-box: fill-box; transform-origin: center; animation: o-spark 1.2s ease-out infinite; }
+.nera-orb .o-bubble { transform-origin: 146px 58px; transform: scale(.4); transition: opacity .2s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+.nera-orb[data-mood="thinking"] .o-bubble { opacity: 1; transform: scale(1); }
+.nera-orb .o-bubble circle[cy="36"] { animation: o-dot .9s ease-in-out infinite; }
+.nera-orb .o-alert { transform-origin: 170px 50px; transform: scale(0) rotate(-30deg); transition: opacity .15s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+.nera-orb[data-mood="alert"] .o-alert { opacity: 1; transform: scale(1) rotate(0); }
+
+@keyframes o-breathe { 0%,100% { transform: scale(1,1); } 50% { transform: scale(1.025,.975); } }
+@keyframes o-rock { 0%,100% { transform: rotate(-10deg) translateY(0); } 50% { transform: rotate(10deg) translateY(-6px); } }
+@keyframes o-hop {
+  0% { transform: translateY(0) scale(1.12,.88); }
+  20% { transform: translateY(-4px) scale(.94,1.08); }
+  50% { transform: translateY(-30px) scale(.97,1.04); }
+  80% { transform: translateY(0) scale(1.14,.86); }
+  100% { transform: translateY(0) scale(1.12,.88); }
+}
+@keyframes o-shadowHop { 0%,80%,100% { transform: scaleX(1); opacity: .08; } 50% { transform: scaleX(.65); opacity: .04; } }
+@keyframes o-jump {
+  0% { transform: translateY(0) scale(1,1); }
+  15% { transform: translateY(6px) scale(1.18,.8); }
+  30% { transform: translateY(-36px) scale(.86,1.16); }
+  55% { transform: translateY(-62px) scale(1,1); }
+  80% { transform: translateY(0) scale(1.2,.8); }
+  90% { transform: translateY(-4px) scale(.97,1.04); }
+  100% { transform: translateY(0) scale(1,1); }
+}
+@keyframes o-spin { 0%,25% { transform: rotate(0); } 70%,100% { transform: rotate(360deg); } }
+@keyframes o-shadowJump { 0%,80%,100% { transform: scaleX(1); opacity: .08; } 15% { transform: scaleX(1.15); opacity: .1; } 55% { transform: scaleX(.5); opacity: .03; } }
+@keyframes o-ponder { 0%,100% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(-5deg) translateY(-5px); } }
+@keyframes o-startle {
+  0% { transform: translateY(0) scale(1,1); }
+  6% { transform: translateY(4px) scale(1.12,.86); }
+  14% { transform: translateY(-10px) scale(.9,1.12); }
+  20% { transform: translateX(-4px) translateY(0) scale(1,1); }
+  24% { transform: translateX(4px); } 28% { transform: translateX(-3px); } 32% { transform: translateX(2px); } 36%,100% { transform: translateX(0); }
+}
+@keyframes o-ant { 0%,100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@keyframes o-antFast { 0%,100% { transform: rotate(-18deg); } 50% { transform: rotate(18deg); } }
+@keyframes o-tick { 0%,100% { transform: rotate(12deg); } 50% { transform: rotate(-4deg); } }
+@keyframes o-antShake { 0%,30%,100% { transform: rotate(0); } 7% { transform: rotate(-28deg); } 13% { transform: rotate(24deg); } 19% { transform: rotate(-12deg); } 25% { transform: rotate(6deg); } }
+@keyframes o-pupil { 0%,100% { transform: scale(1); } 10% { transform: scale(1.25); } 30% { transform: scale(1); } }
+@keyframes o-spark { 0% { transform: scale(0) rotate(0); } 40% { transform: scale(1.3) rotate(45deg); } 100% { transform: scale(0) rotate(90deg) translateY(-6px); } }
+@keyframes o-dot { 0%,100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-3px); opacity: 1; } }
+@keyframes o-poke { 0% { transform: scale(1.22,.78); } 35% { transform: scale(.9,1.1); } 65% { transform: scale(1.04,.96); } 100% { transform: scale(1,1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .nera-orb, .nera-orb * { animation: none !important; transition-duration: 0s !important; }
+}
