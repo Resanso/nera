@@ -27,6 +27,7 @@ export const ALLOWED_SENDERS: Sender[] = [
   { provider: "Flip", domains: ["flip.id"], defaultCategory: "transfer" },
   // other banks' payment notifications: spending that never touches the BNI account
   { provider: "Livin' by Mandiri", domains: ["bankmandiri.co.id"], defaultCategory: "other" },
+  { provider: "Bank Jago", domains: ["jago.com"], defaultCategory: "other" },
 ];
 
 export function findSender(fromDomain: string): Sender | undefined {
