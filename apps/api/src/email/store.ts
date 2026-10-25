@@ -1,3 +1,5 @@
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import type { EmailTransaction } from "./types";
 
 export type GmailConnection = {
@@ -21,15 +23,56 @@ export type ForwardAlias = {
   lastReceivedAt?: string;
 };
 
+type Snapshot = {
+  transactions: [string, EmailTransaction[]][];
+  gmail: [string, GmailConnection][];
+  aliases: [string, ForwardAlias][];
+};
+
 /**
- * In-memory store for the prototype: data is lost on restart.
- * Swap for Postgres (Prisma) before production; keep the same shape and keep
- * refresh tokens encrypted at rest.
+ * Prototype store: in memory, optionally mirrored to a JSON file (EMAIL_STORE_FILE)
+ * so forwarding aliases and Gmail links survive a redeploy. Refresh tokens stay
+ * encrypted in the file. Swap for Postgres (Prisma) before production.
  */
 class EmailStore {
   private transactions = new Map<string, EmailTransaction[]>();
   private gmail = new Map<string, GmailConnection>();
   private aliases = new Map<string, ForwardAlias>();
+  private file = process.env.EMAIL_STORE_FILE;
+  private saveTimer: NodeJS.Timeout | null = null;
+
+  constructor() {
+    if (!this.file) return;
+    try {
+      const snap = JSON.parse(readFileSync(this.file, "utf8")) as Snapshot;
+      this.transactions = new Map(snap.transactions);
+      this.gmail = new Map(snap.gmail);
+      this.aliases = new Map(snap.aliases);
+    } catch {
+      // first run: no file yet
+    }
+  }
+
+  /** Debounced atomic write (temp file + rename) so a crash never leaves half a file. */
+  private persist() {
+    const file = this.file;
+    if (!file || this.saveTimer) return;
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      const snap: Snapshot = {
+        transactions: [...this.transactions],
+        gmail: [...this.gmail],
+        aliases: [...this.aliases],
+      };
+      try {
+        mkdirSync(path.dirname(file), { recursive: true });
+        writeFileSync(`${file}.tmp`, JSON.stringify(snap), { mode: 0o600 });
+        renameSync(`${file}.tmp`, file);
+      } catch (e) {
+        console.error("[email store] gagal menyimpan:", (e as Error).message);
+      }
+    }, 200);
+  }
 
   listTransactions(userId: string): EmailTransaction[] {
     return [...(this.transactions.get(userId) ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
@@ -40,6 +83,7 @@ class EmailStore {
   }
 
   addTransaction(tx: EmailTransaction) {
+    this.persist();
     const list = this.transactions.get(tx.userId) ?? [];
     list.push(tx);
     this.transactions.set(tx.userId, list);
@@ -48,10 +92,12 @@ class EmailStore {
   updateTransaction(userId: string, id: string, patch: Partial<Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending">>) {
     const tx = (this.transactions.get(userId) ?? []).find((t) => t.id === id);
     if (tx) Object.assign(tx, patch);
+    this.persist();
     return tx;
   }
 
   deleteTransactions(userId: string, channel?: EmailTransaction["channel"]) {
+    this.persist();
     if (!channel) return void this.transactions.delete(userId);
     this.transactions.set(userId, (this.transactions.get(userId) ?? []).filter((t) => t.channel !== channel));
   }
@@ -61,10 +107,12 @@ class EmailStore {
   }
 
   setGmail(conn: GmailConnection) {
+    this.persist();
     this.gmail.set(conn.userId, conn);
   }
 
   deleteGmail(userId: string) {
+    this.persist();
     this.gmail.delete(userId);
   }
 
@@ -77,10 +125,12 @@ class EmailStore {
   }
 
   setAlias(a: ForwardAlias) {
+    this.persist();
     this.aliases.set(a.alias.toLowerCase(), a);
   }
 
   deleteAliasForUser(userId: string) {
+    this.persist();
     const a = this.getAliasForUser(userId);
     if (a) this.aliases.delete(a.alias.toLowerCase());
   }

@@ -1,14 +1,18 @@
 # Production-ish deploy behind a host nginx that proxies:
 #   /      -> 127.0.0.1:3100 (web)
 #   /api/  -> 127.0.0.1:4100 (api)
-# Usage: PUBLIC_URL=https://example.com docker compose -f docker-compose.deploy.yml up -d --build
+# The api also receives forwarded receipts over SMTP on host port 25 (option B).
+# Usage:
+#   PUBLIC_URL=https://example.com MAIL_HOST=example.com \
+#     docker compose -f docker-compose.deploy.yml up -d --build
 services:
   web:
     build:
       context: .
       target: web
       args:
-        NEXT_PUBLIC_API_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+        # empty = same origin (/api via nginx), so the site works on any domain
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     ports:
       - "127.0.0.1:3100:3000"
     restart: unless-stopped
@@ -21,8 +25,21 @@ services:
     env_file: .env.deploy
     environment:
       PORT: "4000"
-      WEB_APP_URL: ${PUBLIC_URL}
+      WEB_APP_URL: ${PUBLIC_URL:?set PUBLIC_URL}
       GOOGLE_REDIRECT_URI: ${PUBLIC_URL}/api/email/gmail/callback
+      SMTP_PORT: "2525"
+      SMTP_HOSTNAME: ${MAIL_HOST:?set MAIL_HOST}
+      # certbot's certificate for MAIL_HOST, used for STARTTLS
+      SMTP_TLS_DIR: /etc/letsencrypt/live/${MAIL_HOST}
+      # aliases, Gmail links (tokens encrypted) and imported transactions survive redeploys
+      EMAIL_STORE_FILE: /data/email-store.json
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - nera-data:/data
     ports:
       - "127.0.0.1:4100:4000"
+      - "25:2525"
     restart: unless-stopped
+
+volumes:
+  nera-data:

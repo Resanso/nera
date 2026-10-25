@@ -32,13 +32,32 @@ function gmailConfirmationCode(from: string, subject: string, text: string): str
   return m?.[1] ?? null;
 }
 
-export type InboundOutcome = { status: "unknown_alias" } | { status: "confirmation" } | IngestResult;
+export type InboundOutcome =
+  | { status: "unknown_alias" }
+  | { status: "confirmation" }
+  | { status: "unverified_sender" }
+  | IngestResult;
 
-export async function handleInbound(recipient: string, raw: Buffer): Promise<InboundOutcome> {
+/** Relaxed DMARC-style alignment: mail.gojek.com and gojek.com align both ways. */
+const aligned = (from: string, signer: string) => from === signer || from.endsWith(`.${signer}`) || signer.endsWith(`.${from}`);
+
+/**
+ * @param opts.dkimDomains domains with a passing DKIM signature. When given (our own
+ *   SMTP server), mail whose From domain isn't backed by one of them is dropped.
+ *   The Cloudflare webhook path leaves it undefined, so that path is not DKIM-checked here.
+ */
+export async function handleInbound(
+  recipient: string,
+  raw: Buffer,
+  opts: { dkimDomains?: string[] } = {},
+): Promise<InboundOutcome> {
   const alias = emailStore.getAlias(recipient.trim());
   if (!alias) return { status: "unknown_alias" };
 
   const email = await parseRaw(raw);
+  if (opts.dkimDomains && !opts.dkimDomains.some((d) => aligned(email.fromDomain, d))) {
+    return { status: "unverified_sender" };
+  }
   const code = gmailConfirmationCode(email.from, email.subject, email.text);
   if (code) {
     emailStore.setAlias({ ...alias, status: "confirm", confirmationCode: code });

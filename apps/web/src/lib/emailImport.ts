@@ -1,5 +1,6 @@
 // Client for the API's /api/email endpoints (transaction history from email receipts).
 
+// Empty string in deploys means same origin: nginx serves /api next to the web app.
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 // No auth in the prototype yet; the API falls back to the same demo user.
 export const DEMO_USER = "demo-student";

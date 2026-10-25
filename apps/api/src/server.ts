@@ -6,6 +6,7 @@ import { simulationRouter } from "./routes/simulation";
 import { coachRouter } from "./routes/coach";
 import { bniMockRouter } from "./routes/bni-mock";
 import { emailRouter } from "./routes/email";
+import { startSmtpServer } from "./email/smtp";
 
 dotenv.config();
 
@@ -33,3 +34,6 @@ app.get("/health", (_req, res) => {
 app.listen(port, () => {
   console.log(`[NERA API] Server running on http://localhost:${port}`);
 });
+
+// inbound mail for forwarding addresses; off unless SMTP_PORT is set
+startSmtpServer();
