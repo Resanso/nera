@@ -91,7 +91,12 @@ async function accessToken(userId: string): Promise<string> {
 
 async function gmailGet<T>(token: string, path: string): Promise<T> {
   const res = await fetch(`${GMAIL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Gmail API ${res.status} pada ${path.split("?")[0]}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string; errors?: { reason?: string }[] } } | null;
+    const reason = body?.error?.errors?.[0]?.reason ?? body?.error?.message ?? "unknown";
+    console.error(`[gmail] ${res.status} ${path.split("?")[0].replace(/\/messages\/\w+/, "/messages/:id")}: ${reason}`);
+    throw new Error(`Gmail API ${res.status} (${reason})`);
+  }
   return res.json() as Promise<T>;
 }
 
