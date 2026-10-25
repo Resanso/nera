@@ -62,8 +62,13 @@ const CATEGORY_RULES: [EmailCategory, RegExp][] = [
 ];
 
 const INCOME = /dana masuk|penerimaan dana|kamu menerima|anda menerima|uang masuk|transfer masuk|refund|pengembalian dana|cashback (?:diterima|masuk)/i;
+/**
+ * In the body only phrases that state money arrived count. Store footers mention
+ * "Pengembalian Barang/Dana" and refund policies on every order email (Shopee).
+ */
+const INCOME_BODY = /dana masuk|uang masuk|transfer masuk|dana (?:telah|sudah) (?:dikembalikan|masuk)/i;
 /** Shipping/delivery updates repeat an order that was already paid; never a new payment. */
-export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai/i;
+export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai|sudahkah kamu menerima|sudah menerima pesanan|permintaan pengembalian/i;
 /** Failed or cancelled payments: the money never moved. */
 export const FAILED = /tidak berhasil|\bgagal\b|dibatalkan|ditolak|\bfailed\b|unsuccessful|declined/i;
 /** Money sent to a person or account: not a purchase, kept out of spending totals. */
@@ -107,9 +112,14 @@ function findTotal(text: string): { amount: number; keyword: boolean } | null {
 
 function findMerchant(text: string): string | undefined {
   // whole words only: "penerima" must not match inside "penerimaan dana"
-  const m = text.match(/\b(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)\b\s*[:-]?\s*([^\n]{2,60})/i);
+  // a label: at the start of a line, or followed by ":"/"-". Prose like "dana diteruskan ke
+  // Penjual secara otomatis" or "penjual dapat menagih pajak" is not a merchant field.
+  const m = text.match(
+    /(?:^|\n)[ \t]*(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)\b[ \t]*[:-]?\s*([^\n]{2,60})|\b(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)[ \t]*[:-][ \t]*([^\n]{2,60})/i,
+  );
   // stop at the next label or column gap ("Ayam Geprek  Order ID: ...")
-  return m?.[1].split(/\s{2,}|\b(?:order id|no\.|invoice|booking)\b/i)[0].trim() || undefined;
+  const name = (m?.[1] ?? m?.[2])?.split(/\s{2,}|\b(?:order id|no\.|invoice|booking)\b/i)[0].trim();
+  return name && !/^(?:secara|akan|dapat|yang|untuk|dan|atau|di|ke|dari)\b/i.test(name) ? name : undefined;
 }
 
 /** "Kamu telah membayar ke MyTelkomsel Apps💸" -> "MyTelkomsel Apps" (bank payment notifications). */
@@ -144,7 +154,7 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
   const kind = kindFromSubject(email.subject);
   return {
     amount: total.amount,
-    type: kind === "income" || INCOME.test(haystack) ? "income" : "expense",
+    type: kind === "income" || INCOME_BODY.test(email.text) ? "income" : "expense",
     merchant: merchant ?? provider,
     category: kind && kind !== "income" ? kind : ((merchant ? categorizeMerchant(merchant) : null) ?? categorize(haystack, fallback)),
     externalRef,
