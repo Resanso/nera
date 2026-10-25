@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
-import { POCKET_CATEGORIES, useEmailSpending } from "../../../lib/emailSpending";
+import { POCKET_CATEGORIES, suggestPockets, useEmailSpending, type PocketSuggestion } from "../../../lib/emailSpending";
 import { PeriodFilter, periodRange } from "../../../components/insights/PeriodFilter";
 import { presetPeriod, type Period } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
@@ -246,6 +246,8 @@ const spendingStatus = (pct: number) => {
   return null;
 };
 
+const DISMISSED_KEY = "nera-pocket-suggestions-dismissed";
+
 const pocketSubtitle = (pocket: BudgetPocket) =>
   pocket.kind === "saving" ? "Kantong Tabungan" : "Kantong Belanja";
 
@@ -258,6 +260,7 @@ export default function PocketsPage() {
     withdrawFromBudgetPocket,
     spendFromBudgetPocket,
     deleteBudgetPocket,
+    setBudgetPocketTarget,
   } = useFinancialStore();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -323,6 +326,39 @@ export default function PocketsPage() {
   const uncoveredTotal = uncovered.reduce((sum, c) => sum + c.amount, 0);
 
   const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(forPeriod);
+
+  // pocket suggestions from email history; "Nanti" hides one on this device only
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setDismissed(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"));
+    } catch {}
+  }, []);
+  const dismiss = (key: string) => {
+    const next = [...dismissed, key];
+    setDismissed(next);
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
+    } catch {}
+  };
+  const suggestions = useMemo(
+    () => (emailSpending.ready ? suggestPockets(emailSpending.spends, budgetPockets).filter((x) => !dismissed.includes(x.key)) : []),
+    [emailSpending.ready, emailSpending.spends, budgetPockets, dismissed],
+  );
+  const applySuggestion = (x: PocketSuggestion) => {
+    if (x.kind === "raise") {
+      setBudgetPocketTarget(x.pocketId, x.budget);
+      triggerToast(`Budget ${x.name} jadi ${formatRupiah(x.budget)}/bulan`);
+      return;
+    }
+    resetCreateForm();
+    setNewKind("spending");
+    setNewName(x.name);
+    setNewIcon(x.icon);
+    setNewTone(x.tone);
+    setNewTarget(x.budget.toLocaleString("id-ID"));
+    setIsCreateOpen(true);
+  };
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
   const selectedPocket = budgetPockets.find((p) => p.id === selectedId) ?? null;
 
@@ -625,21 +661,41 @@ export default function PocketsPage() {
                     </div>
                     <div className="mt-auto w-full pt-6">
                       <p className={cn("truncate text-[15px] font-bold", tone.title)}>{pocket.name}</p>
-                      <p
-                        className={cn(
-                          "mt-0.5 text-[18px] font-bold leading-tight tabular-nums",
-                          tone.title
-                        )}
-                      >
-                        {money(pocket.balance)}
-                      </p>
-                      <p className={cn("mt-1 text-[11px] font-medium", tone.muted)}>
-                        {pocketSubtitle(pocket)}
-                      </p>
-                      {showBalances && pocket.kind === "spending" && periodEmail.spentForPocket(pocket.icon) > 0 && (
-                        <p className={cn("mt-0.5 text-[10px] font-medium", tone.muted)}>
-                          +{formatRupiahShort(periodEmail.spentForPocket(pocket.icon))} dari email {emailLabel}
-                        </p>
+                      {pocket.kind === "spending" ? (
+                        // spending pockets lead with what was used (BNI + email) against the
+                        // budget; the BNI balance is the second figure
+                        (() => {
+                          const p = forPeriod(pocket);
+                          const pct = p.targetAmount > 0 ? Math.round((p.spentThisMonth / p.targetAmount) * 100) : 0;
+                          const over = pct >= 100;
+                          return (
+                            <>
+                              <p className={cn("mt-1.5 text-[10px] font-medium", tone.muted)}>Terpakai {emailLabel}</p>
+                              <p className={cn("text-[18px] font-bold leading-tight tabular-nums", tone.title)}>
+                                {money(p.spentThisMonth)}
+                              </p>
+                              <div className={cn("mt-1.5 h-1.5 w-full overflow-hidden rounded-full", tone.track)}>
+                                <div
+                                  className={cn("h-full rounded-full transition-[width] duration-500", over ? "bg-[#C43737]" : tone.fill)}
+                                  style={{ width: `${Math.min(100, pct)}%` }}
+                                />
+                              </div>
+                              <p className={cn("mt-1 text-[10px] font-medium tabular-nums", over ? "font-bold text-[#A92F2F]" : tone.muted)}>
+                                {showBalances ? `${pct}% dari ${formatRupiahShort(p.targetAmount)}` : `${pct}% budget`}
+                              </p>
+                              <p className={cn("mt-1.5 text-[10px] font-medium", tone.muted)}>
+                                Saldo <span className="font-bold tabular-nums">{money(pocket.balance)}</span>
+                              </p>
+                            </>
+                          );
+                        })()
+                      ) : (
+                        <>
+                          <p className={cn("mt-0.5 text-[18px] font-bold leading-tight tabular-nums", tone.title)}>
+                            {money(pocket.balance)}
+                          </p>
+                          <p className={cn("mt-1 text-[11px] font-medium", tone.muted)}>{pocketSubtitle(pocket)}</p>
+                        </>
                       )}
                     </div>
                   </button>
@@ -673,6 +729,65 @@ export default function PocketsPage() {
               </button>
             </div>
           </section>
+
+        {/* SUGGESTIONS: below the grid so pockets stay first; one swipeable row */}
+        {suggestions.length > 0 && activeFilter !== "investment" && (
+          <section aria-label="Rekomendasi kantong">
+            <div className="mb-2 flex items-center gap-2">
+              <NeraOrb mood="happy" size={28} still trackPointer={false} />
+              <div className="min-w-0">
+                <h3 className="text-[14px] font-bold text-[#2F240E]">Rekomendasi Nera</h3>
+                <p className="text-[11px] text-[#736B60]">Dari riwayat transaksi email 3 bulan terakhir</p>
+              </div>
+            </div>
+            <ul className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+              {suggestions.map((x) => {
+                const Icon = POCKET_ICONS[x.kind === "create" ? x.icon : budgetPockets.find((p) => p.id === x.pocketId)?.icon ?? "food"];
+                return (
+                  <li
+                    key={x.key}
+                    className={cn("flex shrink-0 snap-start flex-col rounded-[20px] bg-white p-3.5", suggestions.length > 1 ? "w-[82%]" : "w-full")}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#FFF0BD] text-[#6D4C00]">
+                        <Icon size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-[#2F240E]">
+                          {x.kind === "create" ? `Buat kantong ${x.name}` : `Sesuaikan budget ${x.name}`}
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-[#736B60]">
+                          {x.kind === "create"
+                            ? `Rata-rata ${formatRupiah(Math.round(x.monthlyAvg))}/bulan keluar untuk ini, belum ada kantongnya.`
+                            : `Budget ${formatRupiah(x.current)}, padahal rata-rata ${formatRupiah(Math.round(x.monthlyAvg))}/bulan.`}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2.5 rounded-xl bg-[#F7F7F7] px-3 py-2 text-[11px] text-[#736B60]">
+                      Saran budget <b className="tabular-nums text-[#2F240E]">{formatRupiah(x.budget)}/bulan</b> · 10% di bawah rata-rata
+                    </p>
+                    <div className="mt-2.5 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => dismiss(x.key)}
+                        className="h-9 flex-1 rounded-xl text-[12px] font-semibold text-[#736B60] hover:bg-[#F7F5F0]"
+                      >
+                        Nanti
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applySuggestion(x)}
+                        className="h-9 flex-[2] rounded-xl bg-[#FFB900] text-[12px] font-semibold text-[#352500] hover:bg-[#E6A700]"
+                      >
+                        {x.kind === "create" ? "Buat kantong" : `Ubah ke ${formatRupiahShort(x.budget)}`}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
         {/* BUDGET SUMMARY */}
         {spendingPockets.length > 0 && (

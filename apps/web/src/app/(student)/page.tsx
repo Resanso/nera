@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
-import { useEmailSpending } from "../../lib/emailSpending";
+import { useEmailSpending, weeklyJump } from "../../lib/emailSpending";
 import { NeraOrb } from "../../components/mascot/NeraOrb";
 import type { NeraMood } from "../../components/mascot/moods";
 import type { EmailCategory } from "../../lib/emailImport";
@@ -139,6 +139,16 @@ export default function HomePage() {
   // "Transaksi Terakhir": BNI transactions plus receipts imported from email, newest first.
   // Kept separate from recentTransactions, which lists Daily Pocket (BNI) activity only.
   const emailSpending = useEmailSpending();
+  // email-based nudges; the email data only exists for users who agreed to email import,
+  // and it never feeds the score or the runway (those stay on BNI data)
+  const jump = useMemo(() => (emailSpending.ready ? weeklyJump(emailSpending.spends) : null), [emailSpending.ready, emailSpending.spends]);
+  const hasEmailData = emailSpending.ready && emailSpending.spends.length > 0;
+  const overBudget = budgetPockets
+    .filter((p) => p.kind === "spending" && p.targetAmount > 0)
+    .map((p) => ({ name: p.name, pct: Math.round(((p.spentThisMonth + emailSpending.spentForPocket(p.icon)) / p.targetAmount) * 100) }))
+    .filter((p) => p.pct >= 90)
+    .sort((a, b) => b.pct - a.pct);
+
   const combinedRecent = useMemo(
     () =>
       [
@@ -705,20 +715,56 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Weekly Spending Insight */}
-            <div className="p-4 flex gap-3.5">
-              <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
-                <Coffee size={21} strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-[#2F240E]">
-                  Pengeluaran Jajan Naik
-                </h4>
-                <p className="text-xs text-[#736B60] leading-relaxed mt-1">
-                  Minggu ini jajan QRIS naik Rp85.000 dari rata-rata. Atur ritme belanjamu.
-                </p>
-              </div>
-            </div>
+            {/* Pockets at or over budget, counting email spending too */}
+            {overBudget.length > 0 && (
+              <Link href="/pockets" className="p-4 flex gap-3.5 transition-colors hover:bg-[#FFFBF0]">
+                <div className="w-10 h-10 rounded-[13px] bg-[#FBE4DE] text-[#A92F2F] flex items-center justify-center shrink-0 mt-0.5">
+                  <Wallet size={21} strokeWidth={2} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-[#2F240E]">
+                    {overBudget[0].pct >= 100 ? `Budget ${overBudget[0].name} terlewati` : `Budget ${overBudget[0].name} hampir habis`}
+                  </h4>
+                  <p className="text-xs text-[#736B60] leading-relaxed mt-1">
+                    Sudah {overBudget[0].pct}% terpakai bulan ini
+                    {hasEmailData ? ", termasuk pengeluaran dari email" : ""}
+                    {overBudget.length > 1 ? `. ${overBudget.length - 1} kantong lain juga di atas 90%.` : "."} Lihat rekomendasi budget di Kantong.
+                  </p>
+                </div>
+                <ChevronRight size={18} className="text-[#A89F90] shrink-0 self-center" />
+              </Link>
+            )}
+
+            {/* Weekly Spending Insight: from email receipts when there are any, the demo nudge otherwise */}
+            {jump ? (
+              <Link href="/email" className="p-4 flex gap-3.5 transition-colors hover:bg-[#FFFBF0]">
+                <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
+                  <Coffee size={21} strokeWidth={2} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-[#2F240E]">Pengeluaran {jump.label} Naik</h4>
+                  <p className="text-xs text-[#736B60] leading-relaxed mt-1">
+                    7 hari terakhir {formatRupiah(jump.thisWeek)}, {formatRupiah(Math.round(jump.delta))} di atas rata-rata
+                    mingguanmu ({formatRupiah(Math.round(jump.avgWeek))}). Dari struk email.
+                  </p>
+                </div>
+                <ChevronRight size={18} className="text-[#A89F90] shrink-0 self-center" />
+              </Link>
+            ) : (
+              !hasEmailData && (
+                <div className="p-4 flex gap-3.5">
+                  <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
+                    <Coffee size={21} strokeWidth={2} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold text-[#2F240E]">Pengeluaran Jajan Naik</h4>
+                    <p className="text-xs text-[#736B60] leading-relaxed mt-1">
+                      Minggu ini jajan QRIS naik Rp85.000 dari rata-rata. Atur ritme belanjamu.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
           </div>
         </section>
 

@@ -36,8 +36,9 @@ const sections: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <p>
-          Hanya untuk fitur yang kamu lihat: riwayat transaksi, pemakaian kantong, analisis &quot;Ke mana uangku?&quot; dan
-          saran di chatbot Nera.
+          Hanya untuk fitur yang kamu lihat: riwayat transaksi, grafik, pemakaian dan rekomendasi kantong, Insight Nera di
+          Beranda, analisis &quot;Ke mana uangku?&quot; dan saran di chatbot Nera. Skor kondisi keuangan dan estimasi
+          &quot;uangmu bertahan&quot; tetap dihitung dari data BNI saja.
         </p>
         <p>
           Data dari email <strong>tidak</strong> dipakai untuk penilaian kredit, keputusan pinjaman, penawaran produk

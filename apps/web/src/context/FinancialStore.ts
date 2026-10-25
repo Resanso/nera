@@ -63,6 +63,7 @@ export interface FinancialStoreState extends FinancialStateData {
   withdrawFromBudgetPocket: (pocketId: string, amount: number) => void;
   spendFromBudgetPocket: (pocketId: string, amount: number, title: string) => void;
   deleteBudgetPocket: (pocketId: string) => void;
+  setBudgetPocketTarget: (pocketId: string, targetAmount: number) => void;
 }
 
 const POCKET_TX_CATEGORY: Record<BudgetPocket["icon"], Transaction["category"]> = {
@@ -553,6 +554,13 @@ export const useFinancialStore = create<FinancialStoreState>()(
         }));
 
         if (pocket.balance > 0) get().recalculateState();
+      },
+
+      // only the budget/target changes; no money moves
+      setBudgetPocketTarget: (pocketId: string, targetAmount: number) => {
+        set((s) => ({
+          budgetPockets: s.budgetPockets.map((p) => (p.id === pocketId ? { ...p, targetAmount: Math.max(0, targetAmount) } : p)),
+        }));
       },
 
       resetToDefault: () => {
