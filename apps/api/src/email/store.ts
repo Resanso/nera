@@ -57,6 +57,19 @@ export interface EmailStore {
   /** false when (user, messageHash) already exists, e.g. two syncs racing on the same email */
   addTransaction(tx: EmailTransaction): Promise<boolean>;
   updateTransaction(userId: string, id: string, patch: TransactionPatch): Promise<EmailTransaction | undefined>;
+  /**
+   * Swap in a re-import that was written under a staging id: in one step, the user's
+   * `channel` transactions created before `before` are replaced by the staged ones.
+   * Rows created after `before` (new mail during the re-import) are kept. With
+   * `providers`, only those providers' rows are replaced (a targeted re-import).
+   */
+  adoptTransactions(
+    stagingId: string,
+    userId: string,
+    channel: EmailTransaction["channel"],
+    before: string,
+    providers?: string[],
+  ): Promise<void>;
   /** `account` narrows Gmail transactions to one linked mailbox. */
   deleteTransactions(userId: string, channel?: EmailTransaction["channel"], account?: string): Promise<void>;
 
@@ -130,6 +143,18 @@ class MemoryStore implements EmailStore {
       userId,
       (this.transactions.get(userId) ?? []).filter((t) => t.channel !== channel || (account !== undefined && t.account !== account)),
     );
+  }
+
+  async adoptTransactions(stagingId: string, userId: string, channel: EmailTransaction["channel"], before: string, providers?: string[]) {
+    const replaced = (t: EmailTransaction) => t.channel === channel && t.createdAt < before && (!providers || providers.includes(t.provider));
+    const kept = (this.transactions.get(userId) ?? []).filter((t) => !replaced(t));
+    const hashes = new Set(kept.map((t) => t.messageHash));
+    // a targeted search can match other providers' mail too; only the targeted ones move
+    const staged = (this.transactions.get(stagingId) ?? [])
+      .filter((t) => !hashes.has(t.messageHash) && (!providers || providers.includes(t.provider)))
+      .map((t) => ({ ...t, userId }));
+    this.transactions.set(userId, [...kept, ...staged]);
+    this.transactions.delete(stagingId);
   }
 
   async getGmail(userId: string, account: string) {
@@ -328,6 +353,37 @@ class PgStore implements EmailStore {
       await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2 and data->>'account' = $3", [userId, channel, account]);
     else if (channel) await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2", [userId, channel]);
     else await this.q("delete from nera_email_transactions where user_id = $1", [userId]);
+  }
+
+  async adoptTransactions(stagingId: string, userId: string, channel: EmailTransaction["channel"], before: string, providers?: string[]) {
+    await this.ready;
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      await c.query(
+        `delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2 and data->>'createdAt' < $3
+           and ($4::text[] is null or data->>'provider' = any($4))`,
+        [userId, channel, before, providers ?? null],
+      );
+      // an email kept above (arrived during the re-import) wins over its staged copy, and a
+      // targeted search can match other providers' mail too: only the targeted ones move
+      await c.query(
+        `delete from nera_email_transactions s where s.user_id = $1
+           and (exists (select 1 from nera_email_transactions t where t.user_id = $2 and t.message_hash = s.message_hash)
+             or ($3::text[] is not null and not (s.data->>'provider' = any($3))))`,
+        [stagingId, userId, providers ?? null],
+      );
+      await c.query(
+        "update nera_email_transactions set user_id = $2, data = jsonb_set(data, '{userId}', to_jsonb($2::text)) where user_id = $1",
+        [stagingId, userId],
+      );
+      await c.query("commit");
+    } catch (e) {
+      await c.query("rollback");
+      throw e;
+    } finally {
+      c.release();
+    }
   }
 
   private toGmail(r: {

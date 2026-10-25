@@ -206,13 +206,24 @@ async function runSync(userId: string, { days = 90, max = 100, account, onProgre
 
 async function syncMailbox(
   conn: GmailConnection,
-  o: { days: number; max: number; seen: Set<string>; allowAI: boolean; results: IngestResult[]; onProgress?: (done: SyncSummary) => void },
+  o: {
+    days: number;
+    max: number;
+    seen: Set<string>;
+    allowAI: boolean;
+    results: IngestResult[];
+    onProgress?: (done: SyncSummary) => void;
+    /** re-import: write under this id instead of the user's, and leave "seen" alone */
+    into?: string;
+    /** Gmail search instead of all allowed senders (targeted re-import) */
+    query?: string;
+  },
 ): Promise<number> {
   const token = await accessToken(conn);
   const ids: string[] = [];
   let pageToken: string | undefined;
   do {
-    const q = new URLSearchParams({ q: gmailSenderQuery(o.days), maxResults: "100" });
+    const q = new URLSearchParams({ q: o.query ? `(${o.query}) newer_than:${o.days}d` : gmailSenderQuery(o.days), maxResults: "100" });
     if (pageToken) q.set("pageToken", pageToken);
     const page = await gmailGet<{ messages?: { id: string }[]; nextPageToken?: string }>(token, `/messages?${q}`);
     for (const m of page.messages ?? []) if (!o.seen.has(m.id)) ids.push(m.id);
@@ -225,19 +236,68 @@ async function syncMailbox(
     for (const id of todo) {
       const m = await gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`);
       o.results.push(
-        await ingestEmail(Buffer.from(m.raw, "base64url"), { userId: conn.userId, channel: "gmail", account: conn.account, allowAI: o.allowAI }),
+        await ingestEmail(Buffer.from(m.raw, "base64url"), {
+          userId: o.into ?? conn.userId,
+          channel: "gmail",
+          account: conn.account,
+          allowAI: o.allowAI,
+        }),
       );
       // recorded per message, so a failed sync resumes where it stopped
-      await emailStore.markGmailSeen(conn.userId, id);
+      if (!o.into) await emailStore.markGmailSeen(conn.userId, id);
       o.seen.add(id);
       o.onProgress?.({ scanned: o.results.length, ...summarize(o.results) });
     }
   } finally {
     // re-read the connection so a disconnect during the run isn't undone
-    const latest = await emailStore.getGmail(conn.userId, conn.account);
+    const latest = o.into ? undefined : await emailStore.getGmail(conn.userId, conn.account);
     if (latest) await emailStore.setGmail({ ...latest, lastSyncAt: new Date().toISOString() });
   }
   return todo.length;
+}
+
+/**
+ * Re-read linked mailboxes with the current parser without the user seeing an empty
+ * history: emails are imported under a staging id, then swapped in at once.
+ *
+ * Prefer fixing rows in the database when the stored fields are enough to tell what is
+ * wrong. Re-import only what needs the email itself, scoped with `target`: a Gmail
+ * search (`query`) plus the providers whose rows it replaces. Corrections the user made
+ * by hand on replaced rows are lost (raw emails are never stored).
+ */
+export async function reimportGmail(
+  userId: string,
+  days: number,
+  target?: { query: string; providers: string[] },
+  onProgress?: (done: SyncSummary) => void,
+): Promise<SyncSummary> {
+  await requireConsent(userId, "email_import");
+  const conns = await emailStore.listGmailFor(userId);
+  if (!conns.length) throw new Error("Gmail belum terhubung");
+  const allowAI = await hasConsent(userId, "ai_processing");
+  const staging = `${userId}~reimport`;
+  // a staging set left by an interrupted run starts over
+  await emailStore.deleteTransactions(staging);
+  const startedAt = new Date().toISOString();
+
+  const results: IngestResult[] = [];
+  let scanned = 0;
+  for (const conn of conns) {
+    scanned += await syncMailbox(conn, {
+      days,
+      max: Number.MAX_SAFE_INTEGER,
+      seen: new Set(),
+      allowAI,
+      results,
+      onProgress,
+      into: staging,
+      query: target?.query,
+    });
+  }
+  await reconcile(staging);
+  await emailStore.adoptTransactions(staging, userId, "gmail", startedAt, target?.providers);
+  await reconcile(userId);
+  return { scanned, ...summarize(results) };
 }
 
 // ---- "Ambil riwayat lebih lama": backfill beyond the regular 90-day window ----
