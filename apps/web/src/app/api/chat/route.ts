@@ -91,6 +91,69 @@ function getSimulatedRecoveryReply(userPrompt: string, context?: string): string
   );
 }
 
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+};
+
+/**
+ * MAIA Router (OpenAI-compatible) as the second AI backend, used when no Google key is
+ * set. Re-emits its streamed deltas in this route's `data: {"text": ...}` format.
+ */
+async function streamFromMaia(messages: Array<{ role: string; content: string }>, system: string): Promise<ReadableStream | null> {
+  const key = process.env.MAIA_API_KEY;
+  if (!key) return null;
+  const base = process.env.MAIA_BASE_URL || "https://api.maiarouter.ai/v1";
+  const model = process.env.MAIA_MODEL || "xai/grok-4-1-fast-non-reasoning";
+  const res = await fetch(`${base}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 1024,
+      messages: [
+        { role: "system", content: system },
+        ...messages.filter((m) => m.role === "user" || m.role === "assistant"),
+      ],
+    }),
+  });
+  if (!res.ok || !res.body) return null;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      let buffer = "";
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            const data = line.trim().replace(/^data:\s*/, "");
+            if (!data || data === "[DONE]" || !line.trim().startsWith("data:")) continue;
+            try {
+              const text = JSON.parse(data)?.choices?.[0]?.delta?.content;
+              if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+            } catch {
+              // partial or non-JSON line: skip
+            }
+          }
+        }
+      } finally {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      }
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -231,6 +294,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Fallback: Simulated text streaming token-by-token (Direct answer, reasoning turned off)
+    const maiaStream = await streamFromMaia(messages, NERA_RECOVERY_SYSTEM_PROMPT + contextBlock(userContext)).catch(() => null);
+    if (maiaStream) return new Response(maiaStream, { headers: SSE_HEADERS });
+
     const fallbackText = getSimulatedRecoveryReply(lastUserMessage, userContext);
     const words = fallbackText.split(/(\s+)/);
 

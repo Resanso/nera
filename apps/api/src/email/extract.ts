@@ -152,15 +152,16 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
   };
 }
 
+const CATEGORIES = ["food", "transport", "shopping", "bills", "entertainment", "education", "topup", "transfer", "other"] as const;
+
+// Models vary: null for missing fields, "49000" as a string, "Food" capitalized. Accept all of that.
 const AiResult = z.object({
   isTransaction: z.boolean(),
-  amount: z.number().nonnegative().optional(),
-  type: z.enum(["expense", "income"]).optional(),
-  merchant: z.string().max(80).optional(),
-  category: z
-    .enum(["food", "transport", "shopping", "bills", "entertainment", "education", "topup", "transfer", "other"])
-    .optional(),
-  externalRef: z.string().max(40).optional(),
+  amount: z.coerce.number().nonnegative().nullish(),
+  type: z.enum(["expense", "income"]).nullish().catch(null),
+  merchant: z.string().max(80).nullish().catch(null),
+  category: z.preprocess((v) => (typeof v === "string" ? v.toLowerCase() : v), z.enum(CATEGORIES).nullish().catch(null)),
+  externalRef: z.string().max(40).nullish().catch(null),
 });
 
 const AI_SYSTEM = `Kamu mengekstrak transaksi dari email struk/notifikasi pembayaran berbahasa Indonesia atau Inggris.
@@ -181,7 +182,7 @@ export async function extractWithAI(email: ParsedEmail, provider: string): Promi
     type: d.type ?? "expense",
     merchant: d.merchant || provider,
     category: d.category ?? "other",
-    externalRef: d.externalRef,
+    externalRef: d.externalRef || undefined,
     // the model is a second opinion; keep it out of totals until the user confirms
     confidence: 0.65,
     extractedBy: "ai",

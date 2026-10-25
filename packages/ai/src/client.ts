@@ -8,10 +8,13 @@ export interface MaiaClientOptions {
 export class MaiaAIClient {
   private apiKey: string;
   private baseUrl: string;
+  private model: string;
 
   constructor(options?: MaiaClientOptions) {
     this.apiKey = options?.apiKey || process.env.MAIA_API_KEY || "";
-    this.baseUrl = options?.baseUrl || process.env.MAIA_BASE_URL || "https://router.maia.id/v1";
+    this.baseUrl = options?.baseUrl || process.env.MAIA_BASE_URL || "https://api.maiarouter.ai/v1";
+    // provider-prefixed ids ("xai/...", "openai/..."); see GET {baseUrl}/models
+    this.model = process.env.MAIA_MODEL || "xai/grok-4-1-fast-non-reasoning";
   }
 
   async generateChatResponse(messages: { role: "system" | "user" | "assistant"; content: string }[]): Promise<string> {
@@ -27,7 +30,7 @@ export class MaiaAIClient {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: this.model,
           messages: [
             { role: "system", content: NERA_SYSTEM_PROMPT },
             ...messages,
@@ -66,7 +69,7 @@ export class MaiaAIClient {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: this.model,
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },

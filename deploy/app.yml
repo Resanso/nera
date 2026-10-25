@@ -4,6 +4,13 @@
 services:
   web:
     image: nera-web:${TAG:?set TAG}
+    # the chatbot route (/api/chat) runs in the web app; give it only the AI settings
+    environment:
+      MAIA_API_KEY: ${MAIA_API_KEY:-}
+      MAIA_BASE_URL: ${MAIA_BASE_URL:-https://api.maiarouter.ai/v1}
+      MAIA_MODEL: ${MAIA_MODEL:-xai/grok-4-1-fast-non-reasoning}
+      GOOGLE_AI_STUDIO_API_KEY: ${GOOGLE_AI_STUDIO_API_KEY:-}
+      GEMMA_MODEL: ${GEMMA_MODEL:-gemma-4-26b-a4b-it}
     ports:
       - "127.0.0.1:${WEB_PORT:?set WEB_PORT}:3000"
     networks: [nera-net]
