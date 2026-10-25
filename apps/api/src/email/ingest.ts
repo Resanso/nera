@@ -39,6 +39,15 @@ export async function parseRaw(raw: Buffer | string): Promise<ParsedEmail> {
   };
 }
 
+/** "MCDONALD&#39;S" -> "MCDONALD'S"; some receipts double-escape entities. */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 
 /**
@@ -77,7 +86,7 @@ export async function ingestEmail(
     origin: "EMAIL",
     channel: opts.channel,
     provider: sender.provider,
-    merchant: x.merchant,
+    merchant: decodeEntities(x.merchant),
     amount: x.amount,
     currency: "IDR",
     type: x.type,

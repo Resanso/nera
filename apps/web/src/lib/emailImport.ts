@@ -64,7 +64,36 @@ export const authApi = {
   loginUrl: (returnTo: string) => `${API_URL}/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`,
 };
 
+export type MoneyInsights = {
+  month: string;
+  daysElapsed: number;
+  daysInMonth: number;
+  total: number;
+  count: number;
+  lastMonthSamePeriod: number;
+  projectedMonthEnd: number;
+  byCategory: { category: EmailCategory; label: string; amount: number; share: number; lastMonth: number; count: number }[];
+  topMerchants: { name: string; amount: number; count: number; category: EmailCategory }[];
+  biggest: { merchant: string; amount: number; date: string; provider: string }[];
+  smallPurchases: { count: number; total: number };
+  notCounted: { transfersOut: number; topups: number; income: number; needsReview: number };
+  narrative: { summary: string; insights: string[]; tips: string[] };
+  generatedBy: "ai" | "rules";
+};
+
+/** Insights as plain text, for the chatbot's context. */
+export function insightsAsContext(i: MoneyInsights): string {
+  const rp = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`;
+  return [
+    `Pengeluaran di luar BNI bulan ini (${i.daysElapsed}/${i.daysInMonth} hari): ${rp(i.total)} dari ${i.count} transaksi; periode sama bulan lalu ${rp(i.lastMonthSamePeriod)}; proyeksi akhir bulan ${rp(i.projectedMonthEnd)}.`,
+    `Per kategori: ${i.byCategory.map((c) => `${c.label} ${rp(c.amount)} (${Math.round(c.share * 100)}%)`).join(", ")}.`,
+    `Merchant teratas: ${i.topMerchants.map((m) => `${m.name} ${rp(m.amount)} (${m.count}x)`).join(", ")}.`,
+    `Jajan kecil <Rp30.000: ${i.smallPurchases.count}x, ${rp(i.smallPurchases.total)}. Transfer keluar (tidak dihitung): ${rp(i.notCounted.transfersOut)}.`,
+  ].join("\n");
+}
+
 export const emailApi = {
+  insights: () => call<MoneyInsights>("/email/insights"),
   status: () => call<EmailStatus>("/email/status"),
   transactions: () => call<EmailTransaction[]>("/email/transactions"),
   importDemo: () => call<SyncSummary>("/email/demo/import", { method: "POST" }),

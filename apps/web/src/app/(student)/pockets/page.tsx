@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
-import { useEmailSpending } from "../../../lib/emailSpending";
+import { POCKET_CATEGORIES, useEmailSpending } from "../../../lib/emailSpending";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
@@ -290,6 +290,12 @@ export default function PocketsPage() {
   const spentFromEmail = budgetPockets
     .filter((p) => p.kind === "spending")
     .reduce((sum, p) => sum + emailSpending.spentForPocket(p.icon), 0);
+  // email spending in categories no pocket covers, so this page adds up with /email
+  const coveredIcons = new Set(budgetPockets.filter((p) => p.kind === "spending").map((p) => p.icon));
+  const uncovered = emailSpending.byCategory.filter(
+    (c) => !Object.entries(POCKET_CATEGORIES).some(([icon, cats]) => coveredIcons.has(icon as BudgetPocket["icon"]) && cats?.includes(c.category)),
+  );
+  const uncoveredTotal = uncovered.reduce((sum, c) => sum + c.amount, 0);
 
   const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(withEmail);
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
@@ -657,6 +663,11 @@ export default function PocketsPage() {
                     {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
                     {spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
                   </p>
+                  {uncoveredTotal > 0 && (
+                    <p className="text-[10px] text-[#736B60]">
+                      {formatRupiah(uncoveredTotal)} dari email belum masuk kantong ({uncovered.map((c) => c.label).join(", ")})
+                    </p>
+                  )}
                 </div>
               </div>
               <span className="text-[12px] font-bold tabular-nums text-[#2F240E]">

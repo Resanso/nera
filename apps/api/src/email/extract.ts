@@ -31,6 +31,25 @@ const TOTAL_KEYWORDS = [
 
 const AMOUNT = /(?:Rp|IDR)\s?\.?\s?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?|\d+(?:[.,]\d{2})?)/i;
 
+/**
+ * The payee name is the most precise signal ("MIE AYAM BAKSO JABRIG", "YOGYA BOJONGSOANG"),
+ * so it is checked before the email body. Order matters: first match wins.
+ */
+const MERCHANT_RULES: [EmailCategory, RegExp][] = [
+  // "kampus" alone is too broad ("Warung Kopi Kampus"); match institutions and fees instead
+  ["education", /universit|institut|politeknik|telkom univ|\bukt\b|\bkursus\b|course|udemy|coursera|sekolah|\bbimbel\b/i],
+  ["bills", /biznet|indihome|first ?media|\bmyrepublic\b|telkomsel|indosat|\bxl\b|smartfren|\bpln\b|pdam|bpjs|\blistrik\b|laundry/i],
+  ["food", /warung|waroeng|warkop|\bkopi\b|coffee|\bcafe\b|\bkafe\b|resto|restaurant|\bbakso\b|\bmie\b|\bmi ayam\b|\bayam\b|geprek|\bnasi\b|\bsate\b|\bsoto\b|martabak|\broti\b|bakery|seblak|crisbar|\bkfc\b|mcdonald|\bmcd\b|subway|\bsbux\b|starbucks|chatime|mixue|janji jiwa|kenangan|hokben|pizza|burger|kebab|kabobs|dbesto|dimsum|\bboba\b|\bjuice\b|kuliner|\bfood\b|gofood|grabfood|shopeefood/i],
+  ["shopping", /yogya|indomaret|\bidm\b|alfamart|alfamidi|superindo|hypermart|transmart|lotte ?mart|\bgiant\b|sembako|minimarket|\bmarket\b|\btoko\b|\bstore\b|\bkios\b|oleh|tokopedia|shopee|lazada|blibli|\bmall\b/i],
+  ["transport", /\bgrab\b|gojek|bluebird|\bkrl\b|\bkai\b|\bmrt\b|\blrt\b|parkir|\bspbu\b|pertamina|\bshell\b|transjakarta/i],
+  ["entertainment", /billiard|bioskop|cinema|\bxxi\b|\bcgv\b|netflix|spotify|\bsteam\b|karaoke|\bsurf\b|\bgame/i],
+];
+
+/** Category from the payee name alone; null when nothing matches. */
+export function categorizeMerchant(name: string): EmailCategory | null {
+  return MERCHANT_RULES.find(([, re]) => re.test(name))?.[0] ?? null;
+}
+
 const CATEGORY_RULES: [EmailCategory, RegExp][] = [
   ["topup", /\btop[\s-]?up\b|isi saldo/i],
   ["food", /gofood|grabfood|shopeefood|makanan|restoran|resto\b|kopi|coffee|warung/i],
@@ -126,7 +145,7 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
     amount: total.amount,
     type: kind === "income" || INCOME.test(haystack) ? "income" : "expense",
     merchant: merchant ?? provider,
-    category: kind && kind !== "income" ? kind : categorize(haystack, fallback),
+    category: kind && kind !== "income" ? kind : ((merchant ? categorizeMerchant(merchant) : null) ?? categorize(haystack, fallback)),
     externalRef,
     confidence: Math.min(1, confidence),
     extractedBy: "rules",

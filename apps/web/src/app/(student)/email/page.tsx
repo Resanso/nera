@@ -5,6 +5,7 @@ import { Button } from "@nera/ui";
 import { Check, Copy, Inbox, LogOut, Mail, RefreshCw, ShieldCheck, Sparkles, Trash2, Unplug } from "lucide-react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
+import { MoneyInsightsCard } from "../../../components/insights/MoneyInsightsCard";
 import type { NeraMood } from "../../../components/mascot/moods";
 import {
   CATEGORY_LABEL,
@@ -114,6 +115,8 @@ export default function EmailImportPage() {
   }, [live, busy, refresh]);
 
   useEffect(() => {
+    // the first load sets the baseline; only later arrivals are "new"
+    if (!status) return;
     const prev = seenCount.current;
     seenCount.current = txs.length;
     if (prev === null || busy || txs.length <= prev) return;
@@ -121,7 +124,7 @@ export default function EmailImportPage() {
     setMood("happy");
     const t = setTimeout(() => setMood("idle"), 2600);
     return () => clearTimeout(t);
-  }, [txs.length, busy]);
+  }, [txs.length, busy, status]);
 
   const copy = async (key: string, text: string) => {
     await navigator.clipboard.writeText(text).catch(() => undefined);
@@ -211,6 +214,8 @@ export default function EmailImportPage() {
 
         {account && (
           <>
+            {txs.length > 0 && <MoneyInsightsCard refreshKey={txs.length} />}
+
             {/* PRIVACY */}
             <section className="rounded-[24px] bg-white p-5">
               <div className="flex items-center gap-2 text-[#2F240E]">

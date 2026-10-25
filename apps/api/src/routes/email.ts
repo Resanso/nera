@@ -19,6 +19,7 @@ import {
 } from "../email/gmail";
 import { ingestEmail, summarize } from "../email/ingest";
 import { ALLOWED_SENDERS } from "../email/senders";
+import { moneyInsights } from "../email/insights";
 import { reconcile } from "../email/reconcile";
 import { emailStore } from "../email/store";
 
@@ -62,6 +63,11 @@ emailRouter.get("/status", async (req, res) => {
       aiExtraction: maiaClient.isConfigured,
     },
   });
+});
+
+// "Ke mana uangku?": this month's spending explained (aggregates + AI or rule-based narrative)
+emailRouter.get("/insights", async (req, res) => {
+  res.json({ success: true, data: await moneyInsights(userIdOf(req)) });
 });
 
 emailRouter.get("/transactions", async (req, res) => {

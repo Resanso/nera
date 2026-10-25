@@ -5,6 +5,7 @@ import { TopAppBar } from "../../../components/common/TopAppBar";
 import { MarkdownRenderer } from "../../../components/common/MarkdownRenderer";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { spendingSummary, useEmailSpending } from "../../../lib/emailSpending";
+import { emailApi, insightsAsContext } from "../../../lib/emailImport";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import {
   Send,
@@ -57,6 +58,15 @@ export default function RecoveryPage() {
 
   // spending outside BNI from email receipts: aggregates only, never the emails themselves
   const emailSummary = spendingSummary(useEmailSpending());
+  // full "where did my money go" analysis, sent as context when available
+  const [insightsContext, setInsightsContext] = useState<string | null>(null);
+  useEffect(() => {
+    if (!emailSummary) return;
+    emailApi
+      .insights()
+      .then((i) => i.total > 0 && setInsightsContext(`${insightsAsContext(i)}\nAnalisis Nera: ${i.narrative.summary} ${i.narrative.insights.join(" ")}\nSaran: ${i.narrative.tips.join(" ")}`))
+      .catch(() => undefined);
+  }, [emailSummary]);
   const announcedEmail = useRef(false);
   useEffect(() => {
     if (!emailSummary || announcedEmail.current) return;
@@ -72,6 +82,16 @@ export default function RecoveryPage() {
       },
     ]);
   }, [emailSummary]);
+
+  const autoAsked = useRef(false);
+  useEffect(() => {
+    if (autoAsked.current || !insightsContext) return;
+    if (new URLSearchParams(window.location.search).get("ask") !== "kemana-uangku") return;
+    autoAsked.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    askWhereMoneyWent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insightsContext]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +126,7 @@ export default function RecoveryPage() {
           messages: newMessages
             .filter((m) => m.id !== aiMsgId)
             .map((m) => ({ role: m.role, content: m.content })),
-          context: emailSummary ?? undefined,
+          context: insightsContext ?? emailSummary ?? undefined,
         }),
       });
 
@@ -240,7 +260,10 @@ export default function RecoveryPage() {
   };
 
   // Suggestion chips in Indonesian
+  const askWhereMoneyWent = () => handleSendMessage("Ke mana saja uangku bulan ini? Bantu aku pahami dan kasih saran hematnya.");
+
   const quickChips = [
+    ...(emailSummary ? [{ icon: "🔎", label: "Ke mana uangku?", action: askWhereMoneyWent }] : []),
     {
       icon: "📝",
       label: "Catat Pos Pinjaman",
