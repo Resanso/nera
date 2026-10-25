@@ -11,6 +11,8 @@ export type GmailConnection = {
   lastSyncAt?: string;
   /** Gmail message ids already processed, so a re-sync skips them without downloading. */
   syncedIds: string[];
+  /** Pub/Sub push watch; Gmail expires it after 7 days, the scheduler renews it. */
+  watchExpiresAt?: string;
 };
 
 export type ForwardAlias = {
@@ -104,6 +106,10 @@ class EmailStore {
 
   getGmail(userId: string) {
     return this.gmail.get(userId);
+  }
+
+  listGmail(): GmailConnection[] {
+    return [...this.gmail.values()];
   }
 
   setGmail(conn: GmailConnection) {

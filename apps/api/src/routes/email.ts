@@ -6,7 +6,15 @@ import { z } from "zod";
 import { maiaClient } from "@nera/ai";
 import { verifyState } from "../email/crypto";
 import { getOrCreateAlias, handleInbound, removeAlias } from "../email/forward";
-import { GmailAccessRevoked, completeGmailConnect, disconnectGmail, gmailAuthUrl, isGmailConfigured, syncGmail } from "../email/gmail";
+import {
+  GmailAccessRevoked,
+  completeGmailConnect,
+  disconnectGmail,
+  gmailAuthUrl,
+  handleGmailPush,
+  isGmailConfigured,
+  syncGmail,
+} from "../email/gmail";
 import { ingestEmail, summarize } from "../email/ingest";
 import { ALLOWED_SENDERS } from "../email/senders";
 import { emailStore } from "../email/store";
@@ -114,6 +122,29 @@ emailRouter.post("/gmail/sync", async (req, res) => {
   }
 });
 
+const sameSecret = (given: string | undefined, expected: string | undefined) => {
+  if (!given || !expected) return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/**
+ * Cloud Pub/Sub push endpoint for Gmail watch notifications. The subscription's push
+ * URL carries ?token=GMAIL_PUSH_TOKEN. Ack fast; the sync runs in the background.
+ */
+emailRouter.post("/gmail/push", (req, res) => {
+  if (!sameSecret(req.query.token as string | undefined, process.env.GMAIL_PUSH_TOKEN)) return res.status(401).end();
+  try {
+    const data = (req.body as { message?: { data?: string } })?.message?.data;
+    const { emailAddress } = JSON.parse(Buffer.from(data ?? "", "base64").toString("utf8")) as { emailAddress?: string };
+    if (emailAddress) handleGmailPush(emailAddress);
+  } catch {
+    // malformed message: ack anyway so Pub/Sub doesn't redeliver it forever
+  }
+  res.status(204).end();
+});
+
 emailRouter.delete("/gmail", async (req, res) => {
   await disconnectGmail(userIdOf(req));
   res.json({ success: true });
@@ -131,14 +162,7 @@ emailRouter.delete("/forward", (req, res) => {
   res.json({ success: true });
 });
 
-function inboundAuthorized(req: Request): boolean {
-  const expected = process.env.INBOUND_WEBHOOK_SECRET;
-  const given = req.header("x-inbound-secret");
-  if (!expected || !given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
+const inboundAuthorized = (req: Request) => sameSecret(req.header("x-inbound-secret"), process.env.INBOUND_WEBHOOK_SECRET);
 
 /**
  * Webhook for the inbound mail service (see inbound-worker/). Body is the raw MIME,

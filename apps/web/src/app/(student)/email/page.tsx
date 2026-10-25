@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@nera/ui";
 import { Check, Copy, Inbox, Mail, RefreshCw, ShieldCheck, Sparkles, Trash2, Unplug } from "lucide-react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
@@ -82,6 +82,29 @@ export default function EmailImportPage() {
         text: result === "denied" ? "Akses Gmail tidak diberikan." : "Gagal menghubungkan Gmail. Coba lagi.",
       });
   }, [refresh, run]);
+
+  // live updates: new receipts arrive in the background (Gmail push, forwarding),
+  // so poll while the tab is visible and something is connected
+  const seenCount = useRef<number | null>(null);
+  const live = Boolean(status?.gmail.connected || status?.forward);
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible" || busy) return;
+      refresh().catch(() => undefined);
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [live, busy, refresh]);
+
+  useEffect(() => {
+    const prev = seenCount.current;
+    seenCount.current = txs.length;
+    if (prev === null || busy || txs.length <= prev) return;
+    setNotice({ tone: "ok", text: `${txs.length - prev} transaksi baru masuk dari email.` });
+    setMood("happy");
+    const t = setTimeout(() => setMood("idle"), 2600);
+    return () => clearTimeout(t);
+  }, [txs.length, busy]);
 
   const copy = async (key: string, text: string) => {
     await navigator.clipboard.writeText(text).catch(() => undefined);

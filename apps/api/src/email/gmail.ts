@@ -68,6 +68,7 @@ export async function completeGmailConnect(userId: string, code: string) {
     connectedAt: new Date().toISOString(),
     syncedIds: [],
   });
+  await startGmailWatch(userId).catch((e) => console.error(`[gmail] ${(e as Error).message}`));
 }
 
 async function accessToken(userId: string): Promise<string> {
@@ -108,8 +109,22 @@ async function gmailGet<T>(token: string, path: string, attempt = 0): Promise<T>
   return res.json() as Promise<T>;
 }
 
-/** Pull receipts from allowed senders only, newest first, skipping messages already seen. */
-export async function syncGmail(userId: string, { days = 90, max = 100 } = {}) {
+type SyncSummary = { scanned: number; imported: number; duplicates: number; ignored: number };
+const running = new Map<string, Promise<SyncSummary>>();
+
+/**
+ * Pull receipts from allowed senders only, newest first, skipping messages already seen.
+ * Concurrent triggers (button, push, scheduler) for the same user share one run.
+ */
+export function syncGmail(userId: string, opts?: { days?: number; max?: number }): Promise<SyncSummary> {
+  const inFlight = running.get(userId);
+  if (inFlight) return inFlight;
+  const run = runSync(userId, opts).finally(() => running.delete(userId));
+  running.set(userId, run);
+  return run;
+}
+
+async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<SyncSummary> {
   const token = await accessToken(userId);
   const conn = emailStore.getGmail(userId)!;
   const seen = new Set(conn.syncedIds);
@@ -134,16 +149,75 @@ export async function syncGmail(userId: string, { days = 90, max = 100 } = {}) {
       seen.add(id);
     }
   } finally {
-    // keep progress even if a later message fails, so the next sync resumes
-    emailStore.setGmail({ ...conn, syncedIds: [...seen], lastSyncAt: new Date().toISOString() });
+    // keep progress even if a later message fails, so the next sync resumes;
+    // re-read the connection so a disconnect during the run isn't undone
+    const latest = emailStore.getGmail(userId);
+    if (latest) emailStore.setGmail({ ...latest, syncedIds: [...seen], lastSyncAt: new Date().toISOString() });
   }
   return { scanned: todo.length, ...summarize(results) };
+}
+
+// ---- Real-time updates: Gmail push via Cloud Pub/Sub, with a polling fallback ----
+
+const pushTopic = () => process.env.GMAIL_PUBSUB_TOPIC;
+
+/** Ask Gmail to publish to our Pub/Sub topic whenever the inbox changes. Lasts 7 days. */
+export async function startGmailWatch(userId: string) {
+  const topicName = pushTopic();
+  if (!topicName) return;
+  const token = await accessToken(userId);
+  const res = await fetch(`${GMAIL}/watch`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ topicName, labelIds: ["INBOX"], labelFilterBehavior: "INCLUDE" }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { expiration?: string; error?: { message?: string } };
+  if (!res.ok) throw new Error(`Gmail watch gagal: ${body.error?.message ?? res.status}`);
+  const conn = emailStore.getGmail(userId);
+  if (conn) emailStore.setGmail({ ...conn, watchExpiresAt: new Date(Number(body.expiration)).toISOString() });
+}
+
+/** Pub/Sub tells us which mailbox changed; sync the user(s) linked to it. */
+export function handleGmailPush(emailAddress: string) {
+  for (const conn of emailStore.listGmail()) {
+    if (conn.googleEmail?.toLowerCase() !== emailAddress.toLowerCase()) continue;
+    syncGmail(conn.userId).catch((e) => console.error(`[gmail] push sync: ${(e as Error).message}`));
+  }
+}
+
+/**
+ * Every GMAIL_POLL_MINUTES (default 10): sync each linked mailbox in case a push was
+ * missed, and renew watches that expire within a day.
+ */
+export function startGmailScheduler() {
+  const minutes = Number(process.env.GMAIL_POLL_MINUTES ?? 10);
+  if (!minutes || !isGmailConfigured()) return;
+  const tick = async () => {
+    for (const conn of emailStore.listGmail()) {
+      try {
+        const renewBy = Date.now() + 24 * 60 * 60 * 1000;
+        if (pushTopic() && (!conn.watchExpiresAt || Date.parse(conn.watchExpiresAt) < renewBy)) {
+          await startGmailWatch(conn.userId);
+        }
+        await syncGmail(conn.userId);
+      } catch (e) {
+        console.error(`[gmail] scheduled sync: ${(e as Error).message}`);
+      }
+    }
+  };
+  setInterval(tick, minutes * 60 * 1000).unref();
+  setTimeout(tick, 15_000).unref();
+  console.log(`[NERA API] Gmail sync every ${minutes} min${pushTopic() ? " + Pub/Sub push" : ""}`);
 }
 
 /** Revoke at Google, then forget the token and everything imported through it. */
 export async function disconnectGmail(userId: string) {
   const conn = emailStore.getGmail(userId);
   if (conn) {
+    // stop push notifications for this mailbox before the token goes away
+    await accessToken(userId)
+      .then((t) => fetch(`${GMAIL}/stop`, { method: "POST", headers: { Authorization: `Bearer ${t}` } }))
+      .catch(() => undefined);
     await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(decrypt(conn.refreshTokenEnc))}`, {
       method: "POST",
     }).catch(() => undefined);

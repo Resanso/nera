@@ -7,6 +7,7 @@ import { coachRouter } from "./routes/coach";
 import { bniMockRouter } from "./routes/bni-mock";
 import { emailRouter } from "./routes/email";
 import { startSmtpServer } from "./email/smtp";
+import { startGmailScheduler } from "./email/gmail";
 
 dotenv.config();
 
@@ -37,3 +38,5 @@ app.listen(port, () => {
 
 // inbound mail for forwarding addresses; off unless SMTP_PORT is set
 startSmtpServer();
+// keep linked Gmail inboxes in sync (push + polling fallback)
+startGmailScheduler();
