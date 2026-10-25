@@ -66,4 +66,7 @@ fi
 for repo in nera-web nera-api; do
   docker images "$repo" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +4 | cut -f2 | xargs -r -I{} docker rmi -f "$repo:{}" >/dev/null || true
 done
+# each build leaves cache and untagged layers behind; a full disk breaks the next deploy
+docker image prune -f >/dev/null || true
+docker builder prune -f --filter until=24h >/dev/null 2>&1 || true
 echo "==> live: $NEXT ($TAG)"
