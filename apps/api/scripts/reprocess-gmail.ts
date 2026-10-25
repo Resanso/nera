@@ -13,6 +13,7 @@ import "dotenv/config";
 import { syncGmail } from "../src/email/gmail";
 import { reconcile } from "../src/email/reconcile";
 import { emailStore } from "../src/email/store";
+import { hasConsent } from "../src/email/consent";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -26,6 +27,11 @@ async function main() {
   }
 
   for (const conn of await emailStore.listGmail()) {
+    // never wipe data we are not allowed to re-import
+    if (!(await hasConsent(conn.userId, "email_import"))) {
+      console.log(`${conn.userId}: skipped, no email import consent`);
+      continue;
+    }
     // a history import in progress would race the wipe below; run again once it is done
     if (conn.backfill?.status === "pending" || conn.backfill?.status === "running") {
       console.log(`${conn.userId}: skipped, history import still ${conn.backfill.status}`);
