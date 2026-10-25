@@ -68,7 +68,10 @@ export async function moneyInsights(
     const len = periodEnd.getTime() - monthStart.getTime();
     lastStart = new Date(monthStart.getTime() - len);
     lastCutoff = new Date(monthStart.getTime() - 1);
-    daysElapsed = Math.max(1, Math.ceil((Math.min(periodEnd.getTime(), now.getTime()) - monthStart.getTime()) / DAY));
+    // count days from the first imported receipt, or "all time" (from 2000) makes weekly rates ~0
+    const oldest = txs.reduce((min, t) => Math.min(min, Date.parse(t.occurredAt)), now.getTime());
+    const start = Math.max(monthStart.getTime(), oldest);
+    daysElapsed = Math.max(1, Math.ceil((Math.min(periodEnd.getTime(), now.getTime()) - start) / DAY));
     daysInMonth = Math.max(1, Math.round(len / DAY));
   } else {
     monthStart = new Date(y, m, 1);
