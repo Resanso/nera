@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
+import { useEmailSpending } from "../../../lib/emailSpending";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
   BudgetPocket,
@@ -192,7 +193,13 @@ export default function PocketsPage() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const spendingPockets = budgetPockets.filter((p) => p.kind === "spending");
+  // spending budgets also count receipts imported from email (other banks, e-wallets);
+  // only the "used" figure changes, the pocket balance is BNI money and stays as is
+  const emailSpending = useEmailSpending();
+  const withEmail = (p: BudgetPocket): BudgetPocket =>
+    p.kind === "spending" ? { ...p, spentThisMonth: p.spentThisMonth + emailSpending.spentForPocket(p.icon) } : p;
+
+  const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(withEmail);
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
   const selectedPocket = budgetPockets.find((p) => p.id === selectedId) ?? null;
 
@@ -373,6 +380,7 @@ export default function PocketsPage() {
               const Icon = POCKET_ICONS[pocket.icon];
               const pct = usagePct(pocket);
               const status = spendingStatus(pct);
+              const fromEmail = emailSpending.spentForPocket(pocket.icon);
 
               return (
                 <button
@@ -410,6 +418,9 @@ export default function PocketsPage() {
                     <p className={cn("mt-1.5 text-[10px]", tone.muted)}>
                       {pct}% dari {formatRupiahShort(pocket.targetAmount)} terpakai
                     </p>
+                    {fromEmail > 0 && (
+                      <p className={cn("text-[10px]", tone.muted)}>termasuk {formatRupiahShort(fromEmail)} dari email</p>
+                    )}
                   </div>
                 </button>
               );
@@ -567,7 +578,7 @@ export default function PocketsPage() {
         {selectedPocket && (() => {
           const tone = POCKET_TONES[selectedPocket.tone];
           const Icon = POCKET_ICONS[selectedPocket.icon];
-          const pct = usagePct(selectedPocket);
+          const pct = usagePct(withEmail(selectedPocket));
           const isSpending = selectedPocket.kind === "spending";
           const modes: { id: DetailMode; label: string; icon: React.ElementType }[] = [
             { id: "topup", label: "Isi", icon: ArrowDownToLine },

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
+import { spendingSummary, useEmailSpending } from "../../../lib/emailSpending";
 import { Card, Button } from "@nera/ui";
 import { maiaClient } from "@nera/ai";
 import {
@@ -32,6 +33,22 @@ export default function CoachPage() {
     },
   ]);
   const [inputText, setInputText] = useState("");
+
+  // receipts imported from email: aggregates only, never the emails themselves
+  const emailSummary = spendingSummary(useEmailSpending());
+  const announcedEmail = useRef(false);
+  useEffect(() => {
+    if (!emailSummary || announcedEmail.current) return;
+    announcedEmail.current = true;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "msg_email_summary",
+        sender: "ai",
+        text: `Aku juga membaca struk dari emailmu. ${emailSummary} Mau aku bantu cari pos yang bisa dihemat?`,
+      },
+    ]);
+  }, [emailSummary]);
   const [isLoading, setIsLoading] = useState(false);
 
   const quickPrompts = [
@@ -60,6 +77,7 @@ export default function CoachPage() {
       }));
 
       const reply = await maiaClient.generateChatResponse([
+        ...(emailSummary ? [{ role: "system" as const, content: emailSummary }] : []),
         ...chatHistory,
         { role: "user", content: userText },
       ]);

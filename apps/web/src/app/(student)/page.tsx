@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
+import { useEmailSpending } from "../../lib/emailSpending";
+import type { EmailCategory } from "../../lib/emailImport";
 import { Modal, Button } from "@nera/ui";
 import { classifyPersonas } from "@nera/core";
 import {
@@ -41,6 +43,13 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   loan: Banknote,
   saving: PiggyBank,
   other: ShoppingBag,
+};
+
+// email receipt categories shown with the closest home category icon
+const EMAIL_TO_HOME_CATEGORY: Partial<Record<EmailCategory, string>> = {
+  food: "food",
+  transport: "transport",
+  education: "education",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -110,7 +119,26 @@ export default function HomePage() {
   }, [runwayDays]);
 
   // Last 5 transactions
-  const recentTransactions = transactions.slice(0, 5);
+  // BNI transactions plus receipts imported from email, newest first
+  const emailSpending = useEmailSpending();
+  const recentTransactions = useMemo(
+    () =>
+      [
+        ...transactions.map((tx) => ({ ...tx, source: undefined as string | undefined })),
+        ...emailSpending.recent.slice(0, 10).map((tx) => ({
+          id: `email-${tx.id}`,
+          title: tx.merchant,
+          category: EMAIL_TO_HOME_CATEGORY[tx.category] ?? "other",
+          amount: tx.amount,
+          type: tx.type,
+          timestamp: tx.occurredAt,
+          source: tx.provider,
+        })),
+      ]
+        .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+        .slice(0, 5),
+    [transactions, emailSpending.recent],
+  );
 
   // Top matched persona for the "Manfaat BNI Untukmu" entry point
   const topPersona = useMemo(() => {
@@ -487,16 +515,39 @@ export default function HomePage() {
             <span className="text-xs font-medium text-[#736B60]">{transactions.length} total</span>
           </div>
 
-          <Link
-            href="/email"
-            className="flex items-center gap-3 rounded-[19px] bg-[#FFF3D6] px-4 py-3 text-[#5B410C] transition-colors hover:bg-[#FFEBC0]"
-          >
-            <Mail size={18} className="shrink-0" />
-            <span className="flex-1 text-xs font-semibold leading-snug">
-              Ada transaksi GoPay, OVO atau Shopee? Impor dari email
-            </span>
-            <ChevronRight size={16} className="shrink-0" />
-          </Link>
+          {emailSpending.ready && emailSpending.monthTotal > 0 ? (
+            <Link
+              href="/email"
+              className="block rounded-[19px] bg-[#FFF3D6] px-4 py-3.5 text-[#5B410C] transition-colors hover:bg-[#FFEBC0]"
+            >
+              <div className="flex items-center gap-3">
+                <Mail size={18} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium">Pengeluaran di luar BNI bulan ini</p>
+                  <p className="text-base font-bold tabular-nums text-[#2F240E]">{formatRupiah(emailSpending.monthTotal)}</p>
+                </div>
+                <ChevronRight size={16} className="shrink-0" />
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {emailSpending.byCategory.slice(0, 3).map((c) => (
+                  <span key={c.category} className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">
+                    {c.label} {formatRupiah(c.amount)}
+                  </span>
+                ))}
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/email"
+              className="flex items-center gap-3 rounded-[19px] bg-[#FFF3D6] px-4 py-3 text-[#5B410C] transition-colors hover:bg-[#FFEBC0]"
+            >
+              <Mail size={18} className="shrink-0" />
+              <span className="flex-1 text-xs font-semibold leading-snug">
+                Ada transaksi GoPay, OVO atau Shopee? Impor dari email
+              </span>
+              <ChevronRight size={16} className="shrink-0" />
+            </Link>
+          )}
 
           <div className="bg-white rounded-[24px] overflow-hidden">
             {recentTransactions.map((tx, idx) => {
@@ -522,7 +573,10 @@ export default function HomePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-[13px] font-semibold text-[#2F240E]">{tx.title}</p>
-                    <p className="mt-0.5 text-[11px] text-[#736B60]">{dateStr}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-[#736B60]">
+                      {dateStr}
+                      {tx.source && ` · dari email ${tx.source}`}
+                    </p>
                   </div>
                   <span
                     className={`shrink-0 text-[13px] font-semibold tabular-nums ${isIncome ? "text-[#277449]" : "text-[#2F240E]"}`}
