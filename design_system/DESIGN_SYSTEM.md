@@ -4,9 +4,9 @@ Panduan ini mencatat gaya aplikasi yang digunakan di beranda, layar mahasiswa, o
 
 ## Identitas
 
-- Logo header: `/logos/nera-home-logo.png`, disandingkan dengan logo wondr by BNI.
-- Maskot beranda: `/images/nera-home-mascot.png`.
-- Font UI: Inter Tight melalui `next/font/google`, dengan `system-ui` sebagai fallback.
+- Logo header: `/logos/nera-home-logo.webp`.
+- Maskot beranda: `/images/nera-home-mascot.webp`.
+- Font UI: Inter melalui `next/font/google`, dengan `system-ui` sebagai fallback.
 - Ikon: `lucide-react`, garis umumnya 2 px. Wadah ikon memakai kotak membulat saat perlu penekanan.
 
 ## Warna
@@ -38,6 +38,8 @@ Kartu Kantong Budget (`/pockets`) boleh memakai nada hangat sebagai pembeda anta
 - Jarak, ukuran teks, dan hierarki mengikuti kepentingan informasi. Angka finansial penting ditampilkan lengkap.
 - Status yang dapat ditindaklanjuti harus punya tombol atau tautan yang jelas. Jangan tampilkan chevron untuk konten yang tidak bisa dibuka.
 - Layar mahasiswa dan orang tua memakai frame mobile 430 px; dashboard kampus menyesuaikan lebar layar dan menumpuk panel pada viewport sempit.
+- Frame mobile tidak menampilkan status bar perangkat tiruan. Header mahasiswa menyediakan tombol fullscreen di pojok kanan atas; header orang tua tidak menampilkannya.
+- Bar navigasi bawah mahasiswa memakai empat tab (Beranda, Kantong, Keluarga, Investasi) ditambah tombol tengah 54 px yang membuka sheet Aksi Cepat (Cek Risiko Pinjaman dengan AI dan Upload Transaksi), dengan tinggi bar sekitar 62 px. Pemulihan diakses dari tautan di hero beranda. Bar orang tua memakai pola tab yang sama tanpa tombol tengah.
 
 ## Interaksi
 

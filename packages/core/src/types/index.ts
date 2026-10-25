@@ -274,9 +274,20 @@ export type BudgetPocketIcon =
   | "travel"
   | "gadget"
   | "gift"
-  | "home";
+  | "home"
+  | "utility";
 
-export type BudgetPocketTone = "yellow" | "sand" | "peach" | "cream" | "brown";
+export type BudgetPocketTone =
+  | "yellow"
+  | "sand"
+  | "peach"
+  | "cream"
+  | "brown"
+  | "mint"
+  | "teal"
+  | "sky"
+  | "pink"
+  | "cyan";
 
 // Kantong budget ala "Kantong" Bank Jago: dana dipisah dari Daily Pocket
 // (Kantong Utama) agar tiap pos pengeluaran/tabungan punya batasnya sendiri.

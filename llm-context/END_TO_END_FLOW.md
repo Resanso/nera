@@ -145,24 +145,13 @@ Ikon "?" di `TopAppBar` (dipakai di semua halaman Student & Parent) membuka satu
 
 - **Lihat Sebagai** — 3 tautan role: Tampilan Mahasiswa (`/`), Tampilan Orang Tua (`/parent`), Tampilan Kampus (`/campus`). Campus tidak punya `TopAppBar` (pakai sidebar sendiri), jadi tautan setara ada di footer `CampusSidebar`.
 - **Warna Latar Mockup** — color picker (swatch `<input type="color">` + input teks hex yang bisa diketik manual, saling sinkron) untuk mengganti warna kanvas di sisi-sisi mockup HP (area gelap di sekitar frame iPhone). Tersimpan di store terpisah `UiPreferencesStore.ts` (key `nera-ui-preferences`, persist ke localStorage), dibaca langsung oleh `MobileFrame.tsx`. Ada tombol reset ke default (`#0F172A`). Hanya berlaku untuk Student & Parent (yang pakai `MobileFrame`) — Campus punya shell desktop sendiri jadi tidak relevan.
-- **Ganti Persona (Mahasiswa)** — 6 skenario demo, detail lihat §11.
+- **Ganti Persona (Mahasiswa)** — 6 skenario demo, detail lihat §10.
 
 Ini murni alat bantu demo/navigasi untuk prototipe tanpa sistem login sungguhan — bukan representasi auth production.
 
 ---
 
-## 10. NerAI Safety Coach (`/coach`)
-
-Chat konsultan finansial, diakses dari ikon 💬 di `TopAppBar` (tersedia di semua halaman).
-
-Alur:
-1. Pesan pembuka otomatis menyebut nama user, status, dan skor saat ini.
-2. **Saran Topik Cepat** — 3 tombol pertanyaan umum.
-3. `maiaClient.generateChatResponse()` (paket `@nera/ai`) memanggil API eksternal jika `MAIA_API_KEY` diisi; jika kosong (default), jatuh ke **fallback rule-based** yang tetap kontekstual (uang saku, cicilan, investasi).
-
----
-
-## 11. Demo: Ganti Persona *(alat bantu demo/juri, bukan fitur produksi)*
+## 10. Demo: Ganti Persona *(alat bantu demo/juri, bukan fitur produksi)*
 
 Bagian bawah dari dropdown "Menu Demo" yang sama di §9, berisi 6 skenario:
 
@@ -202,7 +191,7 @@ User Action (klik tombol/form)
 | Skenario demo persona | `packages/core/src/constants/demo-scenarios.ts` |
 | Mock data kampus (anonim) | `packages/core/src/constants/campus-mock-data.ts` |
 | Komponen UI bersama | `packages/ui/src/components/*` |
-| Halaman student (route group) | `apps/web/src/app/(student)/{page,risk-check,family-hub,recovery,wealth-engine,privileges,coach}/page.tsx` |
+| Halaman student (route group) | `apps/web/src/app/(student)/{page,risk-check,family-hub,recovery,wealth-engine,privileges}/page.tsx` |
 | Halaman & komponen Orang Tua | `apps/web/src/app/parent/**`, `apps/web/src/components/parent/*` |
 | Halaman & komponen Kampus | `apps/web/src/app/campus/**`, `apps/web/src/components/campus/*` |
 | Menu Demo (role + persona switcher) | `apps/web/src/components/common/DemoControlPanel.tsx` |

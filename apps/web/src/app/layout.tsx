@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter_Tight } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const interTight = Inter_Tight({
+const inter = Inter({
   weight: "variable",
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter-tight",
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className={interTight.variable}>
+    <html lang="id" className={inter.variable}>
       <body className="antialiased font-sans bg-[#2F240E]">{children}</body>
     </html>
   );

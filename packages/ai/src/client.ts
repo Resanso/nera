@@ -100,3 +100,74 @@ export class MaiaAIClient {
 }
 
 export const maiaClient = new MaiaAIClient();
+
+export interface NeraGoogleAIClientOptions {
+  apiKey?: string;
+  model?: string;
+}
+
+export class NeraGoogleAIClient {
+  private apiKey: string;
+  private model: string;
+
+  constructor(options?: NeraGoogleAIClientOptions) {
+    this.apiKey =
+      options?.apiKey ||
+      process.env.GOOGLE_AI_STUDIO_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      "";
+    this.model = options?.model || process.env.GEMMA_MODEL || "gemma-4-26b-a4b-it";
+  }
+
+  async generateChatResponse(messages: { role: "system" | "user" | "assistant"; content: string }[]): Promise<string> {
+    if (!this.apiKey) {
+      return this.getFallbackResponse(messages[messages.length - 1]?.content || "");
+    }
+
+    try {
+      const formattedContents = messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        }));
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: formattedContents,
+          systemInstruction: {
+            parts: [{ text: NERA_SYSTEM_PROMPT }],
+          },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        return this.getFallbackResponse(messages[messages.length - 1]?.content || "");
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      return text || this.getFallbackResponse(messages[messages.length - 1]?.content || "");
+    } catch {
+      return this.getFallbackResponse(messages[messages.length - 1]?.content || "");
+    }
+  }
+
+  private getFallbackResponse(userMessage: string): string {
+    const lower = userMessage.toLowerCase();
+    if (lower.includes("pinjol") || lower.includes("pinjam") || lower.includes("cicilan") || lower.includes("utang")) {
+      return "Pinjaman online atau cicilan konsumtif dapat mengganggu cashflow harianmu. Nera menyarankan periksa izin resmi OJK, batasi rasio cicilan maksimal 20-30% dari uang saku, dan gunakan metode Debt Snowball untuk melunasi satu per satu.";
+    }
+    return "Halo! Saya Nera, AI Recovery Consultant di wondr by BNI. Ada hal terkait cicilan, simulasi risiko, atau rencana pemulihan keuangan yang ingin kamu konsultasikan?";
+  }
+}
+
+export const neraGoogleAIClient = new NeraGoogleAIClient();

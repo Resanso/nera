@@ -1,9 +1,14 @@
 import { MobileFrame } from "../../components/common/MobileFrame";
+import { OnboardingGate } from "../../components/onboarding/OnboardingGate";
 
 export default function StudentLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <MobileFrame>{children}</MobileFrame>;
+  return (
+    <OnboardingGate>
+      <MobileFrame showFullscreenControl>{children}</MobileFrame>
+    </OnboardingGate>
+  );
 }

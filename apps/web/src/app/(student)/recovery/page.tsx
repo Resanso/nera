@@ -1,55 +1,201 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { TopAppBar } from "../../../components/common/TopAppBar";
+import { MarkdownRenderer } from "../../../components/common/MarkdownRenderer";
 import { useFinancialStore } from "../../../context/FinancialStore";
-import { Card, Button, StatusBadge, StepProgress } from "@nera/ui";
-import { calculateDebtSnowball } from "@nera/core";
+import { spendingSummary, useEmailSpending } from "../../../lib/emailSpending";
 import {
-  LifeBuoy,
-  AlertOctagon,
-  TrendingDown,
-  GraduationCap,
-  CheckCircle,
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  Check,
+  RotateCcw,
   PlusCircle,
-  PhoneCall,
-  ShieldCheck,
-  Lock,
-  Ban,
-  TrendingUp,
-  ArrowRight,
-  MessageCircle,
-  Heart,
+  X,
 } from "lucide-react";
+import { Button } from "@nera/ui";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  isStreaming?: boolean;
+  feedback?: "up" | "down" | null;
+  copied?: boolean;
+}
 
 export default function RecoveryPage() {
   const {
     userName,
-    state,
-    score,
-    activeDebts,
-    recoveryMilestones,
-    totalMonthlyInstallments,
-    monthlyAllowance,
     addDebtItem,
-    payOffDebt,
   } = useFinancialStore();
 
+  // Chatbot State with introductory message in Indonesian
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "msg_ai_intro",
+      role: "assistant",
+      content:
+        "Halo! 👋 Saya **Nera**, konsultan pemulihan finansialmu di wondr by BNI.\n\nTanyakan apa saja seputar evaluasi pinjaman online, simulasi batas aman cicilan, strategi pelunasan Debt Snowball, atau cara mengamankan uang sakumu. Nera siap membantumu secara objektif, aman, dan bebas stigma!",
+      feedback: null,
+      copied: false,
+    },
+  ]);
+  const [inputText, setInputText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Quick Add Debt Modal
   const [isAddDebtOpen, setIsAddDebtOpen] = useState(false);
   const [platformName, setPlatformName] = useState("");
   const [principal, setPrincipal] = useState<number>(1000000);
   const [monthlyInstallment, setMonthlyInstallment] = useState<number>(380000);
   const [tenorMonths, setTenorMonths] = useState<number>(3);
 
-  const snowballPlan = calculateDebtSnowball(activeDebts);
-  const dtiPct = monthlyAllowance > 0 ? ((totalMonthlyInstallments / monthlyAllowance) * 100).toFixed(0) : "0";
+  // spending outside BNI from email receipts: aggregates only, never the emails themselves
+  const emailSummary = spendingSummary(useEmailSpending());
+  const announcedEmail = useRef(false);
+  useEffect(() => {
+    if (!emailSummary || announcedEmail.current) return;
+    announcedEmail.current = true;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "msg_ai_email_summary",
+        role: "assistant",
+        content: `Aku juga membaca struk dari emailmu. ${emailSummary} Mau aku bantu cari pos yang bisa dihemat?`,
+        feedback: null,
+        copied: false,
+      },
+    ]);
+  }, [emailSummary]);
 
-  const formatRupiah = (val: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Handle Send Message with SSE streaming
+  const handleSendMessage = async (textToSend: string) => {
+    const trimmed = textToSend.trim();
+    if (!trimmed || isStreaming) return;
+
+    const userMsgId = `usr_${Date.now()}`;
+    const aiMsgId = `ai_${Date.now()}`;
+
+    const newMessages: ChatMessage[] = [
+      ...messages,
+      { id: userMsgId, role: "user", content: trimmed },
+      { id: aiMsgId, role: "assistant", content: "", isStreaming: true },
+    ];
+
+    setMessages(newMessages);
+    setInputText("");
+    setIsStreaming(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages
+            .filter((m) => m.id !== aiMsgId)
+            .map((m) => ({ role: m.role, content: m.content })),
+          context: emailSummary ?? undefined,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error("Gagal menghubungkan ke layanan Nera");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const cleanLine = line.trim();
+          if (!cleanLine || !cleanLine.startsWith("data:")) continue;
+
+          const dataContent = cleanLine.replace(/^data:\s*/, "");
+          if (dataContent === "[DONE]") {
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(dataContent);
+            if (parsed.text) {
+              accumulatedText += parsed.text;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMsgId
+                    ? { ...msg, content: accumulatedText, isStreaming: true }
+                    : msg
+                )
+              );
+            }
+          } catch {
+            // Ignore non-JSON chunks
+          }
+        }
+      }
+
+      // Mark streaming done
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMsgId ? { ...msg, isStreaming: false } : msg
+        )
+      );
+    } catch {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMsgId
+            ? {
+                ...msg,
+                content:
+                  msg.content ||
+                  "Nera siap mendampingimu. Ada pos kewajiban atau pertanyaan finansial lain yang ingin kamu diskusikan?",
+                isStreaming: false,
+              }
+            : msg
+        )
+      );
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  const handleCopyText = (id: string, text: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const handleFeedback = (id: string, type: "up" | "down") => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? { ...m, feedback: m.feedback === type ? null : type }
+          : m
+      )
+    );
+  };
 
   const handleAddDebt = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,274 +209,319 @@ export default function RecoveryPage() {
       remainingTenorMonths: tenorMonths,
     });
 
+    const addedName = platformName;
+    const addedPrincipal = principal;
+    const addedInstallment = monthlyInstallment;
+
     setPlatformName("");
     setPrincipal(1000000);
     setMonthlyInstallment(380000);
     setIsAddDebtOpen(false);
+
+    // Feed to Nera chat automatically
+    handleSendMessage(
+      `Saya baru saja mencatat pinjaman ${addedName} sebesar Rp${new Intl.NumberFormat("id-ID").format(
+        addedPrincipal
+      )} dengan cicilan Rp${new Intl.NumberFormat("id-ID").format(
+        addedInstallment
+      )}/bulan. Bagaimana rekomendasi pelunasan terbaiknya?`
+    );
   };
 
-  // Map recovery milestones to StepProgress format
-  const stepItems = recoveryMilestones.map((m, idx) => ({
-    id: m.id,
-    label: m.label,
-    description: m.description,
-    isCompleted: m.isCompleted,
-    isActive: !m.isCompleted && (idx === 0 || recoveryMilestones[idx - 1]?.isCompleted),
-  }));
+  const handleResetChat = () => {
+    setMessages([
+      {
+        id: `ai_${Date.now()}`,
+        role: "assistant",
+        content:
+          "Riwayat chat direset. Halo! Saya **Nera**, konsultan pemulihan finansialmu di wondr by BNI. Ada hal terkait cicilan atau pemulihan keuangan yang ingin kita bahas?",
+      },
+    ]);
+  };
 
-  const isKritis = state === "KRITIS";
+  // Suggestion chips in Indonesian
+  const quickChips = [
+    {
+      icon: "📝",
+      label: "Catat Pos Pinjaman",
+      action: () => setIsAddDebtOpen(true),
+    },
+    {
+      icon: "🧾",
+      label: "Urutan Debt Snowball",
+      action: () => {
+        handleSendMessage("Bagaimana urutan pelunasan Debt Snowball untuk pinjaman aktif saya saat ini?");
+      },
+    },
+    {
+      icon: "❓",
+      label: "Simulasi Rasio Utang",
+      action: () => {
+        handleSendMessage("Berapa batas aman rasio cicilan (DTI) dan bagaimana membuat rencana pemulihan darurat?");
+      },
+    },
+    {
+      icon: "📊",
+      label: "Atur Anggaran Pemulihan",
+      action: () => {
+        handleSendMessage("Bagaimana cara membagi uang saku bulanan agar tidak mengalami defisit saat ada cicilan?");
+      },
+    },
+  ];
 
   return (
-    <div className="flex flex-col min-h-full">
-      <TopAppBar title="AI Recovery Consultant" showBack />
+    <div className="flex flex-col h-full min-h-screen bg-white">
+      {/* 1. TOP APP BAR (Edge to edge, no extra outer padding) */}
+      <TopAppBar title="Nera AI Consultant" showBack />
 
-      <main className="flex-1 px-4 py-4 space-y-4">
-        {/* CRISIS BANNER & INVESTMENT LOCK */}
-        <Card className="p-0 overflow-hidden">
-          <div className={`p-4 rounded-t-[22px] ${isKritis ? "bg-[#C43737] text-white" : "bg-[#FFF0BD] text-[#47310A]"} space-y-2`}>
-            <div className="flex items-center gap-2">
-              <AlertOctagon size={20} />
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                {isKritis ? "Mode Pemulihan Darurat Aktif" : "Mode Pemulihan Aktif"}
-              </h3>
+      {/* 2. CHAT MESSAGES FULL AREA (ChatGPT style layout) */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        {/* Welcome Hero when chat has 1 message */}
+        {messages.length <= 1 && (
+          <div className="flex flex-col items-center text-center py-6 space-y-2">
+            <div className="relative w-16 h-16 rounded-full bg-[#FFF0BD] border-2 border-[#BA8500]/30 flex items-center justify-center shadow-xs">
+              <Image
+                src="/mascots/mascot-standing.png"
+                alt="Nera AI Mascot"
+                width={56}
+                height={56}
+                className="w-14 h-14 object-contain"
+                priority
+              />
             </div>
-            <p className="text-[11px] leading-relaxed">
-              Demi melindungi kesehatan finansialmu, <strong>semua penawaran produk investasi BNI dikunci total</strong> hingga siklus cicilan selesai dilunasi.
+            <h2 className="text-base font-bold text-[#2F240E]">
+              👋 Halo, {userName || "Sobat Nera"}!
+            </h2>
+            <p className="text-xs text-[#766D61] max-w-[280px]">
+              Tanyakan apa saja seputar evaluasi pinjaman, simulasi cicilan, dan strategi bebas utang.
             </p>
           </div>
+        )}
 
-          {/* Reputation Protection Lock */}
-          <div className="p-4 space-y-2 bg-[#FBE4DE]/20">
-            <div className="flex items-center gap-2 text-[#736B60]">
-              <Ban size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Proteksi Reputasi BNI</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {["Reksa Dana", "SBN / Sukuk", "KPR / KKB"].map((product) => (
-                <div key={product} className="flex items-center gap-1.5 px-2 py-1.5 bg-[#F7F5F0] rounded-lg">
-                  <Lock size={10} className="text-[#EF4444]" />
-                  <span className="text-[10px] text-[#736B60] font-medium">{product}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        {/* RECOVERY SUMMARY STATS */}
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#736B60]">
-              Ringkasan Kewajiban
-            </span>
-            <StatusBadge status={state} />
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="p-3 bg-[#F7F5F0] rounded-xl text-center">
-              <span className="text-[10px] text-[#736B60] block">Total Sisa</span>
-              <p className="text-sm font-black text-[#EF4444] mt-0.5">
-                {formatRupiah(snowballPlan.totalOutstanding)}
-              </p>
-            </div>
-            <div className="p-3 bg-[#F7F5F0] rounded-xl text-center">
-              <span className="text-[10px] text-[#736B60] block">Beban/Bulan</span>
-              <p className="text-sm font-black text-[#2F240E] mt-0.5">
-                {formatRupiah(snowballPlan.totalMonthlyBurn)}
-              </p>
-            </div>
-            <div className="p-3 bg-[#F7F5F0] rounded-xl text-center">
-              <span className="text-[10px] text-[#736B60] block">DTI Ratio</span>
-              <p className={`text-sm font-black mt-0.5 ${Number(dtiPct) > 40 ? "text-[#C43737]" : "text-[#A36A00]"}`}>
-                {dtiPct}%
-              </p>
-            </div>
-          </div>
-
-          {/* Savings after clear */}
-          {snowballPlan.totalMonthlyBurn > 0 && (
-            <div className="p-3 bg-[#DDF0E6] rounded-xl border border-[#22C55E]/30 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={14} className="text-[#15803D]" />
-                <span className="text-xs text-[#15803D] font-medium">Hemat setelah lunas</span>
-              </div>
-              <span className="text-xs font-bold text-[#15803D]">
-                +{formatRupiah(snowballPlan.monthlySavingsAfterClear)}/bln
-              </span>
-            </div>
-          )}
-        </Card>
-
-        {/* RECOVERY MILESTONES (Step Progress) */}
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <LifeBuoy size={16} className="text-[#76520E]" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
-              Milestone Pemulihan
-            </h3>
-          </div>
-
-          <StepProgress steps={stepItems} accentColor="#76520E" />
-        </Card>
-
-        {/* DEBT SNOWBALL PRIORITIZATION LIST */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
-              Urutan Pelunasan (Debt Snowball)
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAddDebtOpen(!isAddDebtOpen)}
-              className="text-xs h-7 px-2.5 rounded-full"
+        {/* Message Thread */}
+        <div className="space-y-4">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex flex-col ${
+                msg.role === "user" ? "items-end" : "items-start"
+              }`}
             >
-              <PlusCircle size={12} className="mr-1" /> Tambah Pos
-            </Button>
-          </div>
-
-          {isAddDebtOpen && (
-            <Card className="p-4 space-y-3 border-[#76520E]">
-              <h4 className="text-xs font-bold text-[#2F240E]">Input Kewajiban Pinjaman</h4>
-              <form onSubmit={handleAddDebt} className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Nama Platform (misal: EasyDana / PayLater)"
-                  value={platformName}
-                  onChange={(e) => setPlatformName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border rounded-xl focus:outline-none focus:border-[#76520E]"
-                  required
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="number"
-                    placeholder="Sisa Pokok (Rp)"
-                    value={principal}
-                    onChange={(e) => setPrincipal(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs border rounded-xl focus:outline-none focus:border-[#76520E]"
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Cicilan / bln"
-                    value={monthlyInstallment}
-                    onChange={(e) => setMonthlyInstallment(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs border rounded-xl focus:outline-none focus:border-[#76520E]"
-                    required
-                  />
-                </div>
-                <Button type="submit" variant="primary" size="sm" fullWidth>
-                  Simpan Pos Pelunasan
-                </Button>
-              </form>
-            </Card>
-          )}
-
-          {activeDebts.length === 0 ? (
-            <Card className="p-6 text-center space-y-2 bg-slate-50">
-              <CheckCircle size={36} className="text-[#22C55E] mx-auto" />
-              <h4 className="text-sm font-bold text-[#2F240E]">Bebas Dari Beban Cicilan</h4>
-              <p className="text-xs text-[#736B60]">
-                Tidak ada cicilan terdeteksi. Pertahankan status amanmu dan bangun dana darurat di BNI Life Goals!
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {snowballPlan.items.map((debt, idx) => (
-                <Card
-                  key={debt.id}
-                  className={`p-3.5 space-y-2 ${
-                    idx === 0 ? "border-2 border-[#76520E] bg-[#76520E]/5" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-[#76520E] text-white text-[10px] font-bold flex items-center justify-center">
-                        #{debt.payoffPriority}
-                      </span>
-                      <h4 className="text-xs font-bold text-[#2F240E]">{debt.platformName}</h4>
+              {/* If assistant, show small bot avatar row */}
+              {msg.role === "assistant" && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#76520E] mb-1 pl-1">
+                    <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full bg-[#FFF0BD]">
+                      <Image
+                        src="/mascots/mascot-standing.png"
+                        alt="Nera AI"
+                        width={20}
+                        height={24}
+                        className="h-full w-full object-contain"
+                      />
                     </div>
-                    {idx === 0 && (
-                      <span className="text-[10px] bg-[#76520E] text-white font-bold px-2 py-0.5 rounded-full">
-                        Target #1
-                      </span>
+                    <span>Nera</span>
+                  </div>
+              )}
+
+              {/* Message Bubble */}
+              <div
+                className={`text-xs leading-relaxed max-w-[88%] ${
+                  msg.role === "user"
+                    ? "bg-[#2F240E] text-white px-4 py-2.5 rounded-[20px] rounded-tr-xs shadow-xs font-normal whitespace-pre-line"
+                    : "bg-[#F7F5F0] border border-[#E9E5DD] text-[#2F240E] px-4 py-3 rounded-[20px] rounded-tl-xs shadow-xs font-normal"
+                }`}
+              >
+                {msg.role === "assistant" ? (
+                  <div>
+                    <MarkdownRenderer content={msg.content} />
+                    {msg.isStreaming && (
+                      <span className="inline-block w-1.5 h-3.5 bg-[#BA8500] ml-1 animate-pulse align-middle" />
                     )}
                   </div>
+                ) : (
+                  msg.content
+                )}
+              </div>
 
-                  <div className="flex justify-between items-center text-xs text-[#736B60]">
-                    <span>Sisa: {formatRupiah(debt.outstandingPrincipal)}</span>
-                    <span className="font-bold text-[#2F240E]">
-                      {formatRupiah(debt.monthlyInstallment)} / bulan
-                    </span>
-                  </div>
-
-                  {/* Estimated payoff */}
-                  <div className="flex items-center justify-between text-[11px] text-[#736B60] pt-1 border-t border-slate-100">
-                    <span>Estimasi lunas: ~{debt.remainingTenorMonths} bulan</span>
-                  </div>
-
-                  <Button
-                    variant="bni"
-                    size="sm"
-                    fullWidth
-                    onClick={() => payOffDebt(debt.id)}
-                    className="text-xs h-8 rounded-xl"
+              {/* Assistant Action Bar (Thumbs Down, Thumbs Up, Copy) */}
+              {msg.role === "assistant" && msg.content && !msg.isStreaming && (
+                <div className="flex items-center gap-3 text-[#736B60] mt-1.5 px-2">
+                  <button
+                    onClick={() => handleFeedback(msg.id, "down")}
+                    className={`hover:text-[#2F240E] transition-colors ${
+                      msg.feedback === "down" ? "text-rose-500 font-bold" : ""
+                    }`}
+                    title="Tidak Membantu"
+                    aria-label="Thumbs Down"
                   >
-                    Tandai Lunas
-                  </Button>
-                </Card>
-              ))}
-
-              {/* Snowball recommended steps */}
-              <Card className="p-4 space-y-2 bg-[#F1F2F4]">
-                <h4 className="text-xs font-bold text-[#2F240E] flex items-center gap-1.5">
-                  <ArrowRight size={12} className="text-[#76520E]" /> Langkah Rekomendasi
-                </h4>
-                <ul className="space-y-1.5">
-                  {snowballPlan.recommendedSteps.map((step, i) => (
-                    <li key={i} className="text-[11px] text-[#736B60] leading-relaxed flex gap-2">
-                      <span className="text-[#76520E] font-bold shrink-0">{i + 1}.</span>
-                      {step}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+                    <ThumbsDown size={13} />
+                  </button>
+                  <button
+                    onClick={() => handleFeedback(msg.id, "up")}
+                    className={`hover:text-[#2F240E] transition-colors ${
+                      msg.feedback === "up" ? "text-[#15803D] font-bold" : ""
+                    }`}
+                    title="Sangat Membantu"
+                    aria-label="Thumbs Up"
+                  >
+                    <ThumbsUp size={13} />
+                  </button>
+                  <button
+                    onClick={() => handleCopyText(msg.id, msg.content)}
+                    className="hover:text-[#2F240E] transition-colors relative"
+                    title="Salin Saran"
+                    aria-label="Salin Saran"
+                  >
+                    {copiedId === msg.id ? (
+                      <Check size={13} className="text-[#15803D]" />
+                    ) : (
+                      <Copy size={13} />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* 3. CHATGPT-STYLE BOTTOM DOCKED AREA (Chips + Input) */}
+      <div className="p-3 bg-white border-t border-[#F0EEE9] space-y-2.5">
+        {/* Suggestion Chips (Horizontal scrollable or neat wrap) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          {quickChips.map((chip, idx) => (
+            <button
+              key={idx}
+              onClick={chip.action}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F7F5F0] hover:bg-[#FFF3D6] active:scale-[0.98] transition-all rounded-full text-xs font-medium text-[#2F240E] border border-[#E9E5DD] hover:border-[#BA8500] shrink-0"
+            >
+              <span>{chip.icon}</span>
+              <span className="whitespace-nowrap">{chip.label}</span>
+            </button>
+          ))}
+          <button
+            onClick={handleResetChat}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F7F5F0] hover:bg-slate-200 transition-colors rounded-full text-[11px] text-[#736B60] border border-[#E9E5DD] shrink-0"
+            title="Reset Chat"
+          >
+            <RotateCcw size={12} />
+            <span>Reset</span>
+          </button>
         </div>
 
-        {/* CAMPUS COUNSELING REFERRAL */}
-        <Card className="p-4 space-y-3 bg-[#FFF3D6] border-[#A36A00]/40">
-          <div className="flex items-center gap-2 text-[#5B410C]">
-            <Heart size={18} />
-            <h3 className="text-xs font-bold uppercase tracking-wider">
-              Rujukan Konseling Kampus
-            </h3>
+        {/* Input Bar */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage(inputText);
+          }}
+          className="relative bg-[#F4F5F7] border border-[#E5E7EB] rounded-full p-1.5 pl-4 flex items-center gap-2 focus-within:border-[#BA8500] focus-within:bg-white focus-within:ring-1 focus-within:ring-[#BA8500] transition-all"
+        >
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Tanya Nera apa saja..."
+            disabled={isStreaming}
+            className="flex-1 bg-transparent text-xs text-[#2F240E] placeholder-[#817B70] focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!inputText.trim() || isStreaming}
+            className="w-8 h-8 rounded-full bg-[#BA8500] hover:bg-[#966600] disabled:bg-[#D8D3C9] active:scale-95 text-white flex items-center justify-center transition-all shadow-xs shrink-0"
+            aria-label="Kirim Pesan"
+          >
+            <Send size={14} className="-ml-0.5" />
+          </button>
+        </form>
+      </div>
+
+      {/* QUICK ADD DEBT MODAL */}
+      {isAddDebtOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in slide-in-from-bottom-6">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="text-sm font-bold text-[#2F240E] flex items-center gap-1.5">
+                <PlusCircle size={16} className="text-[#BA8500]" /> Catat Kewajiban / Pinjaman
+              </h4>
+              <button
+                onClick={() => setIsAddDebtOpen(false)}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddDebt} className="space-y-3">
+              <div>
+                <label className="text-[11px] font-semibold text-[#736B60] block mb-1">
+                  Nama Platform
+                </label>
+                <input
+                  type="text"
+                  placeholder="Misal: EasyDana / PayLater"
+                  value={platformName}
+                  onChange={(e) => setPlatformName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-[#F7F5F0] border border-[#E9E5DD] rounded-xl focus:outline-none focus:border-[#BA8500]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-[#736B60] block mb-1">
+                    Sisa Pokok (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="1000000"
+                    value={principal}
+                    onChange={(e) => setPrincipal(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs bg-[#F7F5F0] border border-[#E9E5DD] rounded-xl focus:outline-none focus:border-[#BA8500]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-[#736B60] block mb-1">
+                    Cicilan / bln
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="380000"
+                    value={monthlyInstallment}
+                    onChange={(e) => setMonthlyInstallment(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs bg-[#F7F5F0] border border-[#E9E5DD] rounded-xl focus:outline-none focus:border-[#BA8500]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  fullWidth
+                  onClick={() => setIsAddDebtOpen(false)}
+                  className="text-xs h-9 rounded-xl"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  fullWidth
+                  className="text-xs h-9 rounded-xl"
+                >
+                  Simpan & Konsultasikan
+                </Button>
+              </div>
+            </form>
           </div>
-          <p className="text-xs text-[#2F240E] leading-relaxed">
-            Jika kamu merasa tertekan oleh tagihan pinjaman, jangan ragu untuk berkonsultasi secara <strong>rahasia dan gratis</strong> dengan Tim Advokasi Mahasiswa Telkom University.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="bni"
-              size="sm"
-              fullWidth
-              onClick={() => alert("Menghubungkan ke Pusat Bantuan Mahasiswa Tel-U...")}
-              className="text-xs h-9 rounded-xl gap-1.5"
-            >
-              <PhoneCall size={14} /> Telepon
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              fullWidth
-              onClick={() => alert("Membuka chat konseling kampus...")}
-              className="text-xs h-9 rounded-xl gap-1.5"
-            >
-              <MessageCircle size={14} /> Chat
-            </Button>
-          </div>
-        </Card>
-      </main>
+        </div>
+      )}
     </div>
   );
 }

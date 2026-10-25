@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
 import { useEmailSpending } from "../../lib/emailSpending";
 import type { EmailCategory } from "../../lib/emailImport";
+import { GOAL_META, useOnboardingHydrated, useOnboardingStore } from "../../context/OnboardingStore";
 import { Modal, Button } from "@nera/ui";
 import { classifyPersonas } from "@nera/core";
 import {
@@ -19,6 +20,7 @@ import {
   Home,
   Coffee,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   Sparkles,
   TrendingDown,
@@ -32,6 +34,7 @@ import {
   PiggyBank,
   Gift,
   Layers,
+  LifeBuoy,
   Mail,
 } from "lucide-react";
 
@@ -93,6 +96,16 @@ export default function HomePage() {
   const [spendAmount, setSpendAmount] = useState("");
   const [spendTitle, setSpendTitle] = useState("");
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [recentOpen, setRecentOpen] = useState<null | "daily" | "lock">(null);
+
+  const onboardingHydrated = useOnboardingHydrated();
+  const onboardingCompleted = useOnboardingStore((s) => s.completed);
+  const onboardingGoal = useOnboardingStore((s) => s.goal);
+  const planMeta = onboardingGoal ? GOAL_META[onboardingGoal] : null;
+  const showPlanCard = onboardingHydrated && onboardingCompleted && planMeta;
+
   const formatRupiah = (val: number) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -119,9 +132,11 @@ export default function HomePage() {
   }, [runwayDays]);
 
   // Last 5 transactions
-  // BNI transactions plus receipts imported from email, newest first
+  const recentTransactions = transactions.slice(0, 5);
+  // "Transaksi Terakhir": BNI transactions plus receipts imported from email, newest first.
+  // Kept separate from recentTransactions, which lists Daily Pocket (BNI) activity only.
   const emailSpending = useEmailSpending();
-  const recentTransactions = useMemo(
+  const combinedRecent = useMemo(
     () =>
       [
         ...transactions.map((tx) => ({ ...tx, source: undefined as string | undefined })),
@@ -138,6 +153,10 @@ export default function HomePage() {
         .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
         .slice(0, 5),
     [transactions, emailSpending.recent],
+  );
+  const lockRecentTransactions = useMemo(
+    () => transactions.filter((t) => t.category === "saving").slice(0, 2),
+    [transactions]
   );
 
   // Top matched persona for the "Manfaat BNI Untukmu" entry point
@@ -214,6 +233,27 @@ export default function HomePage() {
     triggerToast(`Transaksi QRIS ${formatRupiah(amount)} berhasil dicatat!`);
   };
 
+  // Pocket carousel (Daily / Lock / Kantong) — swipeable with dot indicators
+  const POCKET_SLIDE_COUNT = 3;
+  const CAROUSEL_GAP_PX = 10; // matches gap-2.5
+
+  const handleSlideScroll = () => {
+    const el = scrollRef.current;
+    if (!el || el.children.length === 0) return;
+    const first = el.children[0] as HTMLElement;
+    const step = first.offsetWidth + CAROUSEL_GAP_PX;
+    const nextIndex = Math.round(el.scrollLeft / step);
+    setActiveSlide(Math.max(0, Math.min(POCKET_SLIDE_COUNT - 1, nextIndex)));
+  };
+
+  const scrollToSlide = (idx: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const slide = el.children[idx] as HTMLElement | undefined;
+    if (!slide) return;
+    el.scrollTo({ left: idx * (slide.offsetWidth + CAROUSEL_GAP_PX), behavior: "smooth" });
+  };
+
   return (
     <div className="flex flex-col min-h-full bg-[#F1F2F4]">
       {/* 1. TOP APP BAR (Branding + Notification) */}
@@ -224,9 +264,18 @@ export default function HomePage() {
         <div className="relative -mx-4 overflow-hidden rounded-b-[32px] bg-white px-6 pt-6 pb-7">
 
           {/* Status Badge */}
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${stateBadge.bg} border ${stateBadge.border} ${stateBadge.text} text-[11px] font-semibold`}>
-            <span className={`w-2 h-2 rounded-full ${stateBadge.dot}`} />
-            <span className="font-bold">{stateBadge.label}</span>
+          <div className="relative z-10 flex items-center justify-between gap-2">
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${stateBadge.bg} border ${stateBadge.border} ${stateBadge.text} text-[11px] font-semibold`}>
+              <span className={`w-2 h-2 rounded-full ${stateBadge.dot}`} />
+              <span className="font-bold">{stateBadge.label}</span>
+            </div>
+            <Link
+              href="/recovery"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 -mr-1 text-[11px] font-semibold text-[#76520E] transition-colors hover:bg-[#FFF3D6] hover:text-[#5B410C]"
+            >
+              <LifeBuoy size={13} strokeWidth={2.2} />
+              Pemulihan
+            </Link>
           </div>
 
           {/* Title & Runway Days */}
@@ -243,7 +292,7 @@ export default function HomePage() {
           {/* Nera Mascot */}
           <div className="absolute top-9 right-2 w-36 h-36 pointer-events-none select-none z-0">
             <Image
-              src="/images/nera-home-mascot.png"
+              src="/images/nera-home-mascot.webp"
               alt="Nera Bot Mascot"
               width={144}
               height={144}
@@ -277,57 +326,233 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Pockets Grid */}
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              {/* Pocket 1: Daily Pocket */}
-              <div className="bg-[#F7F7F7] rounded-[19px] p-3.5 flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-[13px] bg-white flex items-center justify-center text-[#76520E] shrink-0">
-                  <Wallet size={18} />
+            {/* Pockets Swipe Carousel (Daily / Lock / Kantong) */}
+            <div className="pt-1">
+              <div
+                ref={scrollRef}
+                onScroll={handleSlideScroll}
+                aria-label="Kartu kantong"
+                className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+              >
+                {/* Slide 1: Daily Pocket */}
+                <div className="w-full shrink-0 snap-center rounded-[22px] bg-[#F7F5F0] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-[13px] bg-white shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
+                        <Wallet size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#2F240E] leading-tight">Daily Pocket</p>
+                        <span className="text-[10px] text-[#736B60] block mt-0.5">(Siap Pakai)</span>
+                      </div>
+                    </div>
+                    <p
+                      className="text-lg font-bold text-[#2F240E] shrink-0"
+                      title={formatRupiah(dailyPocket)}
+                    >
+                      {formatRupiahShort(dailyPocket)}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setRecentOpen(recentOpen === "daily" ? null : "daily")}
+                    aria-expanded={recentOpen === "daily"}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#E9E5DD] bg-white/80 px-4 py-2.5 text-xs font-bold text-[#736B60] transition-colors hover:border-[#EEDB9A] hover:bg-white hover:text-[#76520E]"
+                  >
+                    Recent Activity
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${
+                        recentOpen === "daily" ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {recentOpen === "daily" && (
+                    <ul className="animate-overlay-in mt-2 space-y-1.5">
+                      {recentTransactions.slice(0, 2).map((tx) => (
+                        <li
+                          key={tx.id}
+                          className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2"
+                        >
+                          <span className="truncate text-[11px] font-semibold text-[#2F240E]">
+                            {tx.title}
+                          </span>
+                          <span
+                            className={`shrink-0 text-[11px] font-bold ${
+                              tx.type === "income" ? "text-[#277449]" : "text-[#2F240E]"
+                            }`}
+                          >
+                            {tx.type === "income" ? "+" : "−"}
+                            {formatRupiahShort(tx.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#2F240E] leading-tight">Daily Pocket</p>
-                  <span className="text-[10px] text-[#736B60] block mt-0.5">(Siap Pakai)</span>
-                  <p className="text-sm font-bold text-[#2F240E] mt-0.5" title={formatRupiah(dailyPocket)}>
-                    {formatRupiahShort(dailyPocket)}
-                  </p>
+
+                {/* Slide 2: Lock Pocket */}
+                <div className="w-full shrink-0 snap-center rounded-[22px] bg-[#FFF3D6] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-[13px] bg-white/75 shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
+                        <Lock size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#2F240E] leading-tight">Lock Pocket</p>
+                        <span className="text-[10px] text-[#76520E]/80 block mt-0.5">
+                          (BNI Life Goals)
+                        </span>
+                      </div>
+                    </div>
+                    <p
+                      className="text-lg font-bold text-[#2F240E] shrink-0 flex items-center gap-1"
+                      title={formatRupiah(lockPocket)}
+                    >
+                      <span>{formatRupiahShort(lockPocket)}</span>
+                      <Lock size={13} className="text-[#76520E] shrink-0" />
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setRecentOpen(recentOpen === "lock" ? null : "lock")}
+                    aria-expanded={recentOpen === "lock"}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#EEDB9A]/70 bg-white/80 px-4 py-2.5 text-xs font-bold text-[#76520E] transition-colors hover:bg-white"
+                  >
+                    Recent Activity
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${
+                        recentOpen === "lock" ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {recentOpen === "lock" && (
+                    <ul className="animate-overlay-in mt-2 space-y-1.5">
+                      {lockRecentTransactions.length > 0 ? (
+                        lockRecentTransactions.map((tx) => (
+                          <li
+                            key={tx.id}
+                            className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2"
+                          >
+                            <span className="truncate text-[11px] font-semibold text-[#2F240E]">
+                              {tx.title}
+                            </span>
+                            <span className="shrink-0 text-[11px] font-bold text-[#277449]">
+                              +{formatRupiahShort(tx.amount)}
+                            </span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="rounded-xl bg-white/70 px-3 py-2 text-[11px] font-semibold text-[#736B60]">
+                          Belum ada aktivitas nabung.
+                        </li>
+                      )}
+                    </ul>
+                  )}
                 </div>
+
+                {/* Slide 3: Kantong Budget */}
+                <Link
+                  href="/pockets"
+                  className="flex w-full shrink-0 snap-center flex-col justify-between rounded-[22px] border border-[#E9E5DD] bg-white p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-[13px] bg-[#FFF0BD] flex items-center justify-center text-[#6D4C00] shrink-0">
+                        <Layers size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#2F240E] leading-tight">
+                          Kantong Budget
+                        </p>
+                        <span className="text-[10px] text-[#736B60] block mt-0.5">
+                          {budgetPockets.length} kantong aktif
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-lg font-bold text-[#2F240E] shrink-0">
+                      {formatRupiahShort(budgetPockets.reduce((sum, p) => sum + p.balance, 0))}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-[#FFF8E6] px-4 py-2.5 text-xs font-bold text-[#76520E] transition-colors hover:bg-[#FFF3D6]">
+                    Kelola Kantong
+                    <ChevronRight size={14} />
+                  </div>
+                </Link>
               </div>
 
-              {/* Pocket 2: Lock Pocket */}
-              <div className="bg-[#FFF3D6] rounded-[19px] p-3.5 flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-[13px] bg-white/75 flex items-center justify-center text-[#76520E] shrink-0">
-                  <Lock size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#2F240E] leading-tight">Lock Pocket</p>
-                  <span className="text-[10px] text-[#736B60] block mt-0.5">(BNI Life Goals)</span>
-                  <p className="text-sm font-bold text-[#2F240E] mt-0.5 flex items-center gap-1" title={formatRupiah(lockPocket)}>
-                    <span>{formatRupiahShort(lockPocket)}</span>
-                    <Lock size={12} className="text-[#76520E] shrink-0" />
-                  </p>
-                </div>
+              {/* Dots */}
+              <div className="flex items-center justify-center gap-1.5 pt-3">
+                {Array.from({ length: POCKET_SLIDE_COUNT }).map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => scrollToSlide(idx)}
+                    aria-label={`Ke kartu ${idx + 1}`}
+                    className={`h-2 rounded-full transition-all duration-200 ${
+                      activeSlide === idx ? "w-5 bg-[#FFB900]" : "w-2 bg-[#D8D3C9] hover:bg-[#C4BDAF]"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Quick chips */}
+              <div className="grid grid-cols-2 gap-2.5 pt-2.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveActionModal("Transfer Saldo BNI")}
+                  className="flex items-center justify-center gap-2 rounded-full border border-[#F0EEE9] bg-white px-4 py-3.5 text-[13px] font-bold text-[#2F240E] shadow-sm transition-colors hover:border-[#EEDB9A] hover:bg-[#FFF8E6]"
+                >
+                  <Banknote size={17} className="text-[#76520E]" />
+                  Transfer &amp; Pay
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickSpendOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-full border border-[#F0EEE9] bg-white px-4 py-3.5 text-[13px] font-bold text-[#2F240E] shadow-sm transition-colors hover:border-[#EEDB9A] hover:bg-[#FFF8E6]"
+                >
+                  <QrCode size={17} className="text-[#76520E]" />
+                  Scan QRIS
+                </button>
               </div>
             </div>
-
-            {/* Budget Pockets entry point */}
-            <Link
-              href="/pockets"
-              className="flex items-center gap-2.5 rounded-[19px] border border-[#F0EEE9] px-3.5 py-3 transition-colors duration-150 hover:bg-[#FFFBF0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]"
-            >
-              <div className="w-10 h-10 rounded-[13px] bg-[#FFF0BD] flex items-center justify-center text-[#6D4C00] shrink-0">
-                <Layers size={18} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-[#2F240E] leading-tight">Kantong Budget</p>
-                <p className="text-[11px] text-[#736B60] mt-0.5">
-                  {budgetPockets.length} kantong ·{" "}
-                  {formatRupiah(budgetPockets.reduce((sum, p) => sum + p.balance, 0))}
-                </p>
-              </div>
-              <ChevronRight size={18} className="text-[#76520E] shrink-0" />
-            </Link>
           </div>
         </div>
+
+        {/* 2.5. RENCANA NERA (Onboarding plan summary) */}
+        {showPlanCard && (
+          <Link
+            href="/onboarding"
+            className="block overflow-hidden rounded-[22px] border border-[#FFE39A] bg-[#FFF8E6] p-4 transition-transform active:scale-[0.99]"
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#FFB900] text-[#352500]">
+                <Sparkles size={20} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#A36A00]">Rencana Nera</p>
+                  <span className="rounded-full bg-[#DDF0E6] px-1.5 py-0.5 text-[9px] font-bold text-[#277449]">
+                    Aktif
+                  </span>
+                </div>
+                <h4 className="mt-0.5 text-[14px] font-bold tracking-tight text-[#2F240E]">
+                  {planMeta.label}
+                </h4>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-[#7A6122]">
+                  {planMeta.recommendation}
+                </p>
+              </div>
+              <ChevronRight size={18} className="mt-1 shrink-0 text-[#A36A00]" />
+            </div>
+          </Link>
+        )}
 
         {/* 3. QUICK ACTION SECTION */}
         <section className="space-y-3">
@@ -550,10 +775,10 @@ export default function HomePage() {
           )}
 
           <div className="bg-white rounded-[24px] overflow-hidden">
-            {recentTransactions.map((tx, idx) => {
+            {combinedRecent.map((tx, idx) => {
               const IconComp = CATEGORY_ICONS[tx.category] || ShoppingBag;
               const color = CATEGORY_COLORS[tx.category] || "#7D766B";
-              const isLast = idx === recentTransactions.length - 1;
+              const isLast = idx === combinedRecent.length - 1;
               const isIncome = tx.type === "income";
               const dateStr = new Date(tx.timestamp).toLocaleDateString("id-ID", {
                 day: "numeric",

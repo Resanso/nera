@@ -31,6 +31,15 @@ import {
   ReceiptText,
   Target,
   Trash2,
+  Search,
+  Eye,
+  EyeOff,
+  Info,
+  SlidersHorizontal,
+  Layers,
+  PiggyBank,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
 
 const POCKET_ICONS: Record<BudgetPocketIcon, React.ElementType> = {
@@ -44,6 +53,7 @@ const POCKET_ICONS: Record<BudgetPocketIcon, React.ElementType> = {
   gadget: Laptop,
   gift: Gift,
   home: Home,
+  utility: Zap,
 };
 
 const ICON_LABELS: Record<BudgetPocketIcon, string> = {
@@ -57,13 +67,24 @@ const ICON_LABELS: Record<BudgetPocketIcon, string> = {
   gadget: "Gadget",
   gift: "Hadiah",
   home: "Kos",
+  utility: "Listrik",
 };
 
-// Warna kantong tetap di keluarga warm brand; hijau/merah hanya untuk status.
-const POCKET_TONES: Record<
-  BudgetPocketTone,
-  { label: string; card: string; iconWrap: string; icon: string; title: string; muted: string; track: string; fill: string; swatch: string }
-> = {
+interface PocketToneStyle {
+  label: string;
+  card: string;
+  iconWrap: string;
+  icon: string;
+  title: string;
+  muted: string;
+  track: string;
+  fill: string;
+  swatch: string;
+}
+
+// Palet warna kantong mengikuti gaya kartu Bank Jago: pastel untuk kantong
+// belanja, warna kuat untuk kartu khusus, dan kontras tinggi saat dipilih.
+const POCKET_TONES: Record<BudgetPocketTone, PocketToneStyle> = {
   yellow: {
     label: "Kuning",
     card: "bg-[#FFF0BD]",
@@ -88,18 +109,18 @@ const POCKET_TONES: Record<
   },
   peach: {
     label: "Peach",
-    card: "bg-[#FBE7D3]",
-    iconWrap: "bg-white/70",
+    card: "bg-[#FBE3D4]",
+    iconWrap: "bg-white/75",
     icon: "text-[#8A4B14]",
-    title: "text-[#2F240E]",
+    title: "text-[#3A2415]",
     muted: "text-[#7A5A40]",
     track: "bg-white/70",
-    fill: "bg-[#8A4B14]",
+    fill: "bg-[#B65C29]",
     swatch: "bg-[#F5C9A0]",
   },
   cream: {
     label: "Gading",
-    card: "bg-[#F7F5F0]",
+    card: "bg-[#F7F5EC]",
     iconWrap: "bg-white",
     icon: "text-[#76520E]",
     title: "text-[#2F240E]",
@@ -119,20 +140,78 @@ const POCKET_TONES: Record<
     fill: "bg-[#FFB900]",
     swatch: "bg-[#3A2800]",
   },
+  mint: {
+    label: "Mint",
+    card: "bg-[#EAF3E1]",
+    iconWrap: "bg-white/75",
+    icon: "text-[#4C6B2F]",
+    title: "text-[#263018]",
+    muted: "text-[#5F6F4E]",
+    track: "bg-white/70",
+    fill: "bg-[#6E8B3D]",
+    swatch: "bg-[#D6E7C3]",
+  },
+  teal: {
+    label: "Teal",
+    card: "bg-[#C6ECDF]",
+    iconWrap: "bg-white/75",
+    icon: "text-[#0C5C4F]",
+    title: "text-[#0F3B34]",
+    muted: "text-[#3D6A61]",
+    track: "bg-white/70",
+    fill: "bg-[#1B8A77]",
+    swatch: "bg-[#8DD8C7]",
+  },
+  sky: {
+    label: "Biru",
+    card: "bg-[#CFE4FA]",
+    iconWrap: "bg-white/75",
+    icon: "text-[#1D4E7A]",
+    title: "text-[#15324B]",
+    muted: "text-[#4C6B87]",
+    track: "bg-white/70",
+    fill: "bg-[#2F6DA8]",
+    swatch: "bg-[#A9CCF0]",
+  },
+  pink: {
+    label: "Pink",
+    card: "bg-[#F76C8B]",
+    iconWrap: "bg-white/22",
+    icon: "text-white",
+    title: "text-white",
+    muted: "text-[#FFE1E8]",
+    track: "bg-white/25",
+    fill: "bg-white",
+    swatch: "bg-[#F76C8B]",
+  },
+  cyan: {
+    label: "Sian",
+    card: "bg-[#0BA5DE]",
+    iconWrap: "bg-white",
+    icon: "text-[#0B8FC0]",
+    title: "text-white",
+    muted: "text-[#D5F1FB]",
+    track: "bg-white/25",
+    fill: "bg-white",
+    swatch: "bg-[#0BA5DE]",
+  },
 };
 
-// Warna segmen untuk bar alokasi di hero
-const TONE_SEGMENT: Record<BudgetPocketTone, string> = {
-  yellow: "#FFB900",
-  sand: "#C9AE7E",
-  peach: "#E8955A",
-  cream: "#E2D9C6",
-  brown: "#3A2800",
-};
+const MAIN_TONE: BudgetPocketTone = "mint";
 
 const QUICK_AMOUNTS = [25000, 50000, 100000, 250000];
 
 type DetailMode = "topup" | "spend" | "withdraw";
+
+type FilterId = "all" | "mine" | "investment";
+
+const FILTERS: { id: FilterId; label: string }[] = [
+  { id: "all", label: "Semua" },
+  { id: "mine", label: "Kantong Saya" },
+  { id: "investment", label: "Investasi" },
+];
+
+type PocketCardItem = { type: "main" } | { type: "pocket"; pocket: BudgetPocket };
 
 const formatRupiah = (val: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -165,6 +244,9 @@ const spendingStatus = (pct: number) => {
   return null;
 };
 
+const pocketSubtitle = (pocket: BudgetPocket) =>
+  pocket.kind === "saving" ? "Kantong Tabungan" : "Kantong Belanja";
+
 export default function PocketsPage() {
   const {
     dailyPocket,
@@ -184,12 +266,19 @@ export default function PocketsPage() {
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isManageOpen, setIsManageOpen] = useState(false);
+  const [isMainOpen, setIsMainOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKind, setNewKind] = useState<BudgetPocketKind>("spending");
   const [newIcon, setNewIcon] = useState<BudgetPocketIcon>("food");
-  const [newTone, setNewTone] = useState<BudgetPocketTone>("yellow");
+  const [newTone, setNewTone] = useState<BudgetPocketTone>("teal");
   const [newTarget, setNewTarget] = useState("");
   const [newInitial, setNewInitial] = useState("");
+
+  const [activeFilter, setActiveFilter] = useState<FilterId>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showBalances, setShowBalances] = useState(true);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -198,6 +287,9 @@ export default function PocketsPage() {
   const emailSpending = useEmailSpending();
   const withEmail = (p: BudgetPocket): BudgetPocket =>
     p.kind === "spending" ? { ...p, spentThisMonth: p.spentThisMonth + emailSpending.spentForPocket(p.icon) } : p;
+  const spentFromEmail = budgetPockets
+    .filter((p) => p.kind === "spending")
+    .reduce((sum, p) => sum + emailSpending.spentForPocket(p.icon), 0);
 
   const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(withEmail);
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
@@ -205,10 +297,41 @@ export default function PocketsPage() {
 
   const totals = useMemo(() => {
     const inPockets = budgetPockets.reduce((sum, p) => sum + p.balance, 0);
+    const inSpending = spendingPockets.reduce((sum, p) => sum + p.balance, 0);
+    const inSaving = savingPockets.reduce((sum, p) => sum + p.balance, 0);
     const budget = spendingPockets.reduce((sum, p) => sum + p.targetAmount, 0);
     const spent = spendingPockets.reduce((sum, p) => sum + p.spentThisMonth, 0);
-    return { inPockets, all: inPockets + dailyPocket, budget, spent };
-  }, [budgetPockets, spendingPockets, dailyPocket]);
+    return {
+      inPockets,
+      inSpending,
+      inSaving,
+      all: inPockets + dailyPocket,
+      budget,
+      spent,
+    };
+  }, [budgetPockets, spendingPockets, savingPockets, dailyPocket]);
+
+  const money = (val: number) => (showBalances ? formatRupiah(val) : "Rp — — —");
+
+  const visibleCards = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const items: PocketCardItem[] = [{ type: "main" }];
+
+    budgetPockets.forEach((pocket) => items.push({ type: "pocket", pocket }));
+
+    return items.filter((item) => {
+      if (item.type === "main") {
+        if (activeFilter === "investment") return false;
+      } else {
+        if (activeFilter === "investment" && item.pocket.kind !== "saving") return false;
+        if (activeFilter === "mine" && item.pocket.kind !== "spending") return false;
+      }
+
+      if (!query) return true;
+      const name = item.type === "main" ? "kantong utama" : item.pocket.name.toLowerCase();
+      return name.includes(query);
+    });
+  }, [budgetPockets, activeFilter, searchQuery]);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -229,9 +352,19 @@ export default function PocketsPage() {
     setNewName("");
     setNewKind("spending");
     setNewIcon("food");
-    setNewTone("yellow");
+    setNewTone("teal");
     setNewTarget("");
     setNewInitial("");
+  };
+
+  const openCreate = (kind: BudgetPocketKind = "spending") => {
+    resetCreateForm();
+    setNewKind(kind);
+    if (kind === "saving") {
+      setNewIcon("gadget");
+      setNewTone("cyan");
+    }
+    setIsCreateOpen(true);
   };
 
   const detailLimit = selectedPocket
@@ -254,7 +387,7 @@ export default function PocketsPage() {
       triggerToast(`Pengeluaran ${formatRupiah(detailValue)} dicatat dari ${selectedPocket.name}`);
     } else {
       withdrawFromBudgetPocket(selectedPocket.id, detailValue);
-      triggerToast(`${formatRupiah(detailValue)} kembali ke Daily Pocket`);
+      triggerToast(`${formatRupiah(detailValue)} kembali ke Kantong Utama`);
     }
 
     setDetailAmount("");
@@ -268,7 +401,7 @@ export default function PocketsPage() {
     closeDetail();
     triggerToast(
       balance > 0
-        ? `Kantong ${name} dihapus. ${formatRupiah(balance)} kembali ke Daily Pocket`
+        ? `Kantong ${name} dihapus. ${formatRupiah(balance)} kembali ke Kantong Utama`
         : `Kantong ${name} dihapus`
     );
   };
@@ -297,230 +430,249 @@ export default function PocketsPage() {
     resetCreateForm();
   };
 
-  const allocationSegments = [
-    ...budgetPockets.map((p) => ({ key: p.id, value: p.balance, color: TONE_SEGMENT[p.tone] })),
-    { key: "utama", value: dailyPocket, color: "#F4ECDD" },
-  ].filter((s) => s.value > 0);
+  const mainTone = POCKET_TONES[MAIN_TONE];
 
   return (
     <div className="flex flex-col min-h-full bg-[#F1F2F4]">
       <TopAppBar title="Kantong" showBack />
 
-      <main className="flex-1 px-4 pb-8 space-y-7">
-        {/* HERO: TOTAL SALDO & ALOKASI */}
-        <div className="-mx-4 rounded-b-[32px] bg-white px-6 pt-5 pb-6">
-          <p className="text-sm font-medium text-[#766D61]">Total saldo di semua kantong</p>
-          <h2 className="text-[31px] font-bold text-[#2F240E] tracking-tight leading-tight mt-1 tabular-nums">
-            {formatRupiah(totals.all)}
-          </h2>
-
-          {/* Allocation bar */}
-          <div
-            className="mt-5 flex h-2.5 w-full gap-[3px] overflow-hidden rounded-full"
-            role="img"
-            aria-label="Alokasi saldo per kantong"
+      <main className="flex-1 px-4 pb-8 space-y-5">
+        {/* SEARCH */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A938A]"
+            />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari kantong"
+              aria-label="Cari kantong"
+              className="h-11 w-full rounded-[14px] bg-[#E7E9EC] pl-10 pr-3 text-sm font-medium text-[#2F240E] placeholder:text-[#9A938A] focus:bg-white focus:outline-2 focus:outline-[#BA8500]"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsManageOpen(true)}
+            aria-label="Kelola kantong"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white text-[#2F240E] transition-colors hover:bg-[#FFFBF0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]"
           >
-            {allocationSegments.map((seg) => (
-              <div
-                key={seg.key}
-                className="h-full first:rounded-l-full last:rounded-r-full"
-                style={{ width: `${(seg.value / totals.all) * 100}%`, backgroundColor: seg.color }}
-              />
-            ))}
-          </div>
-
-          <div className="mt-4 flex items-center gap-3 rounded-[19px] bg-[#F7F7F7] p-3.5">
-            <div className="w-10 h-10 rounded-[13px] bg-white flex items-center justify-center text-[#76520E] shrink-0">
-              <Wallet size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[#2F240E]">Kantong Utama</p>
-              <p className="text-[11px] text-[#736B60] mt-0.5">Daily Pocket · siap dialokasikan</p>
-            </div>
-            <p className="text-sm font-bold text-[#2F240E] tabular-nums">{formatRupiah(dailyPocket)}</p>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <Button
-              variant="primary"
-              onClick={() => {
-                resetCreateForm();
-                setIsCreateOpen(true);
-              }}
-            >
-              <Plus size={18} className="mr-1.5" />
-              Buat Kantong
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setIsPickerOpen(true)}
-              disabled={budgetPockets.length === 0}
-            >
-              <ArrowLeftRight size={17} className="mr-1.5" />
-              Pindah Dana
-            </Button>
-          </div>
+            <SlidersHorizontal size={19} />
+          </button>
         </div>
 
-        {/* KANTONG BELANJA (BUDGET BULANAN) */}
-        <section className="space-y-3">
-          <div className="flex items-end justify-between">
-            <div>
-              <h3 className="text-[16px] font-semibold text-[#2F240E]">Budget Bulan Ini</h3>
-              <p className="text-xs text-[#736B60] mt-0.5">
-                Terpakai {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
-              </p>
-            </div>
-            <span className="text-xs font-medium text-[#736B60]">{spendingPockets.length} kantong</span>
-          </div>
+        {/* FILTERS */}
+        <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {FILTERS.map((filter) => {
+            const active = activeFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setActiveFilter(filter.id)}
+                aria-pressed={active}
+                className={cn(
+                  "h-9 shrink-0 rounded-full px-3.5 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
+                  active
+                    ? "bg-[#2F240E] font-bold text-white"
+                    : "bg-transparent font-medium text-[#A29B90] hover:text-[#2F240E]"
+                )}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => openCreate("spending")}
+            aria-label="Buat kantong baru"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#2F240E] transition-colors hover:bg-[#E7E9EC] focus-visible:outline-2 focus-visible:outline-[#BA8500]"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {spendingPockets.map((pocket) => {
-              const tone = POCKET_TONES[pocket.tone];
-              const Icon = POCKET_ICONS[pocket.icon];
-              const pct = usagePct(pocket);
-              const status = spendingStatus(pct);
-              const fromEmail = emailSpending.spentForPocket(pocket.icon);
-
-              return (
-                <button
-                  key={pocket.id}
-                  onClick={() => openDetail(pocket.id, pocket.balance > 0 ? "spend" : "topup")}
-                  className={cn(
-                    "flex min-h-[164px] flex-col rounded-[22px] p-4 text-left cursor-pointer transition-transform duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
-                    tone.card
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className={cn("w-10 h-10 rounded-[13px] flex items-center justify-center", tone.iconWrap, tone.icon)}>
-                      <Icon size={19} />
-                    </div>
-                    {status && (
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", status.className)}>
-                        {status.label}
-                      </span>
-                    )}
-                  </div>
-                  <p className={cn("mt-3 text-xs font-semibold truncate w-full", tone.title)}>{pocket.name}</p>
-                  <p className={cn("mt-0.5 text-[17px] font-bold tabular-nums", tone.title)}>
-                    {formatRupiah(pocket.balance)}
-                  </p>
-                  <div className="mt-auto pt-3 w-full">
-                    <div className={cn("h-1.5 w-full rounded-full overflow-hidden", tone.track)}>
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-[width] duration-500",
-                          pct >= 90 ? "bg-[#C43737]" : tone.fill
-                        )}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <p className={cn("mt-1.5 text-[10px]", tone.muted)}>
-                      {pct}% dari {formatRupiahShort(pocket.targetAmount)} terpakai
-                    </p>
-                    {fromEmail > 0 && (
-                      <p className={cn("text-[10px]", tone.muted)}>termasuk {formatRupiahShort(fromEmail)} dari email</p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-
+        {/* TOTAL ASET */}
+        <section className="flex items-center justify-between rounded-[22px] bg-white px-4 py-4">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-[15px] font-bold text-[#2F240E]">Aset Saya</h2>
             <button
-              onClick={() => {
-                resetCreateForm();
-                setNewKind("spending");
-                setIsCreateOpen(true);
-              }}
-              className="flex min-h-[164px] flex-col items-center justify-center gap-2 rounded-[22px] border-[1.5px] border-dashed border-[#D8D3C9] bg-white text-[#76520E] cursor-pointer transition-colors duration-150 hover:bg-[#FFFBF0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]"
+              type="button"
+              onClick={() => setIsInfoOpen(true)}
+              aria-label="Informasi aset"
+              className="text-[#FFB900] transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-[#BA8500]"
             >
-              <div className="w-10 h-10 rounded-[13px] bg-[#FFF0BD] flex items-center justify-center">
-                <Plus size={20} />
-              </div>
-              <span className="text-xs font-semibold">Kantong Baru</span>
+              <Info size={15} strokeWidth={2.4} />
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[15px] font-bold tabular-nums text-[#2F240E]">
+              {money(totals.all)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowBalances((prev) => !prev)}
+              aria-pressed={!showBalances}
+              aria-label={showBalances ? "Sembunyikan saldo" : "Tampilkan saldo"}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-[#2F240E] transition-colors hover:bg-[#F1F2F4] focus-visible:outline-2 focus-visible:outline-[#BA8500]"
+            >
+              {showBalances ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
         </section>
 
-        {/* KANTONG TABUNGAN (TARGET) */}
-        <section className="space-y-3">
-          <div className="flex items-end justify-between">
-            <div>
-              <h3 className="text-[16px] font-semibold text-[#2F240E]">Tabungan Impian</h3>
-              <p className="text-xs text-[#736B60] mt-0.5">Sisihkan sedikit demi sedikit sampai target tercapai</p>
-            </div>
-          </div>
+        {/* POCKET GRID */}
+        <section>
+          <div className="grid grid-cols-2 gap-3">
+              {visibleCards.map((item) => {
+                if (item.type === "main") {
+                  return (
+                    <button
+                      key="main"
+                      type="button"
+                      onClick={() => setIsMainOpen(true)}
+                      className={cn(
+                        "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
+                        mainTone.card
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex h-12 w-12 items-center justify-center rounded-[16px]",
+                          mainTone.iconWrap,
+                          mainTone.icon
+                        )}
+                      >
+                        <Wallet size={25} strokeWidth={2} />
+                      </div>
+                      <div className="mt-auto w-full pt-6">
+                        <p className={cn("truncate text-[15px] font-bold", mainTone.title)}>
+                          Kantong Utama
+                        </p>
+                        <p
+                          className={cn(
+                            "mt-0.5 text-[18px] font-bold leading-tight tabular-nums",
+                            mainTone.title
+                          )}
+                        >
+                          {money(dailyPocket)}
+                        </p>
+                        <p className={cn("mt-1 text-[11px] font-medium", mainTone.muted)}>
+                          Kantong Utama
+                        </p>
+                      </div>
+                    </button>
+                  );
+                }
 
-          {savingPockets.length === 0 ? (
-            <div className="rounded-[22px] bg-white p-5 text-center">
-              <p className="text-sm font-semibold text-[#2F240E]">Belum ada tabungan impian</p>
-              <p className="text-xs text-[#736B60] mt-1">Buat kantong untuk laptop, liburan, atau dana darurat.</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mt-3"
-                onClick={() => {
-                  resetCreateForm();
-                  setNewKind("saving");
-                  setNewIcon("gadget");
-                  setNewTone("brown");
-                  setIsCreateOpen(true);
-                }}
-              >
-                Buat Tabungan
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {savingPockets.map((pocket) => {
+                const pocket = item.pocket;
                 const tone = POCKET_TONES[pocket.tone];
                 const Icon = POCKET_ICONS[pocket.icon];
-                const pct = usagePct(pocket);
-                const remaining = Math.max(0, pocket.targetAmount - pocket.balance);
 
                 return (
                   <button
                     key={pocket.id}
-                    onClick={() => openDetail(pocket.id, "topup")}
+                    type="button"
+                    onClick={() =>
+                      openDetail(pocket.id, pocket.kind === "spending" && pocket.balance > 0 ? "spend" : "topup")
+                    }
                     className={cn(
-                      "w-full rounded-[22px] p-4 text-left cursor-pointer transition-transform duration-150 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
+                      "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
                       tone.card
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0", tone.iconWrap, tone.icon)}>
-                        <Icon size={20} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={cn("text-sm font-semibold truncate", tone.title)}>{pocket.name}</p>
-                        <p className={cn("text-[11px] mt-0.5", tone.muted)}>
-                          {pct >= 100 ? "Target tercapai" : `Kurang ${formatRupiah(remaining)}`}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={cn("text-[15px] font-bold tabular-nums", tone.title)}>
-                          {formatRupiah(pocket.balance)}
-                        </p>
-                        <p className={cn("text-[11px] mt-0.5 tabular-nums", tone.muted)}>
-                          dari {formatRupiahShort(pocket.targetAmount)}
-                        </p>
-                      </div>
+                    <div
+                      className={cn(
+                        "flex h-12 w-12 items-center justify-center rounded-[16px]",
+                        tone.iconWrap,
+                        tone.icon
+                      )}
+                    >
+                      <Icon size={25} strokeWidth={2} />
                     </div>
-                    <div className="mt-3.5 flex items-center gap-2.5">
-                      <div className={cn("h-1.5 flex-1 rounded-full overflow-hidden", tone.track)}>
-                        <div
-                          className={cn("h-full rounded-full transition-[width] duration-500", pct >= 100 ? "bg-[#277449]" : tone.fill)}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className={cn("text-[11px] font-semibold tabular-nums", tone.title)}>{pct}%</span>
+                    <div className="mt-auto w-full pt-6">
+                      <p className={cn("truncate text-[15px] font-bold", tone.title)}>{pocket.name}</p>
+                      <p
+                        className={cn(
+                          "mt-0.5 text-[18px] font-bold leading-tight tabular-nums",
+                          tone.title
+                        )}
+                      >
+                        {money(pocket.balance)}
+                      </p>
+                      <p className={cn("mt-1 text-[11px] font-medium", tone.muted)}>
+                        {pocketSubtitle(pocket)}
+                      </p>
                     </div>
                   </button>
                 );
               })}
+
+              {visibleCards.length === 0 && (
+                <div className="col-span-2 rounded-[22px] bg-white px-5 py-7 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#F1F2F4] text-[#76520E]">
+                    <Search size={22} />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-[#2F240E]">Kantong tidak ditemukan</p>
+                  <p className="mt-1 text-xs text-[#736B60]">
+                    Coba kata kunci lain atau buat kantong baru.
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => openCreate("spending")}
+                className={cn(
+                  "flex min-h-[186px] flex-col items-center justify-center gap-2 rounded-[24px] border-[1.5px] border-dashed border-[#D8D3C9] bg-white/60 text-[#76520E] transition-colors duration-150 hover:bg-[#FFFBF0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
+                  visibleCards.length === 0 && "col-span-2 min-h-[120px]"
+                )}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#FFF0BD]">
+                  <Plus size={24} />
+                </div>
+                <span className="text-xs font-semibold">Kantong Baru</span>
+              </button>
             </div>
-          )}
-        </section>
+          </section>
+
+        {/* BUDGET SUMMARY */}
+        {spendingPockets.length > 0 && (
+          <section className="rounded-[20px] bg-white px-4 py-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FFF0BD] text-[#6D4C00]">
+                  <Target size={16} />
+                </div>
+                <div>
+                  <p className="text-[12px] font-semibold text-[#2F240E]">Budget bulan ini</p>
+                  <p className="text-[10px] text-[#736B60]">
+                    {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
+                    {spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[12px] font-bold tabular-nums text-[#2F240E]">
+                {totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0}%
+              </span>
+            </div>
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F1F2F4]">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width] duration-500",
+                  totals.spent >= totals.budget ? "bg-[#C43737]" : "bg-[#FFB900]"
+                )}
+                style={{
+                  width: `${
+                    totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </section>
+        )}
       </main>
 
       {/* TOAST */}
@@ -533,10 +685,157 @@ export default function PocketsPage() {
         </div>
       )}
 
+      {/* MODAL: KELOLA */}
+      <Modal isOpen={isManageOpen} onClose={() => setIsManageOpen(false)} title="Kelola Kantong">
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsManageOpen(false);
+              setIsPickerOpen(true);
+            }}
+            disabled={budgetPockets.length === 0}
+            className="flex w-full items-center gap-3 rounded-[16px] bg-[#F7F7F7] px-3.5 py-3 text-left transition-colors hover:bg-[#FFFBF0] disabled:opacity-50"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-[#76520E]">
+              <ArrowLeftRight size={17} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-[#2F240E]">Pindah Dana</p>
+              <p className="text-[11px] text-[#736B60]">Alokasikan saldo Kantong Utama</p>
+            </div>
+            <ArrowRight size={16} className="text-[#B8B1A6]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsManageOpen(false);
+              openCreate("spending");
+            }}
+            className="flex w-full items-center gap-3 rounded-[16px] bg-[#F7F7F7] px-3.5 py-3 text-left transition-colors hover:bg-[#FFFBF0]"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-[#76520E]">
+              <Plus size={17} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-[#2F240E]">Buat Kantong Baru</p>
+              <p className="text-[11px] text-[#736B60]">Pisahkan uang sesuai kebutuhanmu</p>
+            </div>
+            <ArrowRight size={16} className="text-[#B8B1A6]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowBalances((prev) => !prev);
+              setIsManageOpen(false);
+            }}
+            className="flex w-full items-center gap-3 rounded-[16px] bg-[#F7F7F7] px-3.5 py-3 text-left transition-colors hover:bg-[#FFFBF0]"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-[#76520E]">
+              {showBalances ? <EyeOff size={17} /> : <Eye size={17} />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-[#2F240E]">
+                {showBalances ? "Sembunyikan Saldo" : "Tampilkan Saldo"}
+              </p>
+              <p className="text-[11px] text-[#736B60]">Atur privasi nominal di layar ini</p>
+            </div>
+            <ArrowRight size={16} className="text-[#B8B1A6]" />
+          </button>
+        </div>
+      </Modal>
+
+      {/* MODAL: INFO ASET */}
+      <Modal isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} title="Aset Saya">
+        <div className="space-y-4">
+          <p className="text-xs leading-relaxed text-[#736B60]">
+            Aset Saya adalah total saldo Kantong Utama ditambah seluruh kantong yang kamu buat.
+          </p>
+          <div className="overflow-hidden rounded-[18px] border border-[#E9E5DD] divide-y divide-[#F0EEE9]">
+            <div className="flex items-center justify-between px-3.5 py-3 text-xs">
+              <span className="flex items-center gap-2 text-[#736B60]">
+                <Wallet size={15} /> Kantong Utama
+              </span>
+              <span className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(dailyPocket)}</span>
+            </div>
+            <div className="flex items-center justify-between px-3.5 py-3 text-xs">
+              <span className="flex items-center gap-2 text-[#736B60]">
+                <Layers size={15} /> Kantong Belanja
+              </span>
+              <span className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.inSpending)}</span>
+            </div>
+            <div className="flex items-center justify-between px-3.5 py-3 text-xs">
+              <span className="flex items-center gap-2 text-[#736B60]">
+                <PiggyBank size={15} /> Kantong Tabungan
+              </span>
+              <span className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.inSaving)}</span>
+            </div>
+            <div className="flex items-center justify-between bg-[#FFFBF0] px-3.5 py-3 text-xs">
+              <span className="font-bold text-[#2F240E]">Total Aset</span>
+              <span className="font-bold tabular-nums text-[#2F240E]">{formatRupiah(totals.all)}</span>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* MODAL: KANTONG UTAMA */}
+      <Modal isOpen={isMainOpen} onClose={() => setIsMainOpen(false)} title="Kantong Utama">
+        <div className="space-y-4">
+          <div className={cn("rounded-[20px] p-4", mainTone.card)}>
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-[14px]",
+                  mainTone.iconWrap,
+                  mainTone.icon
+                )}
+              >
+                <Wallet size={20} />
+              </div>
+              <div>
+                <p className={cn("text-[11px]", mainTone.muted)}>Saldo siap pakai</p>
+                <p className={cn("text-xl font-bold tabular-nums", mainTone.title)}>
+                  {formatRupiah(dailyPocket)}
+                </p>
+              </div>
+            </div>
+            <p className={cn("mt-3 text-[11px] leading-relaxed", mainTone.muted)}>
+              Kantong Utama menampung uang yang belum dialokasikan. Pindahkan ke kantong lain agar
+              pengeluaranmu lebih terkendali.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsMainOpen(false);
+                setIsPickerOpen(true);
+              }}
+              disabled={budgetPockets.length === 0}
+            >
+              <ArrowLeftRight size={16} className="mr-1.5" />
+              Pindah Dana
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setIsMainOpen(false);
+                openCreate("spending");
+              }}
+            >
+              <Plus size={16} className="mr-1.5" />
+              Buat Kantong
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* MODAL: PILIH KANTONG TUJUAN */}
       <Modal isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)} title="Pindah ke Kantong">
         <p className="text-xs text-[#736B60] -mt-1 mb-3">
-          Dana diambil dari Daily Pocket ({formatRupiah(dailyPocket)}).
+          Dana diambil dari Kantong Utama ({formatRupiah(dailyPocket)}).
         </p>
         <div className="overflow-hidden rounded-[18px] border border-[#E9E5DD] divide-y divide-[#F0EEE9]">
           {budgetPockets.map((pocket) => {
@@ -545,22 +844,21 @@ export default function PocketsPage() {
             return (
               <button
                 key={pocket.id}
+                type="button"
                 onClick={() => {
                   setIsPickerOpen(false);
                   openDetail(pocket.id, "topup");
                 }}
-                className="flex w-full items-center gap-3 px-3.5 py-3 text-left cursor-pointer transition-colors duration-150 hover:bg-[#FFFBF0] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BA8500]"
+                className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors duration-150 hover:bg-[#FFFBF0] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BA8500]"
               >
-                <div className={cn("w-9 h-9 rounded-[12px] flex items-center justify-center shrink-0", tone.card, tone.icon)}>
+                <div className={cn("flex h-9 w-9 items-center justify-center rounded-[12px] shrink-0", tone.card, tone.icon)}>
                   <Icon size={17} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-[#2F240E] truncate">{pocket.name}</p>
-                  <p className="text-[11px] text-[#736B60]">
-                    {pocket.kind === "spending" ? "Budget belanja" : "Tabungan"}
-                  </p>
+                  <p className="truncate text-[13px] font-semibold text-[#2F240E]">{pocket.name}</p>
+                  <p className="text-[11px] text-[#736B60]">{pocketSubtitle(pocket)}</p>
                 </div>
-                <span className="text-[13px] font-semibold text-[#2F240E] tabular-nums">
+                <span className="text-[13px] font-semibold tabular-nums text-[#2F240E]">
                   {formatRupiah(pocket.balance)}
                 </span>
               </button>
@@ -575,178 +873,201 @@ export default function PocketsPage() {
         onClose={closeDetail}
         title={selectedPocket ? `Kantong ${selectedPocket.name}` : "Kantong"}
       >
-        {selectedPocket && (() => {
-          const tone = POCKET_TONES[selectedPocket.tone];
-          const Icon = POCKET_ICONS[selectedPocket.icon];
-          const pct = usagePct(withEmail(selectedPocket));
-          const isSpending = selectedPocket.kind === "spending";
-          const modes: { id: DetailMode; label: string; icon: React.ElementType }[] = [
-            { id: "topup", label: "Isi", icon: ArrowDownToLine },
-            ...(isSpending ? [{ id: "spend" as const, label: "Pakai", icon: ReceiptText }] : []),
-            { id: "withdraw", label: "Tarik", icon: ArrowUpFromLine },
-          ];
+        {selectedPocket &&
+          (() => {
+            const tone = POCKET_TONES[selectedPocket.tone];
+            const Icon = POCKET_ICONS[selectedPocket.icon];
+            const pct = usagePct(withEmail(selectedPocket));
+            const isSpending = selectedPocket.kind === "spending";
+            const status = isSpending ? spendingStatus(pct) : null;
+            const remaining = Math.max(0, selectedPocket.targetAmount - selectedPocket.balance);
+            const modes: { id: DetailMode; label: string; icon: React.ElementType }[] = [
+              { id: "topup", label: "Isi", icon: ArrowDownToLine },
+              ...(isSpending ? [{ id: "spend" as const, label: "Pakai", icon: ReceiptText }] : []),
+              { id: "withdraw", label: "Tarik", icon: ArrowUpFromLine },
+            ];
 
-          return (
-            <div className="space-y-4">
-              <div className={cn("rounded-[20px] p-4", tone.card)}>
-                <div className="flex items-center gap-3">
-                  <div className={cn("w-11 h-11 rounded-[14px] flex items-center justify-center", tone.iconWrap, tone.icon)}>
-                    <Icon size={20} />
+            return (
+              <div className="space-y-4">
+                <div className={cn("rounded-[20px] p-4", tone.card)}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("flex h-11 w-11 items-center justify-center rounded-[14px]", tone.iconWrap, tone.icon)}>
+                      <Icon size={20} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("text-[11px]", tone.muted)}>Saldo kantong</p>
+                      <p className={cn("text-xl font-bold tabular-nums", tone.title)}>
+                        {formatRupiah(selectedPocket.balance)}
+                      </p>
+                    </div>
+                    {status && (
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", status.className)}>
+                        {status.label}
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <p className={cn("text-[11px]", tone.muted)}>Saldo kantong</p>
-                    <p className={cn("text-xl font-bold tabular-nums", tone.title)}>
-                      {formatRupiah(selectedPocket.balance)}
-                    </p>
-                  </div>
-                </div>
-                <div className={cn("mt-3.5 h-1.5 w-full rounded-full overflow-hidden", tone.track)}>
-                  <div
-                    className={cn("h-full rounded-full transition-[width] duration-500", tone.fill)}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className={cn("mt-1.5 flex items-center justify-between text-[11px]", tone.muted)}>
-                  <span className="flex items-center gap-1">
-                    <Target size={12} />
-                    {isSpending ? "Budget bulanan" : "Target"} {formatRupiah(selectedPocket.targetAmount)}
-                  </span>
-                  <span className="font-semibold tabular-nums">
-                    {isSpending ? `${pct}% terpakai` : `${pct}%`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Segmented action switcher */}
-              <div className="grid gap-1 rounded-[14px] bg-[#F1F2F4] p-1" style={{ gridTemplateColumns: `repeat(${modes.length}, minmax(0, 1fr))` }}>
-                {modes.map((m) => {
-                  const MIcon = m.icon;
-                  const active = detailMode === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setDetailMode(m.id);
-                        setDetailAmount("");
-                      }}
-                      aria-pressed={active}
-                      className={cn(
-                        "flex h-9 items-center justify-center gap-1.5 rounded-[11px] text-xs font-semibold cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
-                        active ? "bg-white text-[#2F240E]" : "text-[#736B60] hover:text-[#2F240E]"
-                      )}
-                    >
-                      <MIcon size={15} />
-                      {m.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <form onSubmit={handleDetailSubmit} className="space-y-3">
-                {detailMode === "spend" && (
-                  <div>
-                    <label htmlFor="spend-note" className="block text-xs font-semibold text-[#2F240E] mb-1">
-                      Keterangan
-                    </label>
-                    <input
-                      id="spend-note"
-                      type="text"
-                      placeholder="Contoh: Makan siang kantin"
-                      value={spendNote}
-                      onChange={(e) => setSpendNote(e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-[#E9E5DD] rounded-xl focus:outline-none focus:border-[#76520E]"
+                  <div className={cn("mt-3.5 h-1.5 w-full overflow-hidden rounded-full", tone.track)}>
+                    <div
+                      className={cn("h-full rounded-full transition-[width] duration-500", pct >= 90 && isSpending ? "bg-[#C43737]" : tone.fill)}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="pocket-amount" className="text-xs font-semibold text-[#2F240E]">
-                      Nominal
-                    </label>
-                    <span className="text-[11px] text-[#736B60]">
-                      {detailMode === "topup" ? "Daily Pocket" : "Saldo"} {formatRupiah(detailLimit)}
+                  <div className={cn("mt-1.5 flex items-center justify-between text-[11px]", tone.muted)}>
+                    <span className="flex items-center gap-1">
+                      <Target size={12} />
+                      {isSpending ? "Budget bulanan" : "Target"} {formatRupiah(selectedPocket.targetAmount)}
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {isSpending ? `${pct}% terpakai` : `${pct}%`}
                     </span>
                   </div>
-                  <div className="flex items-center rounded-xl border border-[#E9E5DD] px-3 focus-within:border-[#76520E]">
-                    <span className="text-sm font-semibold text-[#736B60]">Rp</span>
-                    <input
-                      id="pocket-amount"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={detailAmount}
-                      onChange={(e) => setDetailAmount(formatAmountInput(e.target.value))}
-                      className="w-full bg-transparent px-2 py-2.5 text-base font-semibold text-[#2F240E] tabular-nums focus:outline-none"
-                    />
-                  </div>
-                  {detailValue > detailLimit && (
-                    <p className="mt-1 text-[11px] text-[#C43737]">Nominal melebihi saldo yang tersedia.</p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_AMOUNTS.map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      disabled={amt > detailLimit}
-                      onClick={() => setDetailAmount(amt.toLocaleString("id-ID"))}
-                      className="rounded-full bg-[#FFF3D6] px-3 py-1.5 text-[11px] font-semibold text-[#76520E] cursor-pointer transition-colors duration-150 hover:bg-[#FFE39A] disabled:opacity-40 disabled:pointer-events-none"
-                    >
-                      {formatRupiahShort(amt)}
-                    </button>
-                  ))}
-                  {detailMode === "withdraw" && selectedPocket.balance > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setDetailAmount(selectedPocket.balance.toLocaleString("id-ID"))}
-                      className="rounded-full bg-[#FFF3D6] px-3 py-1.5 text-[11px] font-semibold text-[#76520E] cursor-pointer transition-colors duration-150 hover:bg-[#FFE39A]"
-                    >
-                      Semua
-                    </button>
-                  )}
-                </div>
-
-                <Button type="submit" variant={detailMode === "topup" ? "primary" : "bni"} fullWidth disabled={!isDetailValid}>
-                  {detailMode === "topup" && "Isi Kantong"}
-                  {detailMode === "spend" && "Catat Pengeluaran"}
-                  {detailMode === "withdraw" && "Tarik ke Daily Pocket"}
-                </Button>
-              </form>
-
-              <div className="border-t border-[#E9E5DD] pt-3">
-                {isConfirmingDelete ? (
-                  <div className="space-y-2.5">
-                    <p className="text-xs text-[#736B60] leading-relaxed">
-                      Hapus kantong ini?{" "}
-                      {selectedPocket.balance > 0 &&
-                        `Saldo ${formatRupiah(selectedPocket.balance)} akan dikembalikan ke Daily Pocket.`}
+                  {!isSpending && (
+                    <p className={cn("mt-1 text-[11px]", tone.muted)}>
+                      {pct >= 100 ? "Target tercapai" : `Kurang ${formatRupiah(remaining)}`}
                     </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" fullWidth onClick={() => setIsConfirmingDelete(false)}>
-                        Batal
-                      </Button>
-                      <Button variant="danger" size="sm" fullWidth onClick={handleDelete}>
-                        Ya, Hapus
-                      </Button>
+                  )}
+                </div>
+
+                {/* Segmented action switcher */}
+                <div
+                  className="grid gap-1 rounded-[14px] bg-[#F1F2F4] p-1"
+                  style={{ gridTemplateColumns: `repeat(${modes.length}, minmax(0, 1fr))` }}
+                >
+                  {modes.map((m) => {
+                    const MIcon = m.icon;
+                    const active = detailMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setDetailMode(m.id);
+                          setDetailAmount("");
+                        }}
+                        aria-pressed={active}
+                        className={cn(
+                          "flex h-9 items-center justify-center gap-1.5 rounded-[11px] text-xs font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
+                          active
+                            ? "bg-white text-[#2F240E]"
+                            : "text-[#736B60] hover:text-[#2F240E]"
+                        )}
+                      >
+                        <MIcon size={15} />
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <form onSubmit={handleDetailSubmit} className="space-y-3">
+                  {detailMode === "spend" && (
+                    <div>
+                      <label htmlFor="spend-note" className="mb-1 block text-xs font-semibold text-[#2F240E]">
+                        Keterangan
+                      </label>
+                      <input
+                        id="spend-note"
+                        type="text"
+                        placeholder="Contoh: Makan siang kantin"
+                        value={spendNote}
+                        onChange={(e) => setSpendNote(e.target.value)}
+                        className="w-full rounded-xl border border-[#E9E5DD] px-3 py-2.5 text-sm focus:border-[#76520E] focus:outline-none"
+                      />
                     </div>
+                  )}
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label htmlFor="pocket-amount" className="text-xs font-semibold text-[#2F240E]">
+                        Nominal
+                      </label>
+                      <span className="text-[11px] text-[#736B60]">
+                        {detailMode === "topup" ? "Kantong Utama" : "Saldo"} {formatRupiah(detailLimit)}
+                      </span>
+                    </div>
+                    <div className="flex items-center rounded-xl border border-[#E9E5DD] px-3 focus-within:border-[#76520E]">
+                      <span className="text-sm font-semibold text-[#736B60]">Rp</span>
+                      <input
+                        id="pocket-amount"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={detailAmount}
+                        onChange={(e) => setDetailAmount(formatAmountInput(e.target.value))}
+                        className="w-full bg-transparent px-2 py-2.5 text-base font-semibold tabular-nums text-[#2F240E] focus:outline-none"
+                      />
+                    </div>
+                    {detailValue > detailLimit && (
+                      <p className="mt-1 text-[11px] text-[#C43737]">Nominal melebihi saldo yang tersedia.</p>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsConfirmingDelete(true)}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-[#C43737] cursor-pointer hover:underline"
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_AMOUNTS.map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        disabled={amt > detailLimit}
+                        onClick={() => setDetailAmount(amt.toLocaleString("id-ID"))}
+                        className="rounded-full bg-[#FFF3D6] px-3 py-1.5 text-[11px] font-semibold text-[#76520E] transition-colors duration-150 hover:bg-[#FFE39A] disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        {formatRupiahShort(amt)}
+                      </button>
+                    ))}
+                    {detailMode === "withdraw" && selectedPocket.balance > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setDetailAmount(selectedPocket.balance.toLocaleString("id-ID"))}
+                        className="rounded-full bg-[#FFF3D6] px-3 py-1.5 text-[11px] font-semibold text-[#76520E] transition-colors duration-150 hover:bg-[#FFE39A]"
+                      >
+                        Semua
+                      </button>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant={detailMode === "topup" ? "primary" : "bni"}
+                    fullWidth
+                    disabled={!isDetailValid}
                   >
-                    <Trash2 size={14} />
-                    Hapus kantong
-                  </button>
-                )}
+                    {detailMode === "topup" && "Isi Kantong"}
+                    {detailMode === "spend" && "Catat Pengeluaran"}
+                    {detailMode === "withdraw" && "Tarik ke Kantong Utama"}
+                  </Button>
+                </form>
+
+                <div className="border-t border-[#E9E5DD] pt-3">
+                  {isConfirmingDelete ? (
+                    <div className="space-y-2.5">
+                      <p className="text-xs leading-relaxed text-[#736B60]">
+                        Hapus kantong ini?{" "}
+                        {selectedPocket.balance > 0 &&
+                          `Saldo ${formatRupiah(selectedPocket.balance)} akan dikembalikan ke Kantong Utama.`}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" fullWidth onClick={() => setIsConfirmingDelete(false)}>
+                          Batal
+                        </Button>
+                        <Button variant="danger" size="sm" fullWidth onClick={handleDelete}>
+                          Ya, Hapus
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmingDelete(true)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-[#C43737] hover:underline"
+                    >
+                      <Trash2 size={14} />
+                      Hapus kantong
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
       </Modal>
 
       {/* MODAL: BUAT KANTONG */}
@@ -758,14 +1079,16 @@ export default function PocketsPage() {
             const Icon = POCKET_ICONS[newIcon];
             return (
               <div className={cn("flex items-center gap-3 rounded-[20px] p-4", tone.card)}>
-                <div className={cn("w-11 h-11 rounded-[14px] flex items-center justify-center", tone.iconWrap, tone.icon)}>
+                <div className={cn("flex h-11 w-11 items-center justify-center rounded-[14px]", tone.iconWrap, tone.icon)}>
                   <Icon size={20} />
                 </div>
                 <div className="min-w-0">
-                  <p className={cn("text-sm font-semibold truncate", tone.title)}>{newName.trim() || "Nama kantong"}</p>
-                  <p className={cn("text-[11px] mt-0.5", tone.muted)}>
-                    {newKind === "spending" ? "Budget" : "Target"}{" "}
-                    {newTargetValue ? formatRupiah(newTargetValue) : "belum diatur"}
+                  <p className={cn("truncate text-sm font-semibold", tone.title)}>
+                    {newName.trim() || "Nama kantong"}
+                  </p>
+                  <p className={cn("mt-0.5 text-[11px]", tone.muted)}>
+                    {newKind === "spending" ? "Kantong Belanja" : "Kantong Tabungan"} ·{" "}
+                    {newTargetValue ? formatRupiah(newTargetValue) : "target belum diatur"}
                   </p>
                 </div>
               </div>
@@ -775,8 +1098,8 @@ export default function PocketsPage() {
           <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-[#F1F2F4] p-1">
             {(
               [
-                { id: "spending", label: "Budget Belanja" },
-                { id: "saving", label: "Tabungan" },
+                { id: "spending", label: "Kantong Belanja" },
+                { id: "saving", label: "Kantong Tabungan" },
               ] as const
             ).map((k) => (
               <button
@@ -785,7 +1108,7 @@ export default function PocketsPage() {
                 aria-pressed={newKind === k.id}
                 onClick={() => setNewKind(k.id)}
                 className={cn(
-                  "h-9 rounded-[11px] text-xs font-semibold cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
+                  "h-9 rounded-[11px] text-xs font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
                   newKind === k.id ? "bg-white text-[#2F240E]" : "text-[#736B60] hover:text-[#2F240E]"
                 )}
               >
@@ -795,7 +1118,7 @@ export default function PocketsPage() {
           </div>
 
           <div>
-            <label htmlFor="pocket-name" className="block text-xs font-semibold text-[#2F240E] mb-1">
+            <label htmlFor="pocket-name" className="mb-1 block text-xs font-semibold text-[#2F240E]">
               Nama kantong
             </label>
             <input
@@ -805,14 +1128,14 @@ export default function PocketsPage() {
               placeholder={newKind === "spending" ? "Contoh: Nongkrong" : "Contoh: Dana Darurat"}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-[#E9E5DD] rounded-xl focus:outline-none focus:border-[#76520E]"
+              className="w-full rounded-xl border border-[#E9E5DD] px-3 py-2.5 text-sm focus:border-[#76520E] focus:outline-none"
               required
             />
           </div>
 
           <fieldset>
-            <legend className="text-xs font-semibold text-[#2F240E] mb-1.5">Ikon</legend>
-            <div className="grid grid-cols-5 gap-1.5">
+            <legend className="mb-1.5 text-xs font-semibold text-[#2F240E]">Ikon</legend>
+            <div className="grid grid-cols-6 gap-1.5">
               {(Object.keys(POCKET_ICONS) as BudgetPocketIcon[]).map((key) => {
                 const Icon = POCKET_ICONS[key];
                 const active = newIcon === key;
@@ -824,8 +1147,10 @@ export default function PocketsPage() {
                     aria-pressed={active}
                     onClick={() => setNewIcon(key)}
                     className={cn(
-                      "flex h-11 items-center justify-center rounded-[12px] cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
-                      active ? "bg-[#FFB900] text-[#352500]" : "bg-[#F7F5F0] text-[#76520E] hover:bg-[#FFF0BD]"
+                      "flex h-11 items-center justify-center rounded-[12px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
+                      active
+                        ? "bg-[#FFB900] text-[#352500]"
+                        : "bg-[#F7F5F0] text-[#76520E] hover:bg-[#FFF0BD]"
                     )}
                   >
                     <Icon size={18} />
@@ -836,8 +1161,8 @@ export default function PocketsPage() {
           </fieldset>
 
           <fieldset>
-            <legend className="text-xs font-semibold text-[#2F240E] mb-1.5">Warna</legend>
-            <div className="flex gap-2.5">
+            <legend className="mb-1.5 text-xs font-semibold text-[#2F240E]">Warna</legend>
+            <div className="flex flex-wrap gap-2.5">
               {(Object.keys(POCKET_TONES) as BudgetPocketTone[]).map((key) => {
                 const active = newTone === key;
                 return (
@@ -848,7 +1173,7 @@ export default function PocketsPage() {
                     aria-pressed={active}
                     onClick={() => setNewTone(key)}
                     className={cn(
-                      "h-9 w-9 rounded-full cursor-pointer ring-offset-2 transition-shadow duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
+                      "h-8 w-8 rounded-full ring-offset-2 transition-shadow duration-150 focus-visible:outline-2 focus-visible:outline-[#BA8500]",
                       POCKET_TONES[key].swatch,
                       active ? "ring-2 ring-[#76520E]" : "ring-1 ring-[#E9E5DD]"
                     )}
@@ -860,7 +1185,7 @@ export default function PocketsPage() {
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label htmlFor="pocket-target" className="block text-xs font-semibold text-[#2F240E] mb-1">
+              <label htmlFor="pocket-target" className="mb-1 block text-xs font-semibold text-[#2F240E]">
                 {newKind === "spending" ? "Budget / bulan" : "Target"}
               </label>
               <div className="flex items-center rounded-xl border border-[#E9E5DD] px-3 focus-within:border-[#76520E]">
@@ -878,7 +1203,7 @@ export default function PocketsPage() {
               </div>
             </div>
             <div>
-              <label htmlFor="pocket-initial" className="block text-xs font-semibold text-[#2F240E] mb-1">
+              <label htmlFor="pocket-initial" className="mb-1 block text-xs font-semibold text-[#2F240E]">
                 Isi awal
               </label>
               <div className="flex items-center rounded-xl border border-[#E9E5DD] px-3 focus-within:border-[#76520E]">
@@ -896,7 +1221,7 @@ export default function PocketsPage() {
             </div>
           </div>
           <p className={cn("text-[11px] -mt-2", newInitialValue > dailyPocket ? "text-[#C43737]" : "text-[#736B60]")}>
-            Isi awal diambil dari Daily Pocket (tersedia {formatRupiah(dailyPocket)}).
+            Isi awal diambil dari Kantong Utama (tersedia {formatRupiah(dailyPocket)}).
           </p>
 
           <Button type="submit" variant="primary" fullWidth disabled={!isCreateValid}>

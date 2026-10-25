@@ -3,14 +3,27 @@
   "short_name": "Nera",
   "description": "AI Financial Safety Module embedded in wondr by BNI",
   "start_url": "/",
-  "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#6C5CE7",
+  "display": "fullscreen",
+  "background_color": "#FFFBF0",
+  "theme_color": "#76520E",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "/logos/nera-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logos/nera-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logos/nera-icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

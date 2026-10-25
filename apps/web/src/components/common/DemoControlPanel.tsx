@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { HelpCircle, X, GraduationCap, Users, Building2, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { HelpCircle, X, GraduationCap, Users, Building2, RotateCcw, Sparkles } from "lucide-react";
 import { PERSONA_LABELS, DEMO_PERSONA_SCENARIOS, PersonaId } from "@nera/core";
 import { useFinancialStore } from "../../context/FinancialStore";
 import { useUiPreferencesStore } from "../../context/UiPreferencesStore";
+import { useOnboardingStore } from "../../context/OnboardingStore";
 
 const PERSONA_ORDER: PersonaId[] = [
   "konsisten_nabung",
@@ -26,6 +28,8 @@ const VIEW_LINKS = [
 
 export const DemoControlPanel: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
+  const resetOnboarding = useOnboardingStore((s) => s.reset);
   const applyPersonaDemoScenario = useFinancialStore((s) => s.applyPersonaDemoScenario);
   const mockupCanvasColor = useUiPreferencesStore((s) => s.mockupCanvasColor);
   const setMockupCanvasColor = useUiPreferencesStore((s) => s.setMockupCanvasColor);
@@ -50,11 +54,17 @@ export const DemoControlPanel: React.FC = () => {
     setIsOpen(false);
   };
 
+  const handleReplayOnboarding = () => {
+    resetOnboarding();
+    setIsOpen(false);
+    router.push("/onboarding?replay=1");
+  };
+
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-9 h-9 rounded-full flex items-center justify-center text-[#817B70] hover:bg-slate-100 hover:text-[#2F240E] transition-colors"
+        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[#817B70] hover:bg-slate-100 hover:text-[#2F240E] transition-colors"
         aria-label="Menu Demo"
         title="Menu Demo"
       >
@@ -93,6 +103,27 @@ export const DemoControlPanel: React.FC = () => {
               <span className="text-xs font-semibold text-[#2F240E]">{label}</span>
             </Link>
           ))}
+
+          <div className="h-px bg-[#E9E5DD] my-1" />
+
+          {/* Onboarding Replay */}
+          <div className="px-2 pb-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-[#817B70]">
+              Onboarding
+            </span>
+          </div>
+          <button
+            onClick={handleReplayOnboarding}
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-[#76520E]/8 transition-colors text-left"
+          >
+            <Sparkles size={14} className="text-[#76520E] shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold text-[#2F240E]">Putar Ulang Onboarding</span>
+              <span className="block text-[10px] text-[#736B60] leading-snug">
+                Reset rencana Nera & mulai dari awal.
+              </span>
+            </span>
+          </button>
 
           <div className="h-px bg-[#E9E5DD] my-1" />
 

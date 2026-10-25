@@ -1,0 +1,203 @@
+
+> @nera/web@1.0.0 dev D:\dave-workspace\0_competition\1_hackathon\bni-ventures\apps\web
+> next dev -p 3000
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.101:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 1986ms (839 modules)
+ GET / 200 in 2611ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 677ms (844 modules)
+ GET /logos/nera-icon-512.png 404 in 921ms
+ ○ Compiling /family-hub ...
+ ✓ Compiled /family-hub in 1114ms (840 modules)
+ GET /family-hub 200 in 1524ms
+ ✓ Compiled / in 160ms (496 modules)
+ GET / 200 in 445ms
+ ○ Compiling /onboarding ...
+ ✓ Compiled /onboarding in 643ms (891 modules)
+ GET / 200 in 237ms
+ GET /onboarding 200 in 66ms
+ ○ Compiling /privileges ...
+ ✓ Compiled /privileges in 596ms (894 modules)
+ ○ Compiling /pockets ...
+ ✓ Compiled /pockets in 694ms (929 modules)
+ GET /pockets 200 in 307ms
+ GET /pockets 200 in 985ms
+ GET /pockets 200 in 48ms
+ ✓ Compiled /upload-transaction in 397ms (946 modules)
+ GET /upload-transaction 200 in 592ms
+ ✓ Compiled /risk-check in 442ms (963 modules)
+ GET /risk-check 200 in 457ms
+ GET /family-hub 200 in 109ms
+ GET /family-hub 200 in 38ms
+ GET /family-hub 200 in 64ms
+ ○ Compiling /wealth-engine ...
+ ✓ Compiled /wealth-engine in 830ms (936 modules)
+ GET /wealth-engine 200 in 461ms
+ GET /wealth-engine 200 in 1111ms
+ GET /family-hub 200 in 78ms
+ ✓ Compiled /upload-transaction in 236ms (539 modules)
+ GET /upload-transaction 200 in 426ms
+ ✓ Compiled /risk-check in 218ms (549 modules)
+ GET /risk-check 200 in 54ms
+ GET /family-hub 200 in 62ms
+ GET /family-hub 200 in 23ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 945ms (962 modules)
+ GET /ai-assistant 404 in 1103ms
+ GET /family-hub 200 in 101ms
+ GET /upload-transaction 200 in 72ms
+ GET /risk-check 200 in 66ms
+ GET /upload-transaction 200 in 54ms
+ GET /upload-transaction 200 in 22ms
+ ✓ Compiled in 996ms (961 modules)
+ GET /family-hub 200 in 161ms
+ ✓ Compiled in 488ms (961 modules)
+ GET /family-hub 200 in 121ms
+ ✓ Compiled in 498ms (961 modules)
+ GET /family-hub 200 in 126ms
+ ✓ Compiled in 1428ms (961 modules)
+ GET /family-hub 200 in 100ms
+ ✓ Compiled in 620ms (961 modules)
+ GET /family-hub 200 in 94ms
+ ✓ Compiled in 678ms (961 modules)
+ GET /family-hub 200 in 99ms
+ ✓ Compiled in 1621ms (961 modules)
+ GET /family-hub 200 in 198ms
+ GET /upload-transaction 200 in 202ms
+ GET / 200 in 67ms
+ GET /upload-transaction 200 in 53ms
+ ○ Compiling /risk-check ...
+ ✓ Compiled /risk-check in 683ms (549 modules)
+ ✓ Compiled /coach in 1ms (549 modules)
+ ✓ Compiled in 1140ms (990 modules)
+ GET /coach 200 in 1667ms
+ GET /coach 200 in 1973ms
+ GET /coach 200 in 39ms
+ ✓ Compiled in 1469ms (971 modules)
+ GET /coach 200 in 220ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.3s (943 modules)
+ GET /coach 404 in 1576ms
+ GET /coach 404 in 32ms
+ GET /coach 404 in 130ms
+ ○ Compiling /recovery ...
+ ✓ Compiled /recovery in 3.6s (1324 modules)
+ GET /recovery 200 in 4570ms
+ GET /coach 404 in 729ms
+ GET /coach 404 in 381ms
+ GET /coach 404 in 537ms
+ ○ Compiling /family-hub ...
+ ✓ Compiled /family-hub in 741ms (539 modules)
+ GET /family-hub 200 in 941ms
+ ✓ Compiled /recovery in 296ms (729 modules)
+ ✓ Compiled /risk-check in 479ms (739 modules)
+ GET /recovery 200 in 263ms
+ GET /recovery 200 in 700ms
+ ○ Compiling /api/chat ...
+ ✓ Compiled /api/chat in 730ms (1318 modules)
+ POST /api/chat 200 in 8032ms
+ ✓ Compiled in 1335ms (1304 modules)
+ GET /recovery 200 in 239ms
+ ✓ Compiled in 1051ms (1302 modules)
+ GET /recovery 200 in 203ms
+ ✓ Compiled in 657ms (1302 modules)
+ GET /recovery 200 in 128ms
+ GET /recovery 200 in 528ms
+ GET /recovery 200 in 108ms
+ GET /recovery 200 in 65ms
+ GET /pockets 200 in 105ms
+ GET /pockets 200 in 28ms
+ GET /recovery 200 in 58ms
+ ✓ Compiled /risk-check in 415ms (713 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 895ms (729 modules)
+ GET / 200 in 822ms
+ ○ Compiling /onboarding ...
+ ✓ Compiled /onboarding in 768ms (745 modules)
+ GET /pockets 200 in 85ms
+ GET /pockets 200 in 23ms
+ ✓ Compiled in 1251ms (1306 modules)
+ GET /pockets 200 in 140ms
+ ✓ Compiled in 682ms (1306 modules)
+ GET /pockets 200 in 132ms
+ ⨯ ./src/app/(student)/pockets/page.tsx
+Error:   [31mx[0m Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+     ,-[[36;1;4mD:\dave-workspace\0_competition\1_hackathon\bni-ventures\apps\web\src\app\(student)\pockets\page.tsx[0m:630:1]
+ [2m627[0m |                 <span className="text-xs font-semibold">Kantong Baru</span>
+ [2m628[0m |               </button>
+ [2m629[0m |             </div>
+ [2m630[0m |           )}
+     : [35;1m           ^[0m
+ [2m631[0m |         </section>
+ [2m632[0m | 
+ [2m633[0m |         {/* BUDGET SUMMARY */}
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/(student)/pockets/page.tsx
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.7s (1653 modules)
+ GET /pockets 500 in 8766ms
+ GET /pockets 200 in 307ms
+ GET /pockets 200 in 44ms
+ GET /pockets 200 in 45ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /pockets 200 in 112ms
+ ⨯ ./src/app/(student)/pockets/page.tsx
+Error:   [31mx[0m Expected ',', got '?'
+    ,-[[36;1;4mD:\dave-workspace\0_competition\1_hackathon\bni-ventures\apps\web\src\app\(student)\pockets\page.tsx[0m:38:1]
+ [2m35[0m |   EyeOff,
+ [2m36[0m |   Info,
+ [2m37[0m |   SlidersHorizontal,
+ [2m38[0m |   Sparkles?]  Layers,
+    : [35;1m          ^[0m
+ [2m39[0m |   PiggyBank,
+ [2m40[0m |   ArrowRight,
+ [2m41[0m |   Zap,
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/(student)/pockets/page.tsx
+ GET /pockets 500 in 37ms
+ GET /pockets 500 in 28ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 1464ms (1653 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled (1639 modules)
+ GET /pockets 500 in 1623ms
+ GET /pockets 200 in 520ms
+ GET /pockets 200 in 84ms
+ ✓ Compiled in 1520ms (1653 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /pockets 200 in 268ms
+ ✓ Compiled in 816ms (1653 modules)
+ GET /pockets 200 in 120ms
+ ✓ Compiled in 898ms (1557 modules)
+ GET /pockets 200 in 370ms
+ GET / 200 in 263ms
+ GET / 200 in 67ms
+ ✓ Compiled in 576ms (751 modules)
+ GET /pockets 200 in 110ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1221ms (1562 modules)
+ GET /sw.js 404 in 1454ms
+ GET /pockets 200 in 250ms
+ GET /sw.js 404 in 38ms
+ GET / 200 in 324ms
+ GET / 200 in 24ms
+ GET /recovery 200 in 159ms

@@ -91,6 +91,5 @@ Sistem Nera digerakkan oleh **Skor Risiko Finansial (0–100)**:
 * `src/app/family-hub/` -> Pairing Ortu-Anak & Smart Allowance Splitter
 * `src/app/risk-check/` -> Simulator pinjaman, kalkulator defisit & timer 24 jam
 * `src/app/wealth-engine/` -> 3-Tier Staged Wealth Ladder
-* `src/app/coach/` -> NerAI Chat Consultant
 * `src/context/FinancialStore.ts` -> Zustand store data mutasi, saldo pocket, dan skor
 * `src/components/common/` -> TopAppBar, BottomNav (5 tabs), Badges, Modals

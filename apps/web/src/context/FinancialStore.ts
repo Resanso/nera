@@ -76,6 +76,7 @@ const POCKET_TX_CATEGORY: Record<BudgetPocket["icon"], Transaction["category"]> 
   gadget: "other",
   gift: "other",
   home: "other",
+  utility: "other",
 };
 
 const INITIAL_TRANSACTIONS: Transaction[] = [
