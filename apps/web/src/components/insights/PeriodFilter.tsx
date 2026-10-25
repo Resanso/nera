@@ -1,79 +1,135 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarRange } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { CalendarDays, Check, ChevronDown, X } from "lucide-react";
 import { PERIOD_PRESETS, customPeriod, dateInputValue, presetPeriod, type Period } from "../../lib/period";
 
-/** Preset chips plus a custom date range; applies to stats, insights and the transaction list. */
+const fmt = (d: Date, withYear = false) =>
+  new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", ...(withYear && { year: "numeric" }) }).format(d);
+
+/** "1 Okt – 26 Okt 2026"; the end is clipped to today and shown inclusive. */
+export function periodRange(p: Period): string {
+  const end = new Date(Math.min(p.to.getTime(), Date.now() + 1) - 1);
+  if (p.key === "all") return `Sampai ${fmt(end, true)}`;
+  const sameYear = p.from.getFullYear() === end.getFullYear();
+  return `${fmt(p.from, !sameYear)} – ${fmt(end, true)}`;
+}
+
+/**
+ * Mobile period picker: one compact trigger, choices in a bottom sheet (the pattern
+ * used by e-wallet and bank transaction histories). Presets show their date range;
+ * a custom range sits at the bottom.
+ */
 export function PeriodFilter({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
-  const [showCustom, setShowCustom] = useState(value.key === "custom");
-  const [from, setFrom] = useState(dateInputValue(value.from));
-  const [to, setTo] = useState(dateInputValue(new Date(value.to.getTime() - 1)));
-  const custom = customPeriod(from, to);
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-[20px] bg-white p-3">
-      <div className="flex flex-wrap gap-1.5">
-        {PERIOD_PRESETS.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            onClick={() => {
-              setShowCustom(false);
-              onChange(presetPeriod(p.key));
-            }}
-            className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-              value.key === p.key ? "bg-[#2F240E] text-white" : "bg-[#F7F7F7] text-[#2F240E]"
-            }`}
-          >
-            {p.short}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => setShowCustom((v) => !v)}
-          aria-expanded={showCustom}
-          className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-            value.key === "custom" ? "bg-[#2F240E] text-white" : "bg-[#F7F7F7] text-[#2F240E]"
-          }`}
-        >
-          <CalendarRange size={13} />
-          Tanggal
-        </button>
-      </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#E9E5DD] bg-white pl-2.5 pr-2 text-[12px] font-semibold text-[#2F240E] transition-colors hover:bg-[#FFF8E6] active:scale-[0.98]"
+      >
+        <CalendarDays size={14} className="text-[#A36A00]" />
+        {value.key === "custom" ? "Rentang tanggal" : value.label}
+        <ChevronDown size={14} className="text-[#A89F90]" />
+      </button>
+      {open && <PeriodSheet value={value} onClose={() => setOpen(false)} onChange={(p) => (onChange(p), setOpen(false))} />}
+    </>
+  );
+}
 
-      {showCustom && (
-        <div className="mt-2.5 flex flex-wrap items-end gap-2">
-          <label className="flex-1 text-[10px] font-semibold text-[#736B60]">
-            Dari
-            <input
-              type="date"
-              value={from}
-              max={to || undefined}
-              onChange={(e) => setFrom(e.target.value)}
-              className="mt-1 block w-full rounded-xl border border-[#E9E5DD] bg-white px-2.5 py-1.5 text-xs text-[#2F240E]"
-            />
-          </label>
-          <label className="flex-1 text-[10px] font-semibold text-[#736B60]">
-            Sampai
-            <input
-              type="date"
-              value={to}
-              min={from || undefined}
-              onChange={(e) => setTo(e.target.value)}
-              className="mt-1 block w-full rounded-xl border border-[#E9E5DD] bg-white px-2.5 py-1.5 text-xs text-[#2F240E]"
-            />
-          </label>
-          <button
-            type="button"
-            disabled={!custom}
-            onClick={() => custom && onChange(custom)}
-            className="h-[34px] rounded-xl bg-[#FFB900] px-3 text-xs font-semibold text-[#352500] disabled:opacity-40"
-          >
-            Terapkan
-          </button>
+function PeriodSheet({ value, onChange, onClose }: { value: Period; onChange: (p: Period) => void; onClose: () => void }) {
+  const [target, setTarget] = useState<Element | null>(null);
+  const [from, setFrom] = useState(dateInputValue(value.from));
+  const [to, setTo] = useState(dateInputValue(new Date(Math.min(value.to.getTime(), Date.now() + 1) - 1)));
+  const custom = customPeriod(from, to);
+
+  useEffect(() => {
+    setTarget(document.querySelector("[data-mobile-frame]") ?? document.body);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!target) return null;
+
+  return createPortal(
+    <div className="absolute inset-0 z-50" role="dialog" aria-modal="true" aria-label="Pilih periode">
+      <button type="button" aria-label="Tutup" onClick={onClose} className="animate-overlay-in absolute inset-0 h-full w-full bg-[#2F240E]/45 backdrop-blur-[2px]" />
+      <div className="animate-sheet-in absolute inset-x-0 bottom-0 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="rounded-[26px] bg-white p-3 shadow-[0_-12px_40px_rgba(47,36,14,0.28)]">
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[#D8D3C9]" />
+          <div className="flex items-center justify-between px-2 pb-2">
+            <p className="text-[15px] font-bold text-[#2F240E]">Pilih periode</p>
+            <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
+              <X size={18} />
+            </button>
+          </div>
+
+          <ul role="radiogroup" aria-label="Periode">
+            {PERIOD_PRESETS.map((preset) => {
+              const p = presetPeriod(preset.key);
+              const selected = value.key === preset.key;
+              return (
+                <li key={preset.key}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => onChange(p)}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors ${selected ? "bg-[#FFF8E6]" : "hover:bg-[#F7F5F0]"}`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-[#2F240E]">{preset.label}</span>
+                      <span className="block text-[11px] text-[#736B60]">{periodRange(p)}</span>
+                    </span>
+                    {selected && <Check size={18} className="shrink-0 text-[#A36A00]" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className={`mt-1 rounded-2xl p-3 ${value.key === "custom" ? "bg-[#FFF8E6]" : "bg-[#F7F7F7]"}`}>
+            <p className="text-[13px] font-semibold text-[#2F240E]">Rentang tanggal</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-[#736B60]">
+                Dari
+                <input
+                  type="date"
+                  value={from}
+                  max={to || undefined}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="mt-1 block h-10 w-full rounded-xl border border-[#E9E5DD] bg-white px-2.5 text-[13px] font-medium normal-case tracking-normal text-[#2F240E]"
+                />
+              </label>
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-[#736B60]">
+                Sampai
+                <input
+                  type="date"
+                  value={to}
+                  min={from || undefined}
+                  max={dateInputValue(new Date())}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="mt-1 block h-10 w-full rounded-xl border border-[#E9E5DD] bg-white px-2.5 text-[13px] font-medium normal-case tracking-normal text-[#2F240E]"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              disabled={!custom}
+              onClick={() => custom && onChange(custom)}
+              className="mt-2.5 h-11 w-full rounded-[14px] bg-[#FFB900] text-sm font-semibold text-[#352500] hover:bg-[#E6A700] disabled:opacity-40"
+            >
+              Terapkan rentang
+            </button>
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+    </div>,
+    target,
   );
 }

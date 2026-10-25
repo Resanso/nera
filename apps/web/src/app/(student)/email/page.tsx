@@ -8,7 +8,7 @@ import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { MoneyInsightsCard } from "../../../components/insights/MoneyInsightsCard";
 import { ConsentCard } from "../../../components/consent/ConsentCard";
 import { useEmailSpendingStore } from "../../../lib/emailSpending";
-import { PeriodFilter } from "../../../components/insights/PeriodFilter";
+import { PeriodFilter, periodRange } from "../../../components/insights/PeriodFilter";
 import { inPeriod, presetPeriod, type Period } from "../../../lib/period";
 import type { NeraMood } from "../../../components/mascot/moods";
 import {
@@ -174,23 +174,27 @@ export default function EmailImportPage() {
               </p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
+          {txs.length > 0 && (
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-[#2F240E]">Ringkasan</p>
+                <p className="truncate text-[11px] text-[#736B60]">{periodRange(period)}</p>
+              </div>
+              <PeriodFilter value={period} onChange={setPeriod} />
+            </div>
+          )}
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
             <div className="rounded-[19px] bg-[#F7F7F7] p-3.5">
-              <p className="text-[11px] text-[#736B60]">Transaksi · {period.label.toLowerCase()}</p>
+              <p className="text-[11px] text-[#736B60]">Transaksi</p>
               <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{periodTxs.length}</p>
               <p className="mt-0.5 text-[11px] text-[#736B60]">dari {txs.length} total</p>
             </div>
             <div className="rounded-[19px] bg-[#F7F7F7] p-3.5">
-              <p className="text-[11px] text-[#736B60]">Pengeluaran · {period.label.toLowerCase()}</p>
+              <p className="text-[11px] text-[#736B60]">Pengeluaran</p>
               <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{formatRupiah(periodSpend)}</p>
               <p className="mt-0.5 text-[11px] text-[#736B60]">{periodCounted.length} transaksi dihitung</p>
             </div>
           </div>
-          {txs.length > 0 && (
-            <div className="mt-3">
-              <PeriodFilter value={period} onChange={setPeriod} />
-            </div>
-          )}
         </div>
 
         {account && (
