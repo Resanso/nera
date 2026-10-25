@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "Nera | wondr by BNI Financial Safety",
   description: "Platform kecerdasan finansial berbasis AI yang terintegrasi secara native di dalam aplikasi wondr by BNI.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [{ url: "/logos/favicon-64.png", type: "image/png", sizes: "64x64" }],
+    apple: [{ url: "/logos/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "Nera", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
