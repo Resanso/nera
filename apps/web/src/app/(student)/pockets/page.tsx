@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { useEmailSpending } from "../../../lib/emailSpending";
+import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
   BudgetPocket,
@@ -25,7 +26,6 @@ import {
   Laptop,
   Gift,
   Home,
-  CheckCircle2,
   ArrowDownToLine,
   ArrowUpFromLine,
   ReceiptText,
@@ -605,6 +605,11 @@ export default function PocketsPage() {
                       <p className={cn("mt-1 text-[11px] font-medium", tone.muted)}>
                         {pocketSubtitle(pocket)}
                       </p>
+                      {showBalances && pocket.kind === "spending" && emailSpending.spentForPocket(pocket.icon) > 0 && (
+                        <p className={cn("mt-0.5 text-[10px] font-medium", tone.muted)}>
+                          +{formatRupiahShort(emailSpending.spentForPocket(pocket.icon))} dari email bulan ini
+                        </p>
+                      )}
                     </div>
                   </button>
                 );
@@ -679,7 +684,9 @@ export default function PocketsPage() {
       {toastMessage && (
         <div className="absolute top-14 inset-x-0 mx-auto max-w-[390px] px-4 z-[60] animate-in fade-in slide-in-from-top-4 duration-200">
           <div className="bg-[#2F240E] text-white p-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-medium border border-white/10">
-            <CheckCircle2 size={18} className="text-[#22C55E] shrink-0" />
+            <span className="shrink-0">
+              <NeraOrb mood="happy" size={30} still trackPointer={false} />
+            </span>
             <span className="flex-1">{toastMessage}</span>
           </div>
         </div>

@@ -99,6 +99,9 @@
 @keyframes o-dot { 0%,100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-3px); opacity: 1; } }
 @keyframes o-poke { 0% { transform: scale(1.22,.78); } 35% { transform: scale(.9,1.1); } 65% { transform: scale(1.04,.96); } 100% { transform: scale(1,1); } }
 
+/* small repeated avatars: hold the pose, skip all motion */
+.nera-orb.is-still, .nera-orb.is-still * { animation: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   .nera-orb, .nera-orb * { animation: none !important; transition-duration: 0s !important; }
 }

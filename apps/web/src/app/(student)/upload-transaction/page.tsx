@@ -2,19 +2,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { TopAppBar } from "../../../components/common/TopAppBar";
+import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { Button, Card, cn } from "@nera/ui";
 import { Transaction } from "@nera/core";
 import {
   ArrowRight,
-  BadgeCheck,
   Camera,
   CheckCircle2,
   FileSpreadsheet,
   Images,
-  Loader2,
 } from "lucide-react";
 
 type TabId = "manual" | "upload";
@@ -182,14 +180,9 @@ export default function UploadTransactionPage() {
           <div className="animate-overlay-in space-y-3.5">
             {/* Nera promo banner */}
             <div className="relative flex items-center overflow-hidden rounded-[22px] bg-gradient-to-br from-[#FFF3D6] to-[#FFEFB8] p-4 ring-1 ring-[#EEDB9A]/60">
-              <Image
-                src="/images/nera-home-mascot.webp"
-                alt="Maskot Nera"
-                width={96}
-                height={110}
-                className="h-20 w-auto shrink-0 object-contain drop-shadow-[0_10px_14px_rgba(47,36,14,0.14)]"
-                unoptimized
-              />
+              <span className="shrink-0">
+                <NeraOrb mood={stage === "analyzing" ? "thinking" : stage === "done" ? "happy" : "wave"} size={84} />
+              </span>
               <div className="min-w-0 flex-1 pl-3">
                 <p className="text-[14px] font-bold leading-snug text-[#2F240E]">
                   Mau lacak pengeluaran tanpa buka aplikasi?
@@ -272,19 +265,8 @@ export default function UploadTransactionPage() {
             {stage !== "idle" && (
               <div className="animate-sheet-in rounded-[20px] border border-[#E9E5DD] bg-white p-4">
                 <div className="flex items-start gap-3">
-                  <span
-                    className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl",
-                      stage === "analyzing"
-                        ? "bg-[#FFF3D6] text-[#76520E]"
-                        : "bg-[#DDF0E6] text-[#277449]"
-                    )}
-                  >
-                    {stage === "analyzing" ? (
-                      <Loader2 size={20} className="animate-spin" />
-                    ) : (
-                      <BadgeCheck size={20} />
-                    )}
+                  <span className="shrink-0">
+                    <NeraOrb mood={stage === "analyzing" ? "thinking" : "celebrate"} size={44} trackPointer={false} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-bold text-[#2F240E]">{fileName}</p>

@@ -5,6 +5,8 @@ import { NERA_COLORS as C, type NeraMascotProps } from "./moods";
 import "./nera-orb.css";
 
 type Props = NeraMascotProps & {
+  /** Static pose for small, repeated avatars (chat history, toasts): no gaze loop, blinks or motion. */
+  still?: boolean;
   /** led: cyan pixel eyes like the brand mascot. white: plain white pills like the sketch. */
   eyes?: "led" | "white";
 };
@@ -20,7 +22,7 @@ const EYE_Y = 7;
  * Minimal Nera: just the head. A yellow orb with a glass visor, ear pods and the
  * star antenna. Emotion comes from where the eyes sit, their shape, and how the orb squashes.
  */
-export function NeraOrb({ mood = "idle", size = 200, trackPointer = true, onPoke, eyes = "led" }: Props) {
+export function NeraOrb({ mood = "idle", size = 200, trackPointer = true, onPoke, eyes = "led", still = false }: Props) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const svgRef = useRef<SVGSVGElement>(null);
   const eyesRef = useRef<SVGGElement>(null);
@@ -34,6 +36,7 @@ export function NeraOrb({ mood = "idle", size = 200, trackPointer = true, onPoke
 
   // Gaze: pointer when it moves, otherwise idle glances around. The head leans a little toward the gaze.
   useEffect(() => {
+    if (still) return;
     const target = { x: 0.35, y: -0.3 };
     const cur = { x: 0.35, y: -0.3 };
     let lastPointer = 0;
@@ -92,9 +95,10 @@ export function NeraOrb({ mood = "idle", size = 200, trackPointer = true, onPoke
       window.removeEventListener("pointermove", onMove);
       cancelAnimationFrame(raf);
     };
-  }, [trackPointer]);
+  }, [trackPointer, still]);
 
   useEffect(() => {
+    if (still) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
@@ -110,14 +114,14 @@ export function NeraOrb({ mood = "idle", size = 200, trackPointer = true, onPoke
       });
     schedule();
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [still]);
 
   const id = (n: string) => `${n}-${uid}`;
 
   return (
     <svg
       ref={svgRef}
-      className={`nera-orb${blink ? " is-blink" : ""}`}
+      className={`nera-orb${blink ? " is-blink" : ""}${still ? " is-still" : ""}`}
       data-mood={mood}
       viewBox="0 0 200 200"
       width={size}

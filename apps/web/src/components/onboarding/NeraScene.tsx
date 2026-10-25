@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
+import { NeraOrb } from "../mascot/NeraOrb";
+import type { NeraMood } from "../mascot/moods";
 import { Check, Lock, ShieldCheck, Sparkles } from "lucide-react";
 
 type SceneVariant = "welcome" | "goal" | "profile" | "consent" | "ready";
@@ -45,12 +46,13 @@ const BLOB: Record<SceneVariant, string> = {
   ready: "bg-[#FFB900]/25",
 };
 
-const MASCOT: Record<SceneVariant, { src: string; height: string }> = {
-  welcome: { src: "/images/nera-home-mascot.webp", height: "h-48" },
-  goal: { src: "/images/nera-home-mascot.webp", height: "h-36" },
-  profile: { src: "/images/nera-home-mascot.webp", height: "h-36" },
-  consent: { src: "/images/nera-home-mascot.webp", height: "h-36" },
-  ready: { src: "/images/nera-home-mascot.webp", height: "h-40" },
+// Nera reacts to each step: says hi, thinks about your goal, listens, reassures, cheers
+const MASCOT: Record<SceneVariant, { mood: NeraMood; size: number }> = {
+  welcome: { mood: "wave", size: 176 },
+  goal: { mood: "thinking", size: 136 },
+  profile: { mood: "idle", size: 136 },
+  consent: { mood: "happy", size: 136 },
+  ready: { mood: "celebrate", size: 152 },
 };
 
 const iconMap = {
@@ -68,15 +70,7 @@ export const NeraScene: React.FC<NeraSceneProps> = ({ variant = "welcome", messa
       <div className="relative mx-auto w-full max-w-[320px]">
         <div className={`absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl ${BLOB[variant]}`} />
         <div className={`relative mx-auto flex ${compact ? "h-[150px]" : "h-[196px]"} w-full items-center justify-center`}>
-          <Image
-            src={mascot.src}
-            alt="Maskot Nera"
-            width={220}
-            height={240}
-            className={`${mascot.height} w-auto object-contain drop-shadow-[0_12px_18px_rgba(47,36,14,0.12)]`}
-            priority
-            unoptimized
-          />
+          <NeraOrb mood={mascot.mood} size={compact ? Math.round(mascot.size * 0.75) : mascot.size} />
         </div>
 
         {chips.map((chip) => {

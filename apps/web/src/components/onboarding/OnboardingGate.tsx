@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import Image from "next/image";
+import { NeraOrb } from "../mascot/NeraOrb";
 import { usePathname, useRouter } from "next/navigation";
 import { useOnboardingHydrated, useOnboardingStore } from "../../context/OnboardingStore";
 
@@ -13,15 +13,9 @@ const Splash: React.FC = () => (
       <div className="relative flex flex-col items-center gap-5">
         <div className="relative h-32 w-32">
           <span className="absolute inset-0 animate-ping rounded-full bg-[#FFB900]/20" />
-          <Image
-            src="/images/nera-home-mascot.webp"
-            alt="Nera"
-            width={128}
-            height={128}
-            className="relative h-full w-full object-contain"
-            priority
-            unoptimized
-          />
+          <span className="relative flex h-full w-full items-center justify-center">
+            <NeraOrb mood="thinking" size={120} trackPointer={false} />
+          </span>
         </div>
         <div className="text-center">
           <p className="text-lg font-bold tracking-tight text-[#2F240E]">Nera menyiapkan semuanya</p>

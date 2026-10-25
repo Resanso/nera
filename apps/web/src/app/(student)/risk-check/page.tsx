@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { TopAppBar } from "../../../components/common/TopAppBar";
+import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { Card, Button, RiskGauge, StatusBadge, CountdownTimer, ProgressRing } from "@nera/ui";
 import {
@@ -268,9 +269,13 @@ export default function RiskCheckPage() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
-                  Hasil Simulasi NerAI
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Nera reacts to the verdict: worried when the loan would push into deficit */}
+                  <NeraOrb mood={simulationResult.isDangerous ? "alert" : "happy"} size={40} trackPointer={false} />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
+                    Hasil Simulasi NerAI
+                  </span>
+                </div>
                 <StatusBadge status={simulationResult.projectedState} />
               </div>
 

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
 import { useEmailSpending } from "../../lib/emailSpending";
+import { NeraOrb } from "../../components/mascot/NeraOrb";
+import type { NeraMood } from "../../components/mascot/moods";
 import type { EmailCategory } from "../../lib/emailImport";
 import { GOAL_META, useOnboardingHydrated, useOnboardingStore } from "../../context/OnboardingStore";
 import { Modal, Button } from "@nera/ui";
@@ -47,6 +48,8 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   saving: PiggyBank,
   other: ShoppingBag,
 };
+
+const HERO_MOOD: Record<string, NeraMood> = { AMAN: "idle", WASPADA: "thinking", KRITIS: "alert" };
 
 // email receipt categories shown with the closest home category icon
 const EMAIL_TO_HOME_CATEGORY: Partial<Record<EmailCategory, string>> = {
@@ -289,17 +292,9 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Nera Mascot */}
-          <div className="absolute top-9 right-2 w-36 h-36 pointer-events-none select-none z-0">
-            <Image
-              src="/images/nera-home-mascot.webp"
-              alt="Nera Bot Mascot"
-              width={144}
-              height={144}
-              className="w-full h-full object-contain"
-              priority
-              unoptimized
-            />
+          {/* Nera: mood follows the financial state, cheers on successful actions */}
+          <div className="absolute top-9 right-2 z-0 flex h-36 w-36 items-center justify-center">
+            <NeraOrb mood={isSuccessToastOpen ? "happy" : HERO_MOOD[state]} size={128} />
           </div>
 
           <div className="relative z-10 mt-7 space-y-4">
@@ -819,7 +814,9 @@ export default function HomePage() {
       {isSuccessToastOpen && (
         <div className="absolute top-14 inset-x-0 mx-auto max-w-[390px] px-4 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
           <div className="bg-[#2F240E] text-white p-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-medium border border-white/10">
-            <CheckCircle2 size={18} className="text-[#22C55E] shrink-0" />
+            <span className="shrink-0">
+              <NeraOrb mood="happy" size={30} still trackPointer={false} />
+            </span>
             <span className="flex-1">{toastMessage}</span>
           </div>
         </div>

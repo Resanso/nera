@@ -48,6 +48,7 @@ export const POCKET_CATEGORIES: Partial<Record<BudgetPocketIcon, EmailCategory[]
   shopping: ["shopping"],
   fun: ["entertainment"],
   home: ["bills"],
+  utility: ["bills"],
 };
 
 export type EmailSpending = {
