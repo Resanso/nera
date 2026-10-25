@@ -25,6 +25,8 @@ export const ALLOWED_SENDERS: Sender[] = [
   { provider: "Traveloka", domains: ["traveloka.com"], defaultCategory: "transport" },
   { provider: "tiket.com", domains: ["tiket.com"], defaultCategory: "transport" },
   { provider: "Flip", domains: ["flip.id"], defaultCategory: "transfer" },
+  // other banks' payment notifications: spending that never touches the BNI account
+  { provider: "Livin' by Mandiri", domains: ["bankmandiri.co.id"], defaultCategory: "other" },
 ];
 
 export function findSender(fromDomain: string): Sender | undefined {

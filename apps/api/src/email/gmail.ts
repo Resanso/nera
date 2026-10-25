@@ -89,11 +89,19 @@ async function accessToken(userId: string): Promise<string> {
   }
 }
 
-async function gmailGet<T>(token: string, path: string): Promise<T> {
+const RETRYABLE = new Set(["rateLimitExceeded", "userRateLimitExceeded", "backendError"]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** GET with exponential backoff on Gmail's per-user rate limits (403/429). */
+async function gmailGet<T>(token: string, path: string, attempt = 0): Promise<T> {
   const res = await fetch(`${GMAIL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: { message?: string; errors?: { reason?: string }[] } } | null;
     const reason = body?.error?.errors?.[0]?.reason ?? body?.error?.message ?? "unknown";
+    if ((res.status === 429 || res.status >= 500 || RETRYABLE.has(reason)) && attempt < 5) {
+      await sleep(1000 * 2 ** attempt + Math.random() * 500);
+      return gmailGet<T>(token, path, attempt + 1);
+    }
     console.error(`[gmail] ${res.status} ${path.split("?")[0].replace(/\/messages\/\w+/, "/messages/:id")}: ${reason}`);
     throw new Error(`Gmail API ${res.status} (${reason})`);
   }
@@ -101,7 +109,7 @@ async function gmailGet<T>(token: string, path: string): Promise<T> {
 }
 
 /** Pull receipts from allowed senders only, newest first, skipping messages already seen. */
-export async function syncGmail(userId: string, { days = 90, max = 200 } = {}) {
+export async function syncGmail(userId: string, { days = 90, max = 100 } = {}) {
   const token = await accessToken(userId);
   const conn = emailStore.getGmail(userId)!;
   const seen = new Set(conn.syncedIds);
@@ -117,18 +125,19 @@ export async function syncGmail(userId: string, { days = 90, max = 200 } = {}) {
   } while (pageToken && ids.length < max);
 
   const results: IngestResult[] = [];
-  // small batches keep us well under Gmail's per-user rate limit
-  for (let i = 0; i < Math.min(ids.length, max); i += 5) {
-    const batch = ids.slice(i, i + 5);
-    const raws = await Promise.all(batch.map((id) => gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`)));
-    for (const [j, m] of raws.entries()) {
+  const todo = ids.slice(0, max);
+  try {
+    // one at a time: Gmail rate-limits concurrent requests per user
+    for (const id of todo) {
+      const m = await gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`);
       results.push(await ingestEmail(Buffer.from(m.raw, "base64url"), { userId, channel: "gmail" }));
-      seen.add(batch[j]);
+      seen.add(id);
     }
+  } finally {
+    // keep progress even if a later message fails, so the next sync resumes
+    emailStore.setGmail({ ...conn, syncedIds: [...seen], lastSyncAt: new Date().toISOString() });
   }
-
-  emailStore.setGmail({ ...conn, syncedIds: [...seen], lastSyncAt: new Date().toISOString() });
-  return { scanned: ids.length, ...summarize(results) };
+  return { scanned: todo.length, ...summarize(results) };
 }
 
 /** Revoke at Google, then forget the token and everything imported through it. */

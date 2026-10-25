@@ -14,6 +14,7 @@ export type Extraction = {
 };
 
 const TOTAL_KEYWORDS = [
+  "total transaksi",
   "total pembayaran",
   "total bayar",
   "total tagihan",
@@ -21,6 +22,7 @@ const TOTAL_KEYWORDS = [
   "grand total",
   "total dibayar",
   "jumlah pembayaran",
+  "nominal transaksi",
   "total",
   "jumlah",
   "nominal",
@@ -66,7 +68,7 @@ function findTotal(text: string): { amount: number; keyword: boolean } | null {
 }
 
 function findMerchant(text: string): string | undefined {
-  const m = text.match(/(?:merchant|restoran|penjual|dibayar ke|pembayaran ke)\s*[:-]?\s*([^\n]{2,60})/i);
+  const m = text.match(/(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)\s*[:-]?\s*([^\n]{2,60})/i);
   // stop at the next label or column gap ("Ayam Geprek  Order ID: ...")
   return m?.[1].split(/\s{2,}|\b(?:order id|no\.|invoice|booking)\b/i)[0].trim() || undefined;
 }
