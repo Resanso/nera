@@ -42,6 +42,8 @@ const CATEGORY_RULES: [EmailCategory, RegExp][] = [
 ];
 
 const INCOME = /dana masuk|penerimaan dana|kamu menerima|anda menerima|uang masuk|transfer masuk|refund|pengembalian dana|cashback (?:diterima|masuk)/i;
+/** Shipping/delivery updates repeat an order that was already paid; never a new payment. */
+export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai/i;
 /** Failed or cancelled payments: the money never moved. */
 export const FAILED = /tidak berhasil|\bgagal\b|dibatalkan|ditolak|\bfailed\b|unsuccessful|declined/i;
 /** Money sent to a person or account: not a purchase, kept out of spending totals. */

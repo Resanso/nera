@@ -34,7 +34,7 @@ export interface EmailTransaction {
   /** sha256 of the Message-ID; used for dedupe, the raw email is never stored. */
   messageHash: string;
   confidence: number;
-  /** Low confidence: shown as "perlu dicek" and kept out of totals until confirmed. */
+  /** Low confidence or unlisted sender: shown as "perlu dicek" and kept out of totals until confirmed. */
   needsReview: boolean;
   /** Top-ups and transfers from the user's own BNI account are not new spending. */
   countsTowardSpending: boolean;
@@ -47,6 +47,8 @@ export interface EmailTransaction {
 export type ParsedEmail = {
   messageId: string;
   from: string;
+  /** Display name of the sender ("Anthropic, PBC"), used to name unlisted senders. */
+  fromName: string;
   fromDomain: string;
   subject: string;
   date: Date;

@@ -83,6 +83,8 @@ emailRouter.patch("/transactions/:id", async (req, res) => {
     ...(confirm && { needsReview: false }),
   });
   if (!tx) return res.status(404).json({ success: false, error: "Transaksi tidak ditemukan" });
+  // a confirmed receipt now counts, so it may pair with a bank notification
+  if (confirm) await reconcile(userIdOf(req));
   res.json({ success: true, data: tx });
 });
 

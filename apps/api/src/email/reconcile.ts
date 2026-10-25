@@ -12,7 +12,7 @@ const counted = (t: EmailTransaction) => t.type === "expense" && t.countsTowardS
 function samePayment(bank: EmailTransaction, receipt: EmailTransaction) {
   const payee = bank.merchant.toLowerCase();
   return (
-    (PAYEE_NAMES.get(receipt.provider) ?? []).some((name) => payee.includes(name)) &&
+    (PAYEE_NAMES.get(receipt.provider) ?? [receipt.provider.toLowerCase()]).some((name) => payee.includes(name)) &&
     Math.abs(bank.amount - receipt.amount) <= Math.max(5000, receipt.amount * 0.02) &&
     Math.abs(Date.parse(bank.occurredAt) - Date.parse(receipt.occurredAt)) < WINDOW_MS
   );

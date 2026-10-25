@@ -218,7 +218,8 @@ export default function EmailImportPage() {
                 <h3 className="text-sm font-bold">Yang dibaca Nera</h3>
               </div>
               <p className="mt-2 text-[13px] leading-relaxed text-[#736B60]">
-                Hanya email dari pengirim di bawah. Nera menyimpan nominal, merchant dan tanggal, lalu membuang isi email.
+                Email dari pengirim di bawah, plus email yang Gmail kelompokkan sebagai Pembelian (pengirim lain ditandai
+                  &quot;Perlu dicek&quot;). Nera menyimpan nominal, merchant dan tanggal, lalu membuang isi email.
                 Data ini hanya untuk catatan dan saran pribadimu, tidak dipakai untuk penilaian kredit atau iklan.
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">

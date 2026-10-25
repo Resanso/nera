@@ -39,8 +39,20 @@ export function findSender(fromDomain: string): Sender | undefined {
   return ALLOWED_SENDERS.find((s) => s.domains.some((x) => d === x || d.endsWith(`.${x}`)));
 }
 
-/** Gmail search query restricted to allowed senders. */
+/**
+ * Gmail search query: the allowed senders, plus whatever Gmail itself files under
+ * Purchases (receipts from merchants we don't list yet). Unlisted senders are imported
+ * as "perlu dicek" only; see ingestEmail.
+ */
 export function gmailSenderQuery(days: number): string {
   const domains = ALLOWED_SENDERS.flatMap((s) => s.domains);
-  return `from:(${domains.join(" OR ")}) newer_than:${days}d`;
+  return `(from:(${domains.join(" OR ")}) OR category:purchases) newer_than:${days}d`;
+}
+
+/** "Anthropic, PBC" / "no-reply@mail.foo.co.id" -> a short provider name for unlisted senders. */
+export function providerFromSender(fromName: string, fromDomain: string): string {
+  const name = fromName.replace(/^(no[-_ ]?reply|noreply)\b/i, "").split(/[,|<]/)[0].trim();
+  if (name.length >= 2 && name.length <= 40) return name;
+  const parts = fromDomain.split(".").filter((p) => !["mail", "email", "e", "info", "noreply", "no-reply", "co", "com", "id", "net", "org"].includes(p));
+  return parts[0] ? parts[0][0].toUpperCase() + parts[0].slice(1) : fromDomain;
 }

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { simpleParser } from "mailparser";
-import { FAILED, extractWithAI, extractWithRules } from "./extract";
-import { findSender } from "./senders";
+import { FAILED, SHIPPING, extractWithAI, extractWithRules } from "./extract";
+import { findSender, providerFromSender } from "./senders";
 import { emailStore } from "./store";
 import type { EmailTransaction, IngestResult, ParsedEmail } from "./types";
 
@@ -31,6 +31,7 @@ export async function parseRaw(raw: Buffer | string): Promise<ParsedEmail> {
   return {
     messageId: mail.messageId ?? "",
     from,
+    fromName: mail.from?.value[0]?.name ?? "",
     fromDomain: from.split("@")[1] ?? "",
     subject: mail.subject ?? "",
     date: mail.date ?? new Date(),
@@ -49,16 +50,23 @@ export async function ingestEmail(
   opts: { userId: string; channel: EmailTransaction["channel"] },
 ): Promise<IngestResult> {
   const email = await parseRaw(raw);
-  const sender = findSender(email.fromDomain);
-  if (!sender) return { status: "ignored", reason: "sender_not_allowed" };
+  const listed = findSender(email.fromDomain);
+  // Unlisted senders only come from Gmail's own Purchases category (the Gmail query);
+  // forwarded mail is held to the allowlist.
+  if (!listed && opts.channel !== "gmail") return { status: "ignored", reason: "sender_not_allowed" };
+  const sender = listed ?? { provider: providerFromSender(email.fromName, email.fromDomain), defaultCategory: "other" as const };
 
-  // "Pembayaran Tidak Berhasil" still shows an amount; nothing was paid
-  if (FAILED.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
+  // "Pembayaran Tidak Berhasil" still shows an amount; nothing was paid.
+  // Shipping updates repeat an order that was already paid.
+  if (FAILED.test(email.subject) || SHIPPING.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
 
   const messageHash = hash(email.messageId || `${email.from}|${email.subject}|${email.date.toISOString()}`);
   if (await emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
 
   let x = extractWithRules(email, sender.provider, sender.defaultCategory);
+  // unlisted senders need an explicit "Total ..." line; a bare "Rp 50.000" in a chatty
+  // email isn't a receipt. Without one, only the AI may still recognize it.
+  if (x && !listed && x.confidence < 0.8) x = null;
   if (!x || x.confidence < 0.7) x = (await extractWithAI(email, sender.provider)) ?? x;
   if (!x) return { status: "ignored", reason: "not_a_transaction" };
 
@@ -78,7 +86,8 @@ export async function ingestEmail(
     externalRef: x.externalRef,
     messageHash,
     confidence: x.confidence,
-    needsReview: x.confidence < 0.7,
+    // unlisted senders: our rules weren't written for their receipts, so the user confirms first
+    needsReview: x.confidence < 0.7 || !listed,
     // a GoPay/OVO top-up is usually already a BNI debit; counting it again would double the spend
     countsTowardSpending: x.type === "expense" && !isOwnMoneyMove,
     extractedBy: x.extractedBy,
