@@ -26,6 +26,11 @@ async function main() {
   }
 
   for (const conn of await emailStore.listGmail()) {
+    // a history import in progress would race the wipe below; run again once it is done
+    if (conn.backfill?.status === "pending" || conn.backfill?.status === "running") {
+      console.log(`${conn.userId}: skipped, history import still ${conn.backfill.status}`);
+      continue;
+    }
     await emailStore.deleteTransactions(conn.userId, "gmail");
     await emailStore.clearGmailSeen(conn.userId);
     const total = { scanned: 0, imported: 0, duplicates: 0, ignored: 0 };
