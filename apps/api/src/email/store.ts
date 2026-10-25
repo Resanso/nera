@@ -29,6 +29,8 @@ export type TransactionPatch = Partial<Pick<EmailTransaction, "category" | "need
 export interface EmailStore {
   touchUser(id: string, email: string): Promise<void>;
   listUsers(): Promise<NeraUser[]>;
+  /** Every user with a Gmail link, alias or imported transaction (including ones not in listUsers). */
+  listUserIdsWithData(): Promise<string[]>;
 
   listTransactions(userId: string): Promise<EmailTransaction[]>;
   hasMessage(userId: string, messageHash: string): Promise<boolean>;
@@ -68,6 +70,9 @@ class MemoryStore implements EmailStore {
   }
   async listUsers() {
     return [...this.users.values()];
+  }
+  async listUserIdsWithData() {
+    return [...new Set([...this.transactions.keys(), ...this.gmail.keys(), ...[...this.aliases.values()].map((a) => a.userId)])];
   }
 
   async listTransactions(userId: string) {
@@ -200,6 +205,14 @@ class PgStore implements EmailStore {
       "select * from nera_users order by last_seen_at desc",
     );
     return rows.map((r) => ({ id: r.id, email: r.email, createdAt: iso(r.created_at)!, lastSeenAt: iso(r.last_seen_at)! }));
+  }
+
+  async listUserIdsWithData() {
+    const rows = await this.q<{ user_id: string }>(
+      `select user_id from nera_email_transactions union select user_id from nera_gmail_links
+       union select user_id from nera_aliases`,
+    );
+    return rows.map((r) => r.user_id);
   }
 
   async listTransactions(userId: string) {

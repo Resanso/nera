@@ -94,8 +94,10 @@ export type AdminOverview = {
   totals: { users: number; gmailConnected: number; forwardActive: number; transactions: number };
   users: {
     email: string;
-    firstSeenAt: string;
-    lastSeenAt: string;
+    /** false: signed in before login tracking; `email` is their Gmail address */
+    loginKnown: boolean;
+    firstSeenAt?: string;
+    lastSeenAt?: string;
     gmail: { address?: string; connectedAt: string; lastSyncAt?: string } | null;
     forward: { status: "waiting" | "confirm" | "active"; lastReceivedAt?: string } | null;
     transactions: { total: number; gmail: number; forward: number; demo: number; needsReview: number };

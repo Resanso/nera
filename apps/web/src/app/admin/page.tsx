@@ -103,7 +103,10 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-[#F1EEE8]">
                   {state.data.users.map((u) => (
                     <tr key={u.email} className="align-top">
-                      <td className="px-5 py-3 font-semibold">{u.email}</td>
+                      <td className="px-5 py-3">
+                        <p className="font-semibold">{u.email}</p>
+                        {!u.loginKnown && <p className="text-xs text-[#736B60]">akun login belum tercatat</p>}
+                      </td>
                       <td className="px-3 py-3">
                         {u.gmail ? (
                           <>
