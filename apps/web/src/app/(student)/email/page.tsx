@@ -23,6 +23,8 @@ const formatRupiah = (val: number) =>
 const formatDate = (iso: string) =>
   new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
+const BACKFILL_LABEL: Record<number, string> = { 180: "6 bulan", 365: "1 tahun", 3650: "semua" };
+
 const CHANNEL_LABEL: Record<EmailTransaction["channel"], string> = { gmail: "Gmail", forward: "Forward", demo: "Contoh" };
 
 function summaryText(s: SyncSummary) {
@@ -105,14 +107,21 @@ export default function EmailImportPage() {
   // so poll while the tab is visible and something is connected
   const seenCount = useRef<number | null>(null);
   const live = Boolean(status?.gmail.connected || status?.forward);
+  const backfill = status?.gmail.backfill;
+  const backfilling = backfill?.status === "pending" || backfill?.status === "running";
   useEffect(() => {
     if (!live) return;
-    const id = setInterval(() => {
-      if (document.visibilityState !== "visible" || busy) return;
-      refresh().catch(() => undefined);
-    }, 20_000);
+    const id = setInterval(
+      () => {
+        if (document.visibilityState !== "visible" || busy) return;
+        refresh().catch(() => undefined);
+      },
+      // faster while older history is being pulled, so progress moves on screen
+      backfilling ? 4_000 : 20_000,
+    );
     return () => clearInterval(id);
-  }, [live, busy, refresh]);
+  }, [live, busy, refresh, backfilling]);
+  const [backfillDays, setBackfillDays] = useState<180 | 365 | 3650>(365);
 
   useEffect(() => {
     // the first load sets the baseline; only later arrivals are "new"
@@ -133,7 +142,8 @@ export default function EmailImportPage() {
   };
 
   const counted = useMemo(() => txs.filter((t) => t.countsTowardSpending && !t.needsReview), [txs]);
-  const spend = counted.reduce((sum, t) => sum + t.amount, 0);
+  const since90 = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const spend = counted.filter((t) => Date.parse(t.occurredAt) >= since90).reduce((sum, t) => sum + t.amount, 0);
   const monthKey = new Date().toISOString().slice(0, 7);
   const spendThisMonth = counted.filter((t) => t.occurredAt.startsWith(monthKey)).reduce((sum, t) => sum + t.amount, 0);
   const byId = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs]);
@@ -296,6 +306,60 @@ export default function EmailImportPage() {
                   </Button>
                 )}
               </div>
+
+              {status?.gmail.connected && (
+                <div className="mt-4 rounded-[16px] bg-[#F7F7F7] p-3.5">
+                  <p className="text-xs font-bold text-[#2F240E]">Ambil riwayat lebih lama</p>
+                  {backfilling ? (
+                    <div className="mt-2 flex items-center gap-3">
+                      <NeraOrb mood="thinking" size={36} trackPointer={false} />
+                      <p className="text-[11px] leading-relaxed text-[#736B60]">
+                        Mengambil riwayat {BACKFILL_LABEL[backfill!.days] ?? `${backfill!.days} hari`}… {backfill!.scanned} email diperiksa,{" "}
+                        {backfill!.imported} transaksi ditemukan. Boleh tutup halaman ini, Nera lanjut di latar belakang.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="mt-0.5 text-[11px] text-[#736B60]">
+                        {backfill?.status === "done"
+                          ? `Selesai: ${backfill.imported} transaksi dari ${BACKFILL_LABEL[backfill.days] ?? `${backfill.days} hari`} terakhir (${backfill.scanned} email diperiksa).`
+                          : backfill?.status === "error"
+                            ? `Terhenti: ${backfill.error}. Coba mulai lagi, progres sebelumnya tidak hilang.`
+                            : "Sinkron rutin hanya 90 hari. Tarik riwayat lebih jauh; bisa makan beberapa menit."}
+                      </p>
+                      <div className="mt-2.5 flex gap-2">
+                        {([180, 365, 3650] as const).map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setBackfillDays(d)}
+                            className={`flex-1 rounded-full px-2 py-1.5 text-[11px] font-semibold ${
+                              backfillDays === d ? "bg-[#2F240E] text-white" : "bg-white text-[#2F240E]"
+                            }`}
+                          >
+                            {BACKFILL_LABEL[d]}
+                          </button>
+                        ))}
+                      </div>
+                      <Button
+                        className="mt-2.5"
+                        fullWidth
+                        size="sm"
+                        variant="secondary"
+                        isLoading={busy === "backfill"}
+                        onClick={() =>
+                          run("backfill", async () => {
+                            await emailApi.backfillGmail(backfillDays);
+                            return `Nera mulai mengambil riwayat ${BACKFILL_LABEL[backfillDays]}. Progresnya muncul di sini.`;
+                          })
+                        }
+                      >
+                        Mulai ambil riwayat
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </section>
 
             {/* OPTION B: FORWARDING ADDRESS */}

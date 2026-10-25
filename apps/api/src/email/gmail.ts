@@ -157,7 +157,8 @@ const running = new Map<string, Promise<SyncSummary>>();
  */
 export function syncGmail(userId: string, opts?: { days?: number; max?: number }): Promise<SyncSummary> {
   const inFlight = running.get(userId);
-  if (inFlight) return inFlight;
+  // same default window: share the run. A custom window (backfill) waits, then runs its own.
+  if (inFlight) return opts ? inFlight.catch(() => undefined).then(() => syncGmail(userId, opts)) : inFlight;
   const run = runSync(userId, opts).finally(() => running.delete(userId));
   running.set(userId, run);
   return run;
@@ -194,6 +195,39 @@ async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<S
     if (results.length) await reconcile(userId);
   }
   return { scanned: todo.length, ...summarize(results) };
+}
+
+// ---- "Ambil riwayat lebih lama": backfill beyond the regular 90-day window ----
+
+/** Ask the worker to pull older receipts. Progress is stored, so it survives restarts. */
+export async function requestBackfill(userId: string, days: number) {
+  if (!(await emailStore.getGmail(userId))) throw new Error("Gmail belum terhubung");
+  await emailStore.setBackfill(userId, { days, status: "pending", scanned: 0, imported: 0, updatedAt: new Date().toISOString() });
+}
+
+/** Process requested backfills, one batch of up to 200 emails at a time, saving progress after each. */
+export async function runBackfills() {
+  for (const conn of await emailStore.listGmail()) {
+    const b = conn.backfill;
+    if (!b || b.status === "done" || b.status === "error") continue;
+    let progress = { ...b, status: "running" as const };
+    try {
+      for (;;) {
+        const r = await syncGmail(conn.userId, { days: b.days, max: 200 });
+        progress = { ...progress, scanned: progress.scanned + r.scanned, imported: progress.imported + r.imported, updatedAt: new Date().toISOString() };
+        // a disconnect or a new request while running ends this run
+        const latest = (await emailStore.getGmail(conn.userId))?.backfill;
+        if (!latest || latest.days !== b.days) return;
+        if (r.scanned === 0) {
+          await emailStore.setBackfill(conn.userId, { ...progress, status: "done" });
+          break;
+        }
+        await emailStore.setBackfill(conn.userId, progress);
+      }
+    } catch (e) {
+      await emailStore.setBackfill(conn.userId, { ...progress, status: "error", error: (e as Error).message, updatedAt: new Date().toISOString() });
+    }
+  }
 }
 
 // ---- Real-time updates: Gmail push via Cloud Pub/Sub, with a polling fallback ----
@@ -246,6 +280,16 @@ export function startGmailScheduler() {
   };
   setInterval(tick, minutes * 60 * 1000).unref();
   setTimeout(tick, 15_000).unref();
+
+  // backfill requests are picked up within ~20s; one pass at a time
+  let backfilling = false;
+  setInterval(() => {
+    if (backfilling) return;
+    backfilling = true;
+    runBackfills()
+      .catch((e) => console.error(`[gmail] backfill: ${(e as Error).message}`))
+      .finally(() => (backfilling = false));
+  }, 20_000).unref();
   console.log(`[NERA] Gmail sync every ${minutes} min${pushTopic() ? " + Pub/Sub push" : ""}`);
 }
 

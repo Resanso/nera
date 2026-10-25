@@ -11,6 +11,7 @@ const LABEL: Record<EmailCategory, string> = {
   entertainment: "Hiburan",
   education: "Pendidikan",
   topup: "Top up",
+  travel: "Perjalanan",
   transfer: "Transfer",
   other: "Lainnya",
 };

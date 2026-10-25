@@ -320,6 +320,19 @@ export default function HomePage() {
                 / hari
               </span>
             </div>
+            {/* informational only: other banks' spending doesn't change BNI runway */}
+            {emailSpending.ready && emailSpending.monthTotal > 0 && (
+              <Link href="/email" className="flex items-center gap-1.5 text-xs text-[#817B70]">
+                <Mail size={14} className="text-[#A36A00]" />
+                <span>
+                  Di luar BNI:{" "}
+                  <strong className="font-semibold text-[#533A08]">
+                    {formatRupiah(Math.round(emailSpending.monthTotal / new Date().getDate()))}
+                  </strong>{" "}
+                  / hari bulan ini
+                </span>
+              </Link>
+            )}
 
             {/* Pockets Swipe Carousel (Daily / Lock / Kantong) */}
             <div className="pt-1">

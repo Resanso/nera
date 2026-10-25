@@ -26,8 +26,8 @@ export const ALLOWED_SENDERS: Sender[] = [
   { provider: "Tokopedia", domains: ["tokopedia.com"], defaultCategory: "shopping", payeeNames: ["tokopedia"] },
   { provider: "Lazada", domains: ["lazada.co.id"], defaultCategory: "shopping", payeeNames: ["lazada"] },
   { provider: "Blibli", domains: ["blibli.com"], defaultCategory: "shopping", payeeNames: ["blibli"] },
-  { provider: "Traveloka", domains: ["traveloka.com"], defaultCategory: "transport", payeeNames: ["traveloka"] },
-  { provider: "tiket.com", domains: ["tiket.com"], defaultCategory: "transport", payeeNames: ["tiket.com", "tiket com"] },
+  { provider: "Traveloka", domains: ["traveloka.com"], defaultCategory: "travel", payeeNames: ["traveloka"] },
+  { provider: "tiket.com", domains: ["tiket.com"], defaultCategory: "travel", payeeNames: ["tiket.com", "tiket com"] },
   { provider: "Flip", domains: ["flip.id"], defaultCategory: "transfer" },
   // other banks' payment notifications: spending that never touches the BNI account
   { provider: "Livin' by Mandiri", domains: ["bankmandiri.co.id"], defaultCategory: "other", bank: true },

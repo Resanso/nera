@@ -10,6 +10,7 @@ export type EmailCategory =
   | "bills"
   | "entertainment"
   | "education"
+  | "travel"
   | "topup"
   | "transfer"
   | "other";
@@ -32,8 +33,17 @@ export type EmailTransaction = {
   extractedBy: "rules" | "ai";
 };
 
+export type GmailBackfill = {
+  days: number;
+  status: "pending" | "running" | "done" | "error";
+  scanned: number;
+  imported: number;
+  updatedAt: string;
+  error?: string;
+};
+
 export type EmailStatus = {
-  gmail: { configured: boolean; connected: boolean; googleEmail?: string; lastSyncAt?: string };
+  gmail: { configured: boolean; connected: boolean; googleEmail?: string; lastSyncAt?: string; backfill?: GmailBackfill };
   forward: { address: string; status: "waiting" | "confirm" | "active"; confirmationCode?: string; lastReceivedAt?: string } | null;
   senders: { provider: string; domains: string[] }[];
   aiExtraction: boolean;
@@ -98,6 +108,7 @@ export const emailApi = {
   transactions: () => call<EmailTransaction[]>("/email/transactions"),
   importDemo: () => call<SyncSummary>("/email/demo/import", { method: "POST" }),
   syncGmail: () => call<SyncSummary>("/email/gmail/sync", { method: "POST" }),
+  backfillGmail: (days: 180 | 365 | 3650) => call<void>("/email/gmail/backfill", { method: "POST", body: JSON.stringify({ days }) }),
   disconnectGmail: () => call<void>("/email/gmail", { method: "DELETE" }),
   createAlias: () => call<NonNullable<EmailStatus["forward"]>>("/email/forward/alias", { method: "POST" }),
   removeAlias: () => call<void>("/email/forward", { method: "DELETE" }),
@@ -115,6 +126,7 @@ export const CATEGORY_LABEL: Record<EmailCategory, string> = {
   entertainment: "Hiburan",
   education: "Pendidikan",
   topup: "Top up",
+  travel: "Perjalanan",
   transfer: "Transfer",
   other: "Lainnya",
 };

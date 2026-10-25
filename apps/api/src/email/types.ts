@@ -5,6 +5,7 @@ export type EmailCategory =
   | "bills"
   | "entertainment"
   | "education"
+  | "travel"
   | "topup"
   | "transfer"
   | "other";

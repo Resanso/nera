@@ -10,6 +10,18 @@ export type GmailConnection = {
   lastSyncAt?: string;
   /** Pub/Sub push watch; Gmail expires it after 7 days, the scheduler renews it. */
   watchExpiresAt?: string;
+  /** "Ambil riwayat lebih lama": requested by the user, run by the worker. */
+  backfill?: GmailBackfill;
+};
+
+export type GmailBackfill = {
+  days: number;
+  status: "pending" | "running" | "done" | "error";
+  /** emails examined / transactions imported so far */
+  scanned: number;
+  imported: number;
+  updatedAt: string;
+  error?: string;
 };
 
 export type ForwardAlias = {
@@ -41,7 +53,10 @@ export interface EmailStore {
 
   getGmail(userId: string): Promise<GmailConnection | undefined>;
   listGmail(): Promise<GmailConnection[]>;
+  /** Upserts the link; never touches `backfill` (see setBackfill). */
   setGmail(conn: GmailConnection): Promise<void>;
+  /** Only the backfill column, so progress updates and syncs can't overwrite each other. */
+  setBackfill(userId: string, backfill: GmailBackfill | undefined): Promise<void>;
   /** Also forgets which Gmail messages were processed. */
   deleteGmail(userId: string): Promise<void>;
   /** Gmail message ids already processed, so a re-sync skips them without downloading. */
@@ -103,7 +118,11 @@ class MemoryStore implements EmailStore {
     return [...this.gmail.values()];
   }
   async setGmail(conn: GmailConnection) {
-    this.gmail.set(conn.userId, conn);
+    this.gmail.set(conn.userId, { ...conn, backfill: this.gmail.get(conn.userId)?.backfill });
+  }
+  async setBackfill(userId: string, backfill: GmailBackfill | undefined) {
+    const c = this.gmail.get(userId);
+    if (c) this.gmail.set(userId, { ...c, backfill });
   }
   async deleteGmail(userId: string) {
     this.gmail.delete(userId);
@@ -171,6 +190,7 @@ create table if not exists nera_email_transactions (
   unique (user_id, message_hash)
 );
 create index if not exists nera_email_transactions_user on nera_email_transactions (user_id, occurred_at desc);
+alter table nera_gmail_links add column if not exists backfill jsonb;
 `;
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : undefined);
@@ -253,6 +273,7 @@ class PgStore implements EmailStore {
     connected_at: Date;
     last_sync_at: Date | null;
     watch_expires_at: Date | null;
+    backfill: GmailBackfill | null;
   }): GmailConnection {
     return {
       userId: r.user_id,
@@ -261,6 +282,7 @@ class PgStore implements EmailStore {
       connectedAt: iso(r.connected_at)!,
       lastSyncAt: iso(r.last_sync_at),
       watchExpiresAt: iso(r.watch_expires_at),
+      backfill: r.backfill ?? undefined,
     };
   }
   async getGmail(userId: string) {
@@ -279,6 +301,9 @@ class PgStore implements EmailStore {
          connected_at = excluded.connected_at, last_sync_at = excluded.last_sync_at, watch_expires_at = excluded.watch_expires_at`,
       [c.userId, c.googleEmail ?? null, c.refreshTokenEnc, c.connectedAt, c.lastSyncAt ?? null, c.watchExpiresAt ?? null],
     );
+  }
+  async setBackfill(userId: string, backfill: GmailBackfill | undefined) {
+    await this.q("update nera_gmail_links set backfill = $2 where user_id = $1", [userId, backfill ? JSON.stringify(backfill) : null]);
   }
   async deleteGmail(userId: string) {
     await this.q("delete from nera_gmail_links where user_id = $1", [userId]);

@@ -15,6 +15,7 @@ import {
   gmailAuthUrl,
   handleGmailPush,
   isGmailConfigured,
+  requestBackfill,
   syncGmail,
 } from "../email/gmail";
 import { ingestEmail, summarize } from "../email/ingest";
@@ -55,6 +56,7 @@ emailRouter.get("/status", async (req, res) => {
         connected: Boolean(gmail),
         googleEmail: gmail?.googleEmail,
         lastSyncAt: gmail?.lastSyncAt,
+        backfill: gmail?.backfill,
       },
       forward: alias
         ? { address: alias.alias, status: alias.status, confirmationCode: alias.confirmationCode, lastReceivedAt: alias.lastReceivedAt }
@@ -75,7 +77,7 @@ emailRouter.get("/transactions", async (req, res) => {
 });
 
 const ReviewBody = z.object({
-  category: z.enum(["food", "transport", "shopping", "bills", "entertainment", "education", "topup", "transfer", "other"]).optional(),
+  category: z.enum(["food", "transport", "shopping", "bills", "entertainment", "education", "travel", "topup", "transfer", "other"]).optional(),
   confirm: z.literal(true).optional(),
 });
 
@@ -179,6 +181,16 @@ emailRouter.post("/gmail/push", (req, res) => {
     // malformed message: ack anyway so Pub/Sub doesn't redeliver it forever
   }
   res.status(204).end();
+});
+
+const BackfillBody = z.object({ days: z.union([z.literal(180), z.literal(365), z.literal(3650)]) });
+
+// "Ambil riwayat lebih lama": the worker pulls older receipts in the background
+emailRouter.post("/gmail/backfill", async (req, res) => {
+  const body = BackfillBody.safeParse(req.body);
+  if (!body.success) return res.status(400).json({ success: false, error: "Pilih 180, 365 atau 3650 hari" });
+  await requestBackfill(userIdOf(req), body.data.days);
+  res.json({ success: true });
 });
 
 emailRouter.delete("/gmail", async (req, res) => {
