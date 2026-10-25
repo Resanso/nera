@@ -41,6 +41,8 @@ export interface EmailTransaction {
   countsTowardSpending: boolean;
   /** Same payment already counted from another email (e.g. a bank notification for a Traveloka receipt). */
   duplicateOf?: string;
+  /** Gmail only: the linked mailbox it came from (a user can link several). */
+  account?: string;
   extractedBy: "rules" | "ai";
   createdAt: string;
 }

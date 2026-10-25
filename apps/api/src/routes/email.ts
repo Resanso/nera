@@ -23,7 +23,7 @@ import { ALLOWED_SENDERS } from "../email/senders";
 import { moneyInsights } from "../email/insights";
 import { reconcile } from "../email/reconcile";
 import { CONSENT_VERSION, ConsentRequired, hasConsent, requireConsent } from "../email/consent";
-import { emailStore } from "../email/store";
+import { emailStore, type GmailBackfill } from "../email/store";
 
 export const emailRouter: Router = Router();
 
@@ -43,6 +43,21 @@ emailRouter.use((req, _res, next) => {
 /** The user always comes from the session cookie, never from the request. */
 const userIdOf = (req: Request): string => sessionOf(req).userId;
 
+/** One progress figure for a history import that runs per mailbox. */
+function combineBackfills(list: (GmailBackfill | undefined)[]): GmailBackfill | undefined {
+  const all = list.filter((b): b is GmailBackfill => Boolean(b));
+  if (!all.length) return undefined;
+  const order = ["running", "pending", "error", "done"] as const;
+  return {
+    days: Math.max(...all.map((b) => b.days)),
+    status: order.find((st) => all.some((b) => b.status === st))!,
+    scanned: all.reduce((n, b) => n + b.scanned, 0),
+    imported: all.reduce((n, b) => n + b.imported, 0),
+    updatedAt: all.map((b) => b.updatedAt).sort().at(-1)!,
+    error: all.find((b) => b.error)?.error,
+  };
+}
+
 const fail = (res: Response, e: unknown, status = 500) =>
   res
     .status(e instanceof GmailAccessRevoked ? 409 : e instanceof ConsentRequired ? 403 : status)
@@ -51,7 +66,7 @@ const fail = (res: Response, e: unknown, status = 500) =>
 emailRouter.get("/status", async (req, res) => {
   const userId = userIdOf(req);
   const [gmail, alias, consents] = await Promise.all([
-    emailStore.getGmail(userId),
+    emailStore.listGmailFor(userId),
     emailStore.getAliasForUser(userId),
     emailStore.getConsents(userId),
   ]);
@@ -62,10 +77,12 @@ emailRouter.get("/status", async (req, res) => {
     data: {
       gmail: {
         configured: isGmailConfigured(),
-        connected: Boolean(gmail),
-        googleEmail: gmail?.googleEmail,
-        lastSyncAt: gmail?.lastSyncAt,
-        backfill: gmail?.backfill,
+        connected: gmail.length > 0,
+        accounts: gmail.map((g) => ({ account: g.account, googleEmail: g.googleEmail, lastSyncAt: g.lastSyncAt, backfill: g.backfill })),
+        // summary over all mailboxes, for the existing UI
+        googleEmail: gmail[0]?.googleEmail,
+        lastSyncAt: gmail.map((g) => g.lastSyncAt).filter(Boolean).sort().at(-1),
+        backfill: combineBackfills(gmail.map((g) => g.backfill)),
       },
       forward: alias
         ? { address: alias.alias, status: alias.status, confirmationCode: alias.confirmationCode, lastReceivedAt: alias.lastReceivedAt }
@@ -241,8 +258,10 @@ emailRouter.post("/gmail/backfill", async (req, res) => {
   res.json({ success: true });
 });
 
+// ?account=<address> disconnects one mailbox; without it, all of them
 emailRouter.delete("/gmail", async (req, res) => {
-  await disconnectGmail(userIdOf(req));
+  const account = typeof req.query.account === "string" ? req.query.account.toLowerCase() : undefined;
+  await disconnectGmail(userIdOf(req), account);
   res.json({ success: true });
 });
 

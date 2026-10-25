@@ -3,6 +3,8 @@ import type { EmailTransaction } from "./types";
 
 export type GmailConnection = {
   userId: string;
+  /** Which mailbox: the Google address, lowercased. A user can link several. */
+  account: string;
   /** AES-256-GCM encrypted refresh token (see crypto.ts). Never returned to the client. */
   refreshTokenEnc: string;
   googleEmail?: string;
@@ -55,16 +57,19 @@ export interface EmailStore {
   /** false when (user, messageHash) already exists, e.g. two syncs racing on the same email */
   addTransaction(tx: EmailTransaction): Promise<boolean>;
   updateTransaction(userId: string, id: string, patch: TransactionPatch): Promise<EmailTransaction | undefined>;
-  deleteTransactions(userId: string, channel?: EmailTransaction["channel"]): Promise<void>;
+  /** `account` narrows Gmail transactions to one linked mailbox. */
+  deleteTransactions(userId: string, channel?: EmailTransaction["channel"], account?: string): Promise<void>;
 
-  getGmail(userId: string): Promise<GmailConnection | undefined>;
+  getGmail(userId: string, account: string): Promise<GmailConnection | undefined>;
+  /** All mailboxes a user linked, oldest first. */
+  listGmailFor(userId: string): Promise<GmailConnection[]>;
   listGmail(): Promise<GmailConnection[]>;
-  /** Upserts the link; never touches `backfill` (see setBackfill). */
+  /** Upserts the link by (user, account); never touches `backfill` (see setBackfill). */
   setGmail(conn: GmailConnection): Promise<void>;
   /** Only the backfill column, so progress updates and syncs can't overwrite each other. */
-  setBackfill(userId: string, backfill: GmailBackfill | undefined): Promise<void>;
-  /** Also forgets which Gmail messages were processed. */
-  deleteGmail(userId: string): Promise<void>;
+  setBackfill(userId: string, account: string, backfill: GmailBackfill | undefined): Promise<void>;
+  /** One mailbox, or all of the user's (which also forgets which messages were processed). */
+  deleteGmail(userId: string, account?: string): Promise<void>;
   /** Gmail message ids already processed, so a re-sync skips them without downloading. */
   seenGmailIds(userId: string): Promise<Set<string>>;
   markGmailSeen(userId: string, gmailId: string): Promise<void>;
@@ -119,27 +124,34 @@ class MemoryStore implements EmailStore {
     if (tx) Object.assign(tx, patch);
     return tx;
   }
-  async deleteTransactions(userId: string, channel?: EmailTransaction["channel"]) {
+  async deleteTransactions(userId: string, channel?: EmailTransaction["channel"], account?: string) {
     if (!channel) return void this.transactions.delete(userId);
-    this.transactions.set(userId, (this.transactions.get(userId) ?? []).filter((t) => t.channel !== channel));
+    this.transactions.set(
+      userId,
+      (this.transactions.get(userId) ?? []).filter((t) => t.channel !== channel || (account !== undefined && t.account !== account)),
+    );
   }
 
-  async getGmail(userId: string) {
-    return this.gmail.get(userId);
+  async getGmail(userId: string, account: string) {
+    return this.gmail.get(`${userId}|${account}`);
+  }
+  async listGmailFor(userId: string) {
+    return [...this.gmail.values()].filter((c) => c.userId === userId);
   }
   async listGmail() {
     return [...this.gmail.values()];
   }
   async setGmail(conn: GmailConnection) {
-    this.gmail.set(conn.userId, { ...conn, backfill: this.gmail.get(conn.userId)?.backfill });
+    const key = `${conn.userId}|${conn.account}`;
+    this.gmail.set(key, { ...conn, backfill: this.gmail.get(key)?.backfill });
   }
-  async setBackfill(userId: string, backfill: GmailBackfill | undefined) {
-    const c = this.gmail.get(userId);
-    if (c) this.gmail.set(userId, { ...c, backfill });
+  async setBackfill(userId: string, account: string, backfill: GmailBackfill | undefined) {
+    const c = this.gmail.get(`${userId}|${account}`);
+    if (c) this.gmail.set(`${userId}|${account}`, { ...c, backfill });
   }
-  async deleteGmail(userId: string) {
-    this.gmail.delete(userId);
-    this.seen.delete(userId);
+  async deleteGmail(userId: string, account?: string) {
+    for (const c of await this.listGmailFor(userId)) if (account === undefined || c.account === account) this.gmail.delete(`${userId}|${c.account}`);
+    if (account === undefined) this.seen.delete(userId);
   }
   async seenGmailIds(userId: string) {
     return new Set(this.seen.get(userId));
@@ -204,6 +216,20 @@ create table if not exists nera_email_transactions (
 );
 create index if not exists nera_email_transactions_user on nera_email_transactions (user_id, occurred_at desc);
 alter table nera_gmail_links add column if not exists backfill jsonb;
+-- several Gmail accounts per user: key links by (user, mailbox) and tag gmail transactions
+alter table nera_gmail_links add column if not exists account text;
+update nera_gmail_links set account = lower(coalesce(google_email, 'primary')) where account is null;
+alter table nera_gmail_links alter column account set not null;
+do $$ begin
+  if (select array_length(conkey, 1) from pg_constraint where conname = 'nera_gmail_links_pkey') = 1 then
+    alter table nera_gmail_links drop constraint nera_gmail_links_pkey;
+    alter table nera_gmail_links add primary key (user_id, account);
+  end if;
+end $$;
+update nera_email_transactions t set data = t.data || jsonb_build_object('account', l.account)
+  from nera_gmail_links l
+  where t.user_id = l.user_id and t.data->>'channel' = 'gmail' and not (t.data ? 'account')
+    and (select count(*) from nera_gmail_links l2 where l2.user_id = t.user_id) = 1;
 create table if not exists nera_consent_events (
   id bigserial primary key,
   user_id text not null,
@@ -297,13 +323,16 @@ class PgStore implements EmailStore {
     );
     return rows[0]?.data;
   }
-  async deleteTransactions(userId: string, channel?: EmailTransaction["channel"]) {
-    if (channel) await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2", [userId, channel]);
+  async deleteTransactions(userId: string, channel?: EmailTransaction["channel"], account?: string) {
+    if (channel && account !== undefined)
+      await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2 and data->>'account' = $3", [userId, channel, account]);
+    else if (channel) await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2", [userId, channel]);
     else await this.q("delete from nera_email_transactions where user_id = $1", [userId]);
   }
 
   private toGmail(r: {
     user_id: string;
+    account: string;
     google_email: string | null;
     refresh_token_enc: string;
     connected_at: Date;
@@ -313,6 +342,7 @@ class PgStore implements EmailStore {
   }): GmailConnection {
     return {
       userId: r.user_id,
+      account: r.account,
       googleEmail: r.google_email ?? undefined,
       refreshTokenEnc: r.refresh_token_enc,
       connectedAt: iso(r.connected_at)!,
@@ -321,9 +351,18 @@ class PgStore implements EmailStore {
       backfill: r.backfill ?? undefined,
     };
   }
-  async getGmail(userId: string) {
-    const rows = await this.q<Parameters<PgStore["toGmail"]>[0]>("select * from nera_gmail_links where user_id = $1", [userId]);
+  async getGmail(userId: string, account: string) {
+    const rows = await this.q<Parameters<PgStore["toGmail"]>[0]>("select * from nera_gmail_links where user_id = $1 and account = $2", [
+      userId,
+      account,
+    ]);
     return rows[0] && this.toGmail(rows[0]);
+  }
+  async listGmailFor(userId: string) {
+    const rows = await this.q<Parameters<PgStore["toGmail"]>[0]>("select * from nera_gmail_links where user_id = $1 order by connected_at", [
+      userId,
+    ]);
+    return rows.map((r) => this.toGmail(r));
   }
   async listGmail() {
     const rows = await this.q<Parameters<PgStore["toGmail"]>[0]>("select * from nera_gmail_links");
@@ -331,17 +370,22 @@ class PgStore implements EmailStore {
   }
   async setGmail(c: GmailConnection) {
     await this.q(
-      `insert into nera_gmail_links (user_id, google_email, refresh_token_enc, connected_at, last_sync_at, watch_expires_at)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (user_id) do update set google_email = excluded.google_email, refresh_token_enc = excluded.refresh_token_enc,
+      `insert into nera_gmail_links (user_id, account, google_email, refresh_token_enc, connected_at, last_sync_at, watch_expires_at)
+       values ($1, $2, $3, $4, $5, $6, $7)
+       on conflict (user_id, account) do update set google_email = excluded.google_email, refresh_token_enc = excluded.refresh_token_enc,
          connected_at = excluded.connected_at, last_sync_at = excluded.last_sync_at, watch_expires_at = excluded.watch_expires_at`,
-      [c.userId, c.googleEmail ?? null, c.refreshTokenEnc, c.connectedAt, c.lastSyncAt ?? null, c.watchExpiresAt ?? null],
+      [c.userId, c.account, c.googleEmail ?? null, c.refreshTokenEnc, c.connectedAt, c.lastSyncAt ?? null, c.watchExpiresAt ?? null],
     );
   }
-  async setBackfill(userId: string, backfill: GmailBackfill | undefined) {
-    await this.q("update nera_gmail_links set backfill = $2 where user_id = $1", [userId, backfill ? JSON.stringify(backfill) : null]);
+  async setBackfill(userId: string, account: string, backfill: GmailBackfill | undefined) {
+    await this.q("update nera_gmail_links set backfill = $3 where user_id = $1 and account = $2", [
+      userId,
+      account,
+      backfill ? JSON.stringify(backfill) : null,
+    ]);
   }
-  async deleteGmail(userId: string) {
+  async deleteGmail(userId: string, account?: string) {
+    if (account !== undefined) return void (await this.q("delete from nera_gmail_links where user_id = $1 and account = $2", [userId, account]));
     await this.q("delete from nera_gmail_links where user_id = $1", [userId]);
     await this.clearGmailSeen(userId);
   }

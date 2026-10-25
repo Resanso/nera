@@ -57,7 +57,7 @@ const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export async function ingestEmail(
   raw: Buffer | string,
   // allowAI: the user granted "ai_processing"; without it only the rules read receipts
-  opts: { userId: string; channel: EmailTransaction["channel"]; allowAI?: boolean },
+  opts: { userId: string; channel: EmailTransaction["channel"]; account?: string; allowAI?: boolean },
 ): Promise<IngestResult> {
   const email = await parseRaw(raw);
   const listed = findSender(email.fromDomain);
@@ -86,6 +86,7 @@ export async function ingestEmail(
     userId: opts.userId,
     origin: "EMAIL",
     channel: opts.channel,
+    ...(opts.account && { account: opts.account }),
     provider: sender.provider,
     merchant: decodeEntities(x.merchant),
     amount: x.amount,

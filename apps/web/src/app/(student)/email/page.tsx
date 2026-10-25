@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@nera/ui";
-import { Check, Copy, Inbox, LogOut, Mail, RefreshCw, ShieldCheck, Sparkles, Trash2, Unplug } from "lucide-react";
+import { Check, Copy, Inbox, LogOut, Mail, Plus, RefreshCw, ShieldCheck, Sparkles, Trash2, Unplug } from "lucide-react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { MoneyInsightsCard } from "../../../components/insights/MoneyInsightsCard";
@@ -344,7 +344,7 @@ export default function EmailImportPage() {
                         <h3 className="text-sm font-bold text-[#2F240E]">Hubungkan Gmail</h3>
                         <p className="text-xs text-[#736B60]">
                           {status?.gmail.connected
-                            ? `${status.gmail.googleEmail ?? "Terhubung"}${status.gmail.lastSyncAt ? ` · sinkron ${formatDate(status.gmail.lastSyncAt)}` : ""}`
+                            ? `${status.gmail.accounts.length} akun terhubung${status.gmail.lastSyncAt ? ` · sinkron ${formatDate(status.gmail.lastSyncAt)}` : ""}`
                             : "Otomatis, termasuk riwayat 90 hari terakhir"}
                         </p>
                       </div>
@@ -353,6 +353,35 @@ export default function EmailImportPage() {
                       <span className="rounded-full bg-[#EAF7E4] px-2 py-0.5 text-[11px] font-semibold text-[#2F6B1F]">Aktif</span>
                     )}
                   </div>
+
+                  {/* one row per linked mailbox: bank emails often go to a different address */}
+                  {status?.gmail.connected && (
+                    <ul className="mt-3 divide-y divide-[#F1EEE8] rounded-[16px] bg-[#F7F7F7] px-3.5">
+                      {status.gmail.accounts.map((a) => (
+                        <li key={a.account} className="flex items-center justify-between gap-3 py-2.5">
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] font-semibold text-[#2F240E]">{a.googleEmail ?? a.account}</span>
+                            <span className="block text-[11px] text-[#736B60]">
+                              {a.lastSyncAt ? `Sinkron ${formatDate(a.lastSyncAt)}` : "Belum sinkron"}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            disabled={busy === `gmail-off-${a.account}`}
+                            onClick={() =>
+                              run(`gmail-off-${a.account}`, async () => (
+                                await emailApi.disconnectGmail(a.account), `${a.googleEmail ?? a.account} diputus dan datanya dihapus.`
+                              ))
+                            }
+                            className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-[#A92F2F] hover:bg-white disabled:opacity-50"
+                          >
+                            <Unplug size={13} />
+                            Putuskan
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
                   {status && !status.consent.emailImport && (
                     <p className="mt-3 rounded-xl bg-[#FFF3D6] px-3 py-2 text-xs text-[#76520E]">
@@ -379,11 +408,14 @@ export default function EmailImportPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          isLoading={busy === "gmail-off"}
-                          onClick={() => run("gmail-off", async () => (await emailApi.disconnectGmail(), "Gmail diputus dan datanya dihapus."))}
+                          disabled={!status.consent.emailImport}
+                          onClick={() => {
+                            setMood("thinking");
+                            window.location.href = emailApi.gmailConnectUrl();
+                          }}
                         >
-                          <Unplug size={16} className="mr-1.5" />
-                          Putuskan
+                          <Plus size={16} className="mr-1.5" />
+                          Tambah akun
                         </Button>
                       </>
                     ) : (
@@ -399,6 +431,10 @@ export default function EmailImportPage() {
                       </Button>
                     )}
                   </div>
+
+                  <p className="mt-3 text-[11px] leading-relaxed text-[#736B60]">
+                    Email bank masuk ke alamat lain? Tambahkan semua Gmail-mu. Untuk email selain Gmail, pakai alamat penerusan di bawah.
+                  </p>
 
                   {status?.gmail.connected && (
                     <div className="mt-4 rounded-[16px] bg-[#F7F7F7] p-3.5">

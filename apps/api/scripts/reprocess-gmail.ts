@@ -26,28 +26,31 @@ async function main() {
     console.log(`dropped ${userId}`);
   }
 
-  for (const conn of await emailStore.listGmail()) {
+  const links = await emailStore.listGmail();
+  // per user: one sync covers all of their linked mailboxes
+  for (const userId of new Set(links.map((c) => c.userId))) {
+    const conns = links.filter((c) => c.userId === userId);
     // never wipe data we are not allowed to re-import
-    if (!(await hasConsent(conn.userId, "email_import"))) {
-      console.log(`${conn.userId}: skipped, no email import consent`);
+    if (!(await hasConsent(userId, "email_import"))) {
+      console.log(`${userId}: skipped, no email import consent`);
       continue;
     }
     // a history import in progress would race the wipe below; run again once it is done
-    if (conn.backfill?.status === "pending" || conn.backfill?.status === "running") {
-      console.log(`${conn.userId}: skipped, history import still ${conn.backfill.status}`);
+    if (conns.some((c) => c.backfill?.status === "pending" || c.backfill?.status === "running")) {
+      console.log(`${userId}: skipped, history import still running`);
       continue;
     }
-    await emailStore.deleteTransactions(conn.userId, "gmail");
-    await emailStore.clearGmailSeen(conn.userId);
+    await emailStore.deleteTransactions(userId, "gmail");
+    await emailStore.clearGmailSeen(userId);
     const total = { scanned: 0, imported: 0, duplicates: 0, ignored: 0 };
     // re-read as far back as the user's history import went, not just the default 90 days
-    const days = Math.max(90, conn.backfill?.days ?? 0);
+    const days = Math.max(90, ...conns.map((c) => c.backfill?.days ?? 0));
     for (;;) {
-      const r = await syncGmail(conn.userId, { days, max: 200 });
+      const r = await syncGmail(userId, { days, max: 200 });
       for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += r[k];
       if (r.scanned === 0) break;
     }
-    console.log(`${conn.userId}:`, total, "| cross-provider duplicates:", await reconcile(conn.userId));
+    console.log(`${userId}:`, total, "| cross-provider duplicates:", await reconcile(userId));
   }
   process.exit(0);
 }

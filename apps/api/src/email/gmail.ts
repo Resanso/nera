@@ -3,7 +3,7 @@ import { ingestEmail, summarize } from "./ingest";
 import { reconcile } from "./reconcile";
 import { ConsentRequired, hasConsent, requireConsent } from "./consent";
 import { gmailSenderQuery } from "./senders";
-import { emailStore } from "./store";
+import { emailStore, type GmailConnection } from "./store";
 import type { IngestResult } from "./types";
 
 const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
@@ -30,8 +30,9 @@ export function gmailAuthUrl(userId: string): string {
     response_type: "code",
     scope: SCOPE,
     access_type: "offline",
-    // force the consent screen so Google always returns a refresh token
-    prompt: "consent",
+    // consent: Google always returns a refresh token; select_account: linking a second
+    // mailbox must not silently reuse the account the browser is signed in to
+    prompt: "consent select_account",
     state: signState({ p: "gmail", u: userId }),
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
@@ -102,18 +103,26 @@ export async function completeGmailConnect(userId: string, code: string) {
   if (!tokens.refresh_token || !tokens.access_token) throw new Error("Google tidak mengembalikan refresh token");
 
   const profile = await gmailGet<{ emailAddress: string }>(tokens.access_token, "/profile");
+  // linking the same mailbox again replaces its token; another mailbox is added next to it
+  const account = profile.emailAddress.toLowerCase();
   await emailStore.setGmail({
     userId,
+    account,
     refreshTokenEnc: encrypt(tokens.refresh_token),
     googleEmail: profile.emailAddress,
-    connectedAt: new Date().toISOString(),
+    connectedAt: (await emailStore.getGmail(userId, account))?.connectedAt ?? new Date().toISOString(),
   });
-  await startGmailWatch(userId).catch((e) => console.error(`[gmail] ${(e as Error).message}`));
+  await startGmailWatch(userId, account).catch((e) => console.error(`[gmail] ${(e as Error).message}`));
+  // a mailbox added later gets the same history depth the user already imported elsewhere
+  const others = (await emailStore.listGmailFor(userId)).filter((c) => c.account !== account);
+  const days = Math.max(0, ...others.map((c) => c.backfill?.days ?? 0));
+  if (days > 0 && !(await emailStore.getGmail(userId, account))?.backfill) {
+    await emailStore.setBackfill(userId, account, { days, status: "pending", scanned: 0, imported: 0, updatedAt: new Date().toISOString() });
+  }
+  return account;
 }
 
-async function accessToken(userId: string): Promise<string> {
-  const conn = await emailStore.getGmail(userId);
-  if (!conn) throw new Error("Gmail belum terhubung");
+async function accessToken(conn: GmailConnection): Promise<string> {
   const { clientId, clientSecret } = config();
   try {
     const t = await tokenRequest({
@@ -125,7 +134,7 @@ async function accessToken(userId: string): Promise<string> {
     return t.access_token!;
   } catch (e) {
     // user revoked access in their Google account (or test-mode token expired after 7 days)
-    if (e instanceof GmailAccessRevoked) await emailStore.deleteGmail(userId);
+    if (e instanceof GmailAccessRevoked) await emailStore.deleteGmail(conn.userId, conn.account);
     throw e;
   }
 }
@@ -153,10 +162,11 @@ type SyncSummary = { scanned: number; imported: number; duplicates: number; igno
 const running = new Map<string, Promise<SyncSummary>>();
 
 /**
- * Pull receipts from allowed senders only, newest first, skipping messages already seen.
+ * Pull receipts from allowed senders only, newest first, skipping messages already seen,
+ * from every mailbox the user linked (or one, with `account`).
  * Concurrent triggers (button, push, scheduler) for the same user share one run.
  */
-type SyncOpts = { days?: number; max?: number; onProgress?: (done: SyncSummary) => void };
+type SyncOpts = { days?: number; max?: number; account?: string; onProgress?: (done: SyncSummary) => void };
 
 export function syncGmail(userId: string, opts?: SyncOpts): Promise<SyncSummary> {
   const inFlight = running.get(userId);
@@ -167,40 +177,67 @@ export function syncGmail(userId: string, opts?: SyncOpts): Promise<SyncSummary>
   return run;
 }
 
-async function runSync(userId: string, { days = 90, max = 100, onProgress }: SyncOpts = {}): Promise<SyncSummary> {
+async function runSync(userId: string, { days = 90, max = 100, account, onProgress }: SyncOpts = {}): Promise<SyncSummary> {
   await requireConsent(userId, "email_import");
+  const conns = (await emailStore.listGmailFor(userId)).filter((c) => account === undefined || c.account === account);
+  if (!conns.length) throw new Error("Gmail belum terhubung");
   const allowAI = await hasConsent(userId, "ai_processing");
-  const token = await accessToken(userId);
   const seen = await emailStore.seenGmailIds(userId);
 
+  const results: IngestResult[] = [];
+  let scanned = 0;
+  const errors: unknown[] = [];
+  try {
+    for (const conn of conns) {
+      try {
+        scanned += await syncMailbox(conn, { days, max, seen, allowAI, results, onProgress });
+      } catch (e) {
+        // one revoked or failing mailbox must not block the others
+        errors.push(e);
+        console.error(`[gmail] ${conn.userId}/${conn.account}: ${(e as Error).message}`);
+      }
+    }
+  } finally {
+    if (results.length) await reconcile(userId);
+  }
+  if (errors.length === conns.length) throw errors[0];
+  return { scanned, ...summarize(results) };
+}
+
+async function syncMailbox(
+  conn: GmailConnection,
+  o: { days: number; max: number; seen: Set<string>; allowAI: boolean; results: IngestResult[]; onProgress?: (done: SyncSummary) => void },
+): Promise<number> {
+  const token = await accessToken(conn);
   const ids: string[] = [];
   let pageToken: string | undefined;
   do {
-    const q = new URLSearchParams({ q: gmailSenderQuery(days), maxResults: "100" });
+    const q = new URLSearchParams({ q: gmailSenderQuery(o.days), maxResults: "100" });
     if (pageToken) q.set("pageToken", pageToken);
     const page = await gmailGet<{ messages?: { id: string }[]; nextPageToken?: string }>(token, `/messages?${q}`);
-    for (const m of page.messages ?? []) if (!seen.has(m.id)) ids.push(m.id);
+    for (const m of page.messages ?? []) if (!o.seen.has(m.id)) ids.push(m.id);
     pageToken = page.nextPageToken;
-  } while (pageToken && ids.length < max);
+  } while (pageToken && ids.length < o.max);
 
-  const results: IngestResult[] = [];
-  const todo = ids.slice(0, max);
+  const todo = ids.slice(0, o.max);
   try {
     // one at a time: Gmail rate-limits concurrent requests per user
     for (const id of todo) {
       const m = await gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`);
-      results.push(await ingestEmail(Buffer.from(m.raw, "base64url"), { userId, channel: "gmail", allowAI }));
+      o.results.push(
+        await ingestEmail(Buffer.from(m.raw, "base64url"), { userId: conn.userId, channel: "gmail", account: conn.account, allowAI: o.allowAI }),
+      );
       // recorded per message, so a failed sync resumes where it stopped
-      await emailStore.markGmailSeen(userId, id);
-      onProgress?.({ scanned: results.length, ...summarize(results) });
+      await emailStore.markGmailSeen(conn.userId, id);
+      o.seen.add(id);
+      o.onProgress?.({ scanned: o.results.length, ...summarize(o.results) });
     }
   } finally {
     // re-read the connection so a disconnect during the run isn't undone
-    const latest = await emailStore.getGmail(userId);
+    const latest = await emailStore.getGmail(conn.userId, conn.account);
     if (latest) await emailStore.setGmail({ ...latest, lastSyncAt: new Date().toISOString() });
-    if (results.length) await reconcile(userId);
   }
-  return { scanned: todo.length, ...summarize(results) };
+  return todo.length;
 }
 
 // ---- "Ambil riwayat lebih lama": backfill beyond the regular 90-day window ----
@@ -208,8 +245,12 @@ async function runSync(userId: string, { days = 90, max = 100, onProgress }: Syn
 /** Ask the worker to pull older receipts. Progress is stored, so it survives restarts. */
 export async function requestBackfill(userId: string, days: number) {
   await requireConsent(userId, "email_import");
-  if (!(await emailStore.getGmail(userId))) throw new Error("Gmail belum terhubung");
-  await emailStore.setBackfill(userId, { days, status: "pending", scanned: 0, imported: 0, updatedAt: new Date().toISOString() });
+  const conns = await emailStore.listGmailFor(userId);
+  if (!conns.length) throw new Error("Gmail belum terhubung");
+  // every linked mailbox; the status endpoint adds their progress up
+  for (const c of conns) {
+    await emailStore.setBackfill(userId, c.account, { days, status: "pending", scanned: 0, imported: 0, updatedAt: new Date().toISOString() });
+  }
 }
 
 /** Process requested backfills, one batch of up to 200 emails at a time, saving progress after each. */
@@ -218,7 +259,7 @@ export async function runBackfills() {
     const b = conn.backfill;
     if (!b || b.status === "done" || b.status === "error") continue;
     let progress = { ...b, status: "running" as const, updatedAt: new Date().toISOString() };
-    await emailStore.setBackfill(conn.userId, progress);
+    await emailStore.setBackfill(conn.userId, conn.account, progress);
     try {
       for (;;) {
         // live progress for the UI, at most every 3s
@@ -229,24 +270,24 @@ export async function runBackfills() {
           if (Date.now() - lastWrite < 3000) return;
           lastWrite = Date.now();
           pendingWrite = emailStore
-            .setBackfill(conn.userId, { ...progress, scanned: base.scanned + done.scanned, imported: base.imported + done.imported, updatedAt: new Date().toISOString() })
+            .setBackfill(conn.userId, conn.account, { ...progress, scanned: base.scanned + done.scanned, imported: base.imported + done.imported, updatedAt: new Date().toISOString() })
             .catch(() => undefined);
         };
-        const r = await syncGmail(conn.userId, { days: b.days, max: 200, onProgress }).finally(() => pendingWrite);
+        const r = await syncGmail(conn.userId, { days: b.days, max: 200, account: conn.account, onProgress }).finally(() => pendingWrite);
         // a late progress write must not land after the final status below
         await pendingWrite;
         progress = { ...progress, scanned: base.scanned + r.scanned, imported: base.imported + r.imported, updatedAt: new Date().toISOString() };
         // a disconnect or a new request while running ends this run
-        const latest = (await emailStore.getGmail(conn.userId))?.backfill;
+        const latest = (await emailStore.getGmail(conn.userId, conn.account))?.backfill;
         if (!latest || latest.days !== b.days) return;
         if (r.scanned === 0) {
-          await emailStore.setBackfill(conn.userId, { ...progress, status: "done" });
+          await emailStore.setBackfill(conn.userId, conn.account, { ...progress, status: "done" });
           break;
         }
-        await emailStore.setBackfill(conn.userId, progress);
+        await emailStore.setBackfill(conn.userId, conn.account, progress);
       }
     } catch (e) {
-      await emailStore.setBackfill(conn.userId, { ...progress, status: "error", error: (e as Error).message, updatedAt: new Date().toISOString() });
+      await emailStore.setBackfill(conn.userId, conn.account, { ...progress, status: "error", error: (e as Error).message, updatedAt: new Date().toISOString() });
     }
   }
 }
@@ -256,10 +297,12 @@ export async function runBackfills() {
 const pushTopic = () => process.env.GMAIL_PUBSUB_TOPIC;
 
 /** Ask Gmail to publish to our Pub/Sub topic whenever the inbox changes. Lasts 7 days. */
-export async function startGmailWatch(userId: string) {
+export async function startGmailWatch(userId: string, account: string) {
   const topicName = pushTopic();
   if (!topicName) return;
-  const token = await accessToken(userId);
+  const conn = await emailStore.getGmail(userId, account);
+  if (!conn) return;
+  const token = await accessToken(conn);
   const res = await fetch(`${GMAIL}/watch`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -267,15 +310,15 @@ export async function startGmailWatch(userId: string) {
   });
   const body = (await res.json().catch(() => ({}))) as { expiration?: string; error?: { message?: string } };
   if (!res.ok) throw new Error(`Gmail watch gagal: ${body.error?.message ?? res.status}`);
-  const conn = await emailStore.getGmail(userId);
-  if (conn) await emailStore.setGmail({ ...conn, watchExpiresAt: new Date(Number(body.expiration)).toISOString() });
+  const latest = await emailStore.getGmail(userId, account);
+  if (latest) await emailStore.setGmail({ ...latest, watchExpiresAt: new Date(Number(body.expiration)).toISOString() });
 }
 
 /** Pub/Sub tells us which mailbox changed; sync the user(s) linked to it. */
 export async function handleGmailPush(emailAddress: string) {
   for (const conn of await emailStore.listGmail()) {
     if (conn.googleEmail?.toLowerCase() !== emailAddress.toLowerCase()) continue;
-    syncGmail(conn.userId).catch((e) => e instanceof ConsentRequired || console.error(`[gmail] push sync: ${(e as Error).message}`));
+    syncGmail(conn.userId, { account: conn.account }).catch((e) => e instanceof ConsentRequired || console.error(`[gmail] push sync: ${(e as Error).message}`));
   }
 }
 
@@ -287,13 +330,17 @@ export function startGmailScheduler() {
   const minutes = Number(process.env.GMAIL_POLL_MINUTES ?? 10);
   if (!minutes || !isGmailConfigured()) return;
   const tick = async () => {
-    for (const conn of await emailStore.listGmail()) {
+    const conns = await emailStore.listGmail();
+    const renewBy = Date.now() + 24 * 60 * 60 * 1000;
+    for (const conn of conns) {
+      if (pushTopic() && (!conn.watchExpiresAt || Date.parse(conn.watchExpiresAt) < renewBy)) {
+        await startGmailWatch(conn.userId, conn.account).catch((e) => console.error(`[gmail] watch: ${(e as Error).message}`));
+      }
+    }
+    // one sync per user covers all of their mailboxes
+    for (const userId of new Set(conns.map((c) => c.userId))) {
       try {
-        const renewBy = Date.now() + 24 * 60 * 60 * 1000;
-        if (pushTopic() && (!conn.watchExpiresAt || Date.parse(conn.watchExpiresAt) < renewBy)) {
-          await startGmailWatch(conn.userId);
-        }
-        await syncGmail(conn.userId);
+        await syncGmail(userId);
       } catch (e) {
         // no consent (yet, or withdrawn): nothing to do for this user
         if (!(e instanceof ConsentRequired)) console.error(`[gmail] scheduled sync: ${(e as Error).message}`);
@@ -315,18 +362,23 @@ export function startGmailScheduler() {
   console.log(`[NERA] Gmail sync every ${minutes} min${pushTopic() ? " + Pub/Sub push" : ""}`);
 }
 
-/** Revoke at Google, then forget the token and everything imported through it. */
-export async function disconnectGmail(userId: string) {
-  const conn = await emailStore.getGmail(userId);
-  if (conn) {
+/**
+ * Revoke at Google, then forget the token and everything imported through it:
+ * one mailbox, or all of the user's when `account` is left out.
+ */
+export async function disconnectGmail(userId: string, account?: string) {
+  const conns = (await emailStore.listGmailFor(userId)).filter((c) => account === undefined || c.account === account);
+  for (const conn of conns) {
     // stop push notifications for this mailbox before the token goes away
-    await accessToken(userId)
+    await accessToken(conn)
       .then((t) => fetch(`${GMAIL}/stop`, { method: "POST", headers: { Authorization: `Bearer ${t}` } }))
       .catch(() => undefined);
     await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(decrypt(conn.refreshTokenEnc))}`, {
       method: "POST",
     }).catch(() => undefined);
   }
-  await emailStore.deleteGmail(userId);
-  await emailStore.deleteTransactions(userId, "gmail");
+  await emailStore.deleteGmail(userId, account);
+  await emailStore.deleteTransactions(userId, "gmail", account);
+  // seen ids are kept per user; relinking this mailbox later must read its emails again
+  if (account !== undefined) await emailStore.clearGmailSeen(userId);
 }

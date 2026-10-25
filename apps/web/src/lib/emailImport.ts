@@ -43,7 +43,15 @@ export type GmailBackfill = {
 };
 
 export type EmailStatus = {
-  gmail: { configured: boolean; connected: boolean; googleEmail?: string; lastSyncAt?: string; backfill?: GmailBackfill };
+  gmail: {
+    configured: boolean;
+    connected: boolean;
+    /** every linked mailbox; the fields below summarize them */
+    accounts: { account: string; googleEmail?: string; lastSyncAt?: string; backfill?: GmailBackfill }[];
+    googleEmail?: string;
+    lastSyncAt?: string;
+    backfill?: GmailBackfill;
+  };
   forward: { address: string; status: "waiting" | "confirm" | "active"; confirmationCode?: string; lastReceivedAt?: string } | null;
   senders: { provider: string; domains: string[] }[];
   aiExtraction: boolean;
@@ -121,7 +129,9 @@ export const emailApi = {
   setConsent: (kind: "email_import" | "ai_processing", granted: boolean) =>
     call<void>("/email/consent", { method: "POST", body: JSON.stringify({ kind, granted }) }),
   backfillGmail: (days: 180 | 365 | 3650) => call<void>("/email/gmail/backfill", { method: "POST", body: JSON.stringify({ days }) }),
-  disconnectGmail: () => call<void>("/email/gmail", { method: "DELETE" }),
+  /** one mailbox, or all of them without `account` */
+  disconnectGmail: (account?: string) =>
+    call<void>(`/email/gmail${account ? `?account=${encodeURIComponent(account)}` : ""}`, { method: "DELETE" }),
   createAlias: () => call<NonNullable<EmailStatus["forward"]>>("/email/forward/alias", { method: "POST" }),
   removeAlias: () => call<void>("/email/forward", { method: "DELETE" }),
   confirm: (id: string) => call<EmailTransaction>(`/email/transactions/${id}`, { method: "PATCH", body: JSON.stringify({ confirm: true }) }),
