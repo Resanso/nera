@@ -27,6 +27,8 @@ export type EmailTransaction = {
   confidence: number;
   needsReview: boolean;
   countsTowardSpending: boolean;
+  /** id of the receipt that already counts this payment */
+  duplicateOf?: string;
   extractedBy: "rules" | "ai";
 };
 
@@ -56,7 +58,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const authApi = {
-  me: () => call<{ email: string }>("/auth/me"),
+  me: () => call<{ email: string; isAdmin: boolean }>("/auth/me"),
   logout: () => call<void>("/auth/logout", { method: "POST" }),
   /** Full-page redirect to Google, back to `returnTo` afterwards. */
   loginUrl: (returnTo: string) => `${API_URL}/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`,
@@ -86,4 +88,27 @@ export const CATEGORY_LABEL: Record<EmailCategory, string> = {
   topup: "Top up",
   transfer: "Transfer",
   other: "Lainnya",
+};
+
+export type AdminOverview = {
+  totals: { users: number; gmailConnected: number; forwardActive: number; transactions: number };
+  users: {
+    email: string;
+    firstSeenAt: string;
+    lastSeenAt: string;
+    gmail: { address?: string; connectedAt: string; lastSyncAt?: string } | null;
+    forward: { status: "waiting" | "confirm" | "active"; lastReceivedAt?: string } | null;
+    transactions: { total: number; gmail: number; forward: number; demo: number; needsReview: number };
+    lastTransactionAt?: string;
+  }[];
+};
+
+/** 403 from the admin API: signed in, but not on the ADMIN_EMAILS whitelist. */
+export class NotAdmin extends Error {}
+
+export const adminApi = {
+  overview: () =>
+    call<AdminOverview>("/admin/overview").catch((e: Error) => {
+      throw e.message === "Bukan admin." ? new NotAdmin(e.message) : e;
+    }),
 };

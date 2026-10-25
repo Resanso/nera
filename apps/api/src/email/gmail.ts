@@ -1,5 +1,6 @@
 import { decrypt, encrypt, signState } from "./crypto";
 import { ingestEmail, summarize } from "./ingest";
+import { reconcile } from "./reconcile";
 import { gmailSenderQuery } from "./senders";
 import { emailStore } from "./store";
 import type { IngestResult } from "./types";
@@ -100,18 +101,17 @@ export async function completeGmailConnect(userId: string, code: string) {
   if (!tokens.refresh_token || !tokens.access_token) throw new Error("Google tidak mengembalikan refresh token");
 
   const profile = await gmailGet<{ emailAddress: string }>(tokens.access_token, "/profile");
-  emailStore.setGmail({
+  await emailStore.setGmail({
     userId,
     refreshTokenEnc: encrypt(tokens.refresh_token),
     googleEmail: profile.emailAddress,
     connectedAt: new Date().toISOString(),
-    syncedIds: [],
   });
   await startGmailWatch(userId).catch((e) => console.error(`[gmail] ${(e as Error).message}`));
 }
 
 async function accessToken(userId: string): Promise<string> {
-  const conn = emailStore.getGmail(userId);
+  const conn = await emailStore.getGmail(userId);
   if (!conn) throw new Error("Gmail belum terhubung");
   const { clientId, clientSecret } = config();
   try {
@@ -124,7 +124,7 @@ async function accessToken(userId: string): Promise<string> {
     return t.access_token!;
   } catch (e) {
     // user revoked access in their Google account (or test-mode token expired after 7 days)
-    if (e instanceof GmailAccessRevoked) emailStore.deleteGmail(userId);
+    if (e instanceof GmailAccessRevoked) await emailStore.deleteGmail(userId);
     throw e;
   }
 }
@@ -165,8 +165,7 @@ export function syncGmail(userId: string, opts?: { days?: number; max?: number }
 
 async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<SyncSummary> {
   const token = await accessToken(userId);
-  const conn = emailStore.getGmail(userId)!;
-  const seen = new Set(conn.syncedIds);
+  const seen = await emailStore.seenGmailIds(userId);
 
   const ids: string[] = [];
   let pageToken: string | undefined;
@@ -185,13 +184,14 @@ async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<S
     for (const id of todo) {
       const m = await gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`);
       results.push(await ingestEmail(Buffer.from(m.raw, "base64url"), { userId, channel: "gmail" }));
-      seen.add(id);
+      // recorded per message, so a failed sync resumes where it stopped
+      await emailStore.markGmailSeen(userId, id);
     }
   } finally {
-    // keep progress even if a later message fails, so the next sync resumes;
     // re-read the connection so a disconnect during the run isn't undone
-    const latest = emailStore.getGmail(userId);
-    if (latest) emailStore.setGmail({ ...latest, syncedIds: [...seen], lastSyncAt: new Date().toISOString() });
+    const latest = await emailStore.getGmail(userId);
+    if (latest) await emailStore.setGmail({ ...latest, lastSyncAt: new Date().toISOString() });
+    if (results.length) await reconcile(userId);
   }
   return { scanned: todo.length, ...summarize(results) };
 }
@@ -212,13 +212,13 @@ export async function startGmailWatch(userId: string) {
   });
   const body = (await res.json().catch(() => ({}))) as { expiration?: string; error?: { message?: string } };
   if (!res.ok) throw new Error(`Gmail watch gagal: ${body.error?.message ?? res.status}`);
-  const conn = emailStore.getGmail(userId);
-  if (conn) emailStore.setGmail({ ...conn, watchExpiresAt: new Date(Number(body.expiration)).toISOString() });
+  const conn = await emailStore.getGmail(userId);
+  if (conn) await emailStore.setGmail({ ...conn, watchExpiresAt: new Date(Number(body.expiration)).toISOString() });
 }
 
 /** Pub/Sub tells us which mailbox changed; sync the user(s) linked to it. */
-export function handleGmailPush(emailAddress: string) {
-  for (const conn of emailStore.listGmail()) {
+export async function handleGmailPush(emailAddress: string) {
+  for (const conn of await emailStore.listGmail()) {
     if (conn.googleEmail?.toLowerCase() !== emailAddress.toLowerCase()) continue;
     syncGmail(conn.userId).catch((e) => console.error(`[gmail] push sync: ${(e as Error).message}`));
   }
@@ -232,7 +232,7 @@ export function startGmailScheduler() {
   const minutes = Number(process.env.GMAIL_POLL_MINUTES ?? 10);
   if (!minutes || !isGmailConfigured()) return;
   const tick = async () => {
-    for (const conn of emailStore.listGmail()) {
+    for (const conn of await emailStore.listGmail()) {
       try {
         const renewBy = Date.now() + 24 * 60 * 60 * 1000;
         if (pushTopic() && (!conn.watchExpiresAt || Date.parse(conn.watchExpiresAt) < renewBy)) {
@@ -246,12 +246,12 @@ export function startGmailScheduler() {
   };
   setInterval(tick, minutes * 60 * 1000).unref();
   setTimeout(tick, 15_000).unref();
-  console.log(`[NERA API] Gmail sync every ${minutes} min${pushTopic() ? " + Pub/Sub push" : ""}`);
+  console.log(`[NERA] Gmail sync every ${minutes} min${pushTopic() ? " + Pub/Sub push" : ""}`);
 }
 
 /** Revoke at Google, then forget the token and everything imported through it. */
 export async function disconnectGmail(userId: string) {
-  const conn = emailStore.getGmail(userId);
+  const conn = await emailStore.getGmail(userId);
   if (conn) {
     // stop push notifications for this mailbox before the token goes away
     await accessToken(userId)
@@ -261,6 +261,6 @@ export async function disconnectGmail(userId: string) {
       method: "POST",
     }).catch(() => undefined);
   }
-  emailStore.deleteGmail(userId);
-  emailStore.deleteTransactions(userId, "gmail");
+  await emailStore.deleteGmail(userId);
+  await emailStore.deleteTransactions(userId, "gmail");
 }

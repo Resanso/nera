@@ -47,3 +47,6 @@ yarn-error.log*
 
 # Google OAuth client downloads
 client_secret_*.json
+
+# Deploy state on the server
+deploy/.active

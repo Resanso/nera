@@ -40,8 +40,10 @@ export function startSmtpServer() {
     maxClients: 50,
     ...(tls ?? { hideSTARTTLS: true }),
     onRcptTo(address, _session, callback) {
-      if (!emailStore.getAlias(address.address)) return callback(smtpError("Alamat tidak dikenal", 550));
-      callback();
+      emailStore
+        .getAlias(address.address)
+        .then((a) => callback(a ? undefined : smtpError("Alamat tidak dikenal", 550)))
+        .catch(() => callback(smtpError("Coba lagi nanti", 451)));
     },
     onData(stream, session, callback) {
       const chunks: Buffer[] = [];

@@ -131,6 +131,9 @@ export default function EmailImportPage() {
 
   const counted = useMemo(() => txs.filter((t) => t.countsTowardSpending && !t.needsReview), [txs]);
   const spend = counted.reduce((sum, t) => sum + t.amount, 0);
+  const monthKey = new Date().toISOString().slice(0, 7);
+  const spendThisMonth = counted.filter((t) => t.occurredAt.startsWith(monthKey)).reduce((sum, t) => sum + t.amount, 0);
+  const byId = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs]);
   const filterQuery = status ? `from:(${status.senders.flatMap((s) => s.domains).join(" OR ")})` : "";
 
   return (
@@ -155,8 +158,9 @@ export default function EmailImportPage() {
               <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{txs.length}</p>
             </div>
             <div className="rounded-[19px] bg-[#F7F7F7] p-3.5">
-              <p className="text-[11px] text-[#736B60]">Pengeluaran tercatat</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{formatRupiah(spend)}</p>
+              <p className="text-[11px] text-[#736B60]">Pengeluaran bulan ini</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{formatRupiah(spendThisMonth)}</p>
+              <p className="mt-0.5 text-[11px] text-[#736B60]">90 hari: {formatRupiah(spend)}</p>
             </div>
           </div>
         </div>
@@ -426,7 +430,13 @@ export default function EmailImportPage() {
                             </>
                           ) : (
                             <span className="rounded-full bg-[#F1EEE8] px-2 py-0.5 text-[11px] font-semibold text-[#736B60]">
-                              Tidak dihitung · dana sendiri dari BNI
+                              {t.duplicateOf
+                                ? `Tidak dihitung · sudah ada struk dari ${byId.get(t.duplicateOf)?.provider ?? "merchant"}`
+                                : t.type === "income"
+                                  ? "Pemasukan"
+                                  : t.category === "transfer"
+                                    ? "Tidak dihitung · transfer"
+                                    : "Tidak dihitung · top up"}
                             </span>
                           )}
                         </div>

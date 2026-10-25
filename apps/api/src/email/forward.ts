@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { ingestEmail, parseRaw } from "./ingest";
+import { reconcile } from "./reconcile";
 import { emailStore, type ForwardAlias } from "./store";
 import type { IngestResult } from "./types";
 
@@ -8,18 +9,18 @@ const domain = () => process.env.INBOUND_EMAIL_DOMAIN ?? "inbox.nera.id";
 // lowercase letters + digits without look-alikes (0/o, 1/l), easy to read aloud
 const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 
-export function getOrCreateAlias(userId: string): ForwardAlias {
-  const existing = emailStore.getAliasForUser(userId);
+export async function getOrCreateAlias(userId: string): Promise<ForwardAlias> {
+  const existing = await emailStore.getAliasForUser(userId);
   if (existing) return existing;
   const id = [...randomBytes(10)].map((b) => ALPHABET[b % ALPHABET.length]).join("");
   const alias: ForwardAlias = { alias: `u-${id}@${domain()}`, userId, status: "waiting", createdAt: new Date().toISOString() };
-  emailStore.setAlias(alias);
+  await emailStore.setAlias(alias);
   return alias;
 }
 
-export function removeAlias(userId: string) {
-  emailStore.deleteAliasForUser(userId);
-  emailStore.deleteTransactions(userId, "forward");
+export async function removeAlias(userId: string) {
+  await emailStore.deleteAliasForUser(userId);
+  await emailStore.deleteTransactions(userId, "forward");
 }
 
 /**
@@ -51,7 +52,7 @@ export async function handleInbound(
   raw: Buffer,
   opts: { dkimDomains?: string[] } = {},
 ): Promise<InboundOutcome> {
-  const alias = emailStore.getAlias(recipient.trim());
+  const alias = await emailStore.getAlias(recipient.trim());
   if (!alias) return { status: "unknown_alias" };
 
   const email = await parseRaw(raw);
@@ -60,12 +61,13 @@ export async function handleInbound(
   }
   const code = gmailConfirmationCode(email.from, email.subject, email.text);
   if (code) {
-    emailStore.setAlias({ ...alias, status: "confirm", confirmationCode: code });
+    await emailStore.setAlias({ ...alias, status: "confirm", confirmationCode: code });
     return { status: "confirmation" };
   }
 
   const result = await ingestEmail(raw, { userId: alias.userId, channel: "forward" });
   // any mail from the user's filter proves forwarding works, even if it wasn't a receipt
-  emailStore.setAlias({ ...alias, status: "active", confirmationCode: undefined, lastReceivedAt: new Date().toISOString() });
+  await emailStore.setAlias({ ...alias, status: "active", confirmationCode: undefined, lastReceivedAt: new Date().toISOString() });
+  if (result.status === "imported") await reconcile(alias.userId);
   return result;
 }

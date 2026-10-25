@@ -1,0 +1,30 @@
+# One deploy slot (blue or green): web + api. deploy/deploy.sh runs the new version in
+# the idle slot, health-checks it, points nginx at it, then stops the old slot.
+#   docker compose -p nera-<slot> -f deploy/app.yml --env-file .env.deploy up -d
+services:
+  web:
+    image: nera-web:${TAG:?set TAG}
+    ports:
+      - "127.0.0.1:${WEB_PORT:?set WEB_PORT}:3000"
+    networks: [nera-net]
+    restart: unless-stopped
+
+  api:
+    image: nera-api:${TAG}
+    env_file: ../.env.deploy
+    environment:
+      PORT: "4000"
+      DATABASE_URL: postgres://nera:${NERA_DB_PASSWORD:?set NERA_DB_PASSWORD}@nera-db:5432/nera
+      WEB_APP_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+      GOOGLE_REDIRECT_URI: ${PUBLIC_URL}/api/email/gmail/callback
+      # SMTP and the scheduler live in the worker; two slots must not both run them
+      SMTP_PORT: ""
+      GMAIL_POLL_MINUTES: "0"
+    ports:
+      - "127.0.0.1:${API_PORT:?set API_PORT}:4000"
+    networks: [nera-net]
+    restart: unless-stopped
+
+networks:
+  nera-net:
+    external: true

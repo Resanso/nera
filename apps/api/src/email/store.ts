@@ -1,5 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { Pool } from "pg";
 import type { EmailTransaction } from "./types";
 
 export type GmailConnection = {
@@ -9,8 +8,6 @@ export type GmailConnection = {
   googleEmail?: string;
   connectedAt: string;
   lastSyncAt?: string;
-  /** Gmail message ids already processed, so a re-sync skips them without downloading. */
-  syncedIds: string[];
   /** Pub/Sub push watch; Gmail expires it after 7 days, the scheduler renews it. */
   watchExpiresAt?: string;
 };
@@ -25,121 +22,303 @@ export type ForwardAlias = {
   lastReceivedAt?: string;
 };
 
-type Snapshot = {
-  transactions: [string, EmailTransaction[]][];
-  gmail: [string, GmailConnection][];
-  aliases: [string, ForwardAlias][];
-};
+export type NeraUser = { id: string; email: string; createdAt: string; lastSeenAt: string };
 
-/**
- * Prototype store: in memory, optionally mirrored to a JSON file (EMAIL_STORE_FILE)
- * so forwarding aliases and Gmail links survive a redeploy. Refresh tokens stay
- * encrypted in the file. Swap for Postgres (Prisma) before production.
- */
-class EmailStore {
+export type TransactionPatch = Partial<Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending" | "duplicateOf">>;
+
+export interface EmailStore {
+  touchUser(id: string, email: string): Promise<void>;
+  listUsers(): Promise<NeraUser[]>;
+
+  listTransactions(userId: string): Promise<EmailTransaction[]>;
+  hasMessage(userId: string, messageHash: string): Promise<boolean>;
+  /** false when (user, messageHash) already exists, e.g. two syncs racing on the same email */
+  addTransaction(tx: EmailTransaction): Promise<boolean>;
+  updateTransaction(userId: string, id: string, patch: TransactionPatch): Promise<EmailTransaction | undefined>;
+  deleteTransactions(userId: string, channel?: EmailTransaction["channel"]): Promise<void>;
+
+  getGmail(userId: string): Promise<GmailConnection | undefined>;
+  listGmail(): Promise<GmailConnection[]>;
+  setGmail(conn: GmailConnection): Promise<void>;
+  /** Also forgets which Gmail messages were processed. */
+  deleteGmail(userId: string): Promise<void>;
+  /** Gmail message ids already processed, so a re-sync skips them without downloading. */
+  seenGmailIds(userId: string): Promise<Set<string>>;
+  markGmailSeen(userId: string, gmailId: string): Promise<void>;
+  clearGmailSeen(userId: string): Promise<void>;
+
+  getAlias(alias: string): Promise<ForwardAlias | undefined>;
+  getAliasForUser(userId: string): Promise<ForwardAlias | undefined>;
+  setAlias(a: ForwardAlias): Promise<void>;
+  deleteAliasForUser(userId: string): Promise<void>;
+}
+
+/** Local development and tests: nothing survives a restart. */
+class MemoryStore implements EmailStore {
+  private users = new Map<string, NeraUser>();
   private transactions = new Map<string, EmailTransaction[]>();
   private gmail = new Map<string, GmailConnection>();
+  private seen = new Map<string, Set<string>>();
   private aliases = new Map<string, ForwardAlias>();
-  private file = process.env.EMAIL_STORE_FILE;
-  private saveTimer: NodeJS.Timeout | null = null;
 
-  constructor() {
-    if (!this.file) return;
-    try {
-      const snap = JSON.parse(readFileSync(this.file, "utf8")) as Snapshot;
-      this.transactions = new Map(snap.transactions);
-      this.gmail = new Map(snap.gmail);
-      this.aliases = new Map(snap.aliases);
-    } catch {
-      // first run: no file yet
-    }
+  async touchUser(id: string, email: string) {
+    const now = new Date().toISOString();
+    const u = this.users.get(id);
+    this.users.set(id, { id, email, createdAt: u?.createdAt ?? now, lastSeenAt: now });
+  }
+  async listUsers() {
+    return [...this.users.values()];
   }
 
-  /** Debounced atomic write (temp file + rename) so a crash never leaves half a file. */
-  private persist() {
-    const file = this.file;
-    if (!file || this.saveTimer) return;
-    this.saveTimer = setTimeout(() => {
-      this.saveTimer = null;
-      const snap: Snapshot = {
-        transactions: [...this.transactions],
-        gmail: [...this.gmail],
-        aliases: [...this.aliases],
-      };
-      try {
-        mkdirSync(path.dirname(file), { recursive: true });
-        writeFileSync(`${file}.tmp`, JSON.stringify(snap), { mode: 0o600 });
-        renameSync(`${file}.tmp`, file);
-      } catch (e) {
-        console.error("[email store] gagal menyimpan:", (e as Error).message);
-      }
-    }, 200);
-  }
-
-  listTransactions(userId: string): EmailTransaction[] {
+  async listTransactions(userId: string) {
     return [...(this.transactions.get(userId) ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
   }
-
-  hasMessage(userId: string, messageHash: string): boolean {
+  async hasMessage(userId: string, messageHash: string) {
     return (this.transactions.get(userId) ?? []).some((t) => t.messageHash === messageHash);
   }
-
-  addTransaction(tx: EmailTransaction) {
-    this.persist();
-    const list = this.transactions.get(tx.userId) ?? [];
-    list.push(tx);
-    this.transactions.set(tx.userId, list);
+  async addTransaction(tx: EmailTransaction) {
+    if (await this.hasMessage(tx.userId, tx.messageHash)) return false;
+    this.transactions.set(tx.userId, [...(this.transactions.get(tx.userId) ?? []), tx]);
+    return true;
   }
-
-  updateTransaction(userId: string, id: string, patch: Partial<Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending">>) {
+  async updateTransaction(userId: string, id: string, patch: TransactionPatch) {
     const tx = (this.transactions.get(userId) ?? []).find((t) => t.id === id);
     if (tx) Object.assign(tx, patch);
-    this.persist();
     return tx;
   }
-
-  deleteTransactions(userId: string, channel?: EmailTransaction["channel"]) {
-    this.persist();
+  async deleteTransactions(userId: string, channel?: EmailTransaction["channel"]) {
     if (!channel) return void this.transactions.delete(userId);
     this.transactions.set(userId, (this.transactions.get(userId) ?? []).filter((t) => t.channel !== channel));
   }
 
-  getGmail(userId: string) {
+  async getGmail(userId: string) {
     return this.gmail.get(userId);
   }
-
-  listGmail(): GmailConnection[] {
+  async listGmail() {
     return [...this.gmail.values()];
   }
-
-  setGmail(conn: GmailConnection) {
-    this.persist();
+  async setGmail(conn: GmailConnection) {
     this.gmail.set(conn.userId, conn);
   }
-
-  deleteGmail(userId: string) {
-    this.persist();
+  async deleteGmail(userId: string) {
     this.gmail.delete(userId);
+    this.seen.delete(userId);
+  }
+  async seenGmailIds(userId: string) {
+    return new Set(this.seen.get(userId));
+  }
+  async markGmailSeen(userId: string, gmailId: string) {
+    this.seen.set(userId, (this.seen.get(userId) ?? new Set()).add(gmailId));
+  }
+  async clearGmailSeen(userId: string) {
+    this.seen.delete(userId);
   }
 
-  getAlias(alias: string) {
+  async getAlias(alias: string) {
     return this.aliases.get(alias.toLowerCase());
   }
-
-  getAliasForUser(userId: string) {
+  async getAliasForUser(userId: string) {
     return [...this.aliases.values()].find((a) => a.userId === userId);
   }
-
-  setAlias(a: ForwardAlias) {
-    this.persist();
+  async setAlias(a: ForwardAlias) {
     this.aliases.set(a.alias.toLowerCase(), a);
   }
-
-  deleteAliasForUser(userId: string) {
-    this.persist();
-    const a = this.getAliasForUser(userId);
+  async deleteAliasForUser(userId: string) {
+    const a = await this.getAliasForUser(userId);
     if (a) this.aliases.delete(a.alias.toLowerCase());
   }
 }
 
-export const emailStore = new EmailStore();
+const SCHEMA = `
+create table if not exists nera_users (
+  id text primary key,
+  email text not null,
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+create table if not exists nera_gmail_links (
+  user_id text primary key,
+  google_email text,
+  refresh_token_enc text not null,
+  connected_at timestamptz not null,
+  last_sync_at timestamptz,
+  watch_expires_at timestamptz
+);
+create table if not exists nera_gmail_seen (
+  user_id text not null,
+  gmail_id text not null,
+  primary key (user_id, gmail_id)
+);
+create table if not exists nera_aliases (
+  alias text primary key,
+  user_id text not null unique,
+  status text not null,
+  confirmation_code text,
+  created_at timestamptz not null,
+  last_received_at timestamptz
+);
+create table if not exists nera_email_transactions (
+  id text primary key,
+  user_id text not null,
+  message_hash text not null,
+  occurred_at timestamptz not null,
+  data jsonb not null,
+  unique (user_id, message_hash)
+);
+create index if not exists nera_email_transactions_user on nera_email_transactions (user_id, occurred_at desc);
+`;
+
+const iso = (d: Date | null | undefined) => (d ? d.toISOString() : undefined);
+
+/**
+ * Postgres: shared by every process (blue/green web+api, the mail/scheduler worker),
+ * so deploys can run two versions side by side. Tables are created on first use.
+ */
+class PgStore implements EmailStore {
+  private pool: Pool;
+  private ready: Promise<unknown>;
+
+  constructor(url: string) {
+    this.pool = new Pool({ connectionString: url, max: 5 });
+    this.ready = this.pool.query(SCHEMA);
+  }
+
+  private async q<R extends object = Record<string, unknown>>(sql: string, params: unknown[] = []) {
+    await this.ready;
+    return (await this.pool.query<R>(sql, params)).rows;
+  }
+
+  async touchUser(id: string, email: string) {
+    await this.q(
+      `insert into nera_users (id, email) values ($1, $2)
+       on conflict (id) do update set email = excluded.email, last_seen_at = now()`,
+      [id, email],
+    );
+  }
+  async listUsers() {
+    const rows = await this.q<{ id: string; email: string; created_at: Date; last_seen_at: Date }>(
+      "select * from nera_users order by last_seen_at desc",
+    );
+    return rows.map((r) => ({ id: r.id, email: r.email, createdAt: iso(r.created_at)!, lastSeenAt: iso(r.last_seen_at)! }));
+  }
+
+  async listTransactions(userId: string) {
+    const rows = await this.q<{ data: EmailTransaction }>(
+      "select data from nera_email_transactions where user_id = $1 order by occurred_at desc",
+      [userId],
+    );
+    return rows.map((r) => r.data);
+  }
+  async hasMessage(userId: string, messageHash: string) {
+    const rows = await this.q("select 1 from nera_email_transactions where user_id = $1 and message_hash = $2", [userId, messageHash]);
+    return rows.length > 0;
+  }
+  async addTransaction(tx: EmailTransaction) {
+    const rows = await this.q(
+      `insert into nera_email_transactions (id, user_id, message_hash, occurred_at, data)
+       values ($1, $2, $3, $4, $5) on conflict (user_id, message_hash) do nothing returning id`,
+      [tx.id, tx.userId, tx.messageHash, tx.occurredAt, tx],
+    );
+    return rows.length > 0;
+  }
+  async updateTransaction(userId: string, id: string, patch: TransactionPatch) {
+    const rows = await this.q<{ data: EmailTransaction }>(
+      "update nera_email_transactions set data = data || $3::jsonb where user_id = $1 and id = $2 returning data",
+      [userId, id, JSON.stringify(patch)],
+    );
+    return rows[0]?.data;
+  }
+  async deleteTransactions(userId: string, channel?: EmailTransaction["channel"]) {
+    if (channel) await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2", [userId, channel]);
+    else await this.q("delete from nera_email_transactions where user_id = $1", [userId]);
+  }
+
+  private toGmail(r: {
+    user_id: string;
+    google_email: string | null;
+    refresh_token_enc: string;
+    connected_at: Date;
+    last_sync_at: Date | null;
+    watch_expires_at: Date | null;
+  }): GmailConnection {
+    return {
+      userId: r.user_id,
+      googleEmail: r.google_email ?? undefined,
+      refreshTokenEnc: r.refresh_token_enc,
+      connectedAt: iso(r.connected_at)!,
+      lastSyncAt: iso(r.last_sync_at),
+      watchExpiresAt: iso(r.watch_expires_at),
+    };
+  }
+  async getGmail(userId: string) {
+    const rows = await this.q<Parameters<PgStore["toGmail"]>[0]>("select * from nera_gmail_links where user_id = $1", [userId]);
+    return rows[0] && this.toGmail(rows[0]);
+  }
+  async listGmail() {
+    const rows = await this.q<Parameters<PgStore["toGmail"]>[0]>("select * from nera_gmail_links");
+    return rows.map((r) => this.toGmail(r));
+  }
+  async setGmail(c: GmailConnection) {
+    await this.q(
+      `insert into nera_gmail_links (user_id, google_email, refresh_token_enc, connected_at, last_sync_at, watch_expires_at)
+       values ($1, $2, $3, $4, $5, $6)
+       on conflict (user_id) do update set google_email = excluded.google_email, refresh_token_enc = excluded.refresh_token_enc,
+         connected_at = excluded.connected_at, last_sync_at = excluded.last_sync_at, watch_expires_at = excluded.watch_expires_at`,
+      [c.userId, c.googleEmail ?? null, c.refreshTokenEnc, c.connectedAt, c.lastSyncAt ?? null, c.watchExpiresAt ?? null],
+    );
+  }
+  async deleteGmail(userId: string) {
+    await this.q("delete from nera_gmail_links where user_id = $1", [userId]);
+    await this.clearGmailSeen(userId);
+  }
+  async seenGmailIds(userId: string) {
+    const rows = await this.q<{ gmail_id: string }>("select gmail_id from nera_gmail_seen where user_id = $1", [userId]);
+    return new Set(rows.map((r) => r.gmail_id));
+  }
+  async markGmailSeen(userId: string, gmailId: string) {
+    await this.q("insert into nera_gmail_seen (user_id, gmail_id) values ($1, $2) on conflict do nothing", [userId, gmailId]);
+  }
+  async clearGmailSeen(userId: string) {
+    await this.q("delete from nera_gmail_seen where user_id = $1", [userId]);
+  }
+
+  private toAlias(r: {
+    alias: string;
+    user_id: string;
+    status: ForwardAlias["status"];
+    confirmation_code: string | null;
+    created_at: Date;
+    last_received_at: Date | null;
+  }): ForwardAlias {
+    return {
+      alias: r.alias,
+      userId: r.user_id,
+      status: r.status,
+      confirmationCode: r.confirmation_code ?? undefined,
+      createdAt: iso(r.created_at)!,
+      lastReceivedAt: iso(r.last_received_at),
+    };
+  }
+  async getAlias(alias: string) {
+    const rows = await this.q<Parameters<PgStore["toAlias"]>[0]>("select * from nera_aliases where alias = $1", [alias.toLowerCase()]);
+    return rows[0] && this.toAlias(rows[0]);
+  }
+  async getAliasForUser(userId: string) {
+    const rows = await this.q<Parameters<PgStore["toAlias"]>[0]>("select * from nera_aliases where user_id = $1", [userId]);
+    return rows[0] && this.toAlias(rows[0]);
+  }
+  async setAlias(a: ForwardAlias) {
+    await this.q(
+      `insert into nera_aliases (alias, user_id, status, confirmation_code, created_at, last_received_at)
+       values ($1, $2, $3, $4, $5, $6)
+       on conflict (alias) do update set status = excluded.status, confirmation_code = excluded.confirmation_code,
+         last_received_at = excluded.last_received_at`,
+      [a.alias.toLowerCase(), a.userId, a.status, a.confirmationCode ?? null, a.createdAt, a.lastReceivedAt ?? null],
+    );
+  }
+  async deleteAliasForUser(userId: string) {
+    await this.q("delete from nera_aliases where user_id = $1", [userId]);
+  }
+}
+
+export const emailStore: EmailStore = process.env.DATABASE_URL ? new PgStore(process.env.DATABASE_URL) : new MemoryStore();

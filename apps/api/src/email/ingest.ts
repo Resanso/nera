@@ -56,7 +56,7 @@ export async function ingestEmail(
   if (FAILED.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
 
   const messageHash = hash(email.messageId || `${email.from}|${email.subject}|${email.date.toISOString()}`);
-  if (emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
+  if (await emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
 
   let x = extractWithRules(email, sender.provider, sender.defaultCategory);
   if (!x || x.confidence < 0.7) x = (await extractWithAI(email, sender.provider)) ?? x;
@@ -84,7 +84,8 @@ export async function ingestEmail(
     extractedBy: x.extractedBy,
     createdAt: new Date().toISOString(),
   };
-  emailStore.addTransaction(transaction);
+  // a concurrent sync may have stored the same email in the meantime
+  if (!(await emailStore.addTransaction(transaction))) return { status: "duplicate" };
   return { status: "imported", transaction };
 }
 

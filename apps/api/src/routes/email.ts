@@ -19,6 +19,7 @@ import {
 } from "../email/gmail";
 import { ingestEmail, summarize } from "../email/ingest";
 import { ALLOWED_SENDERS } from "../email/senders";
+import { reconcile } from "../email/reconcile";
 import { emailStore } from "../email/store";
 
 export const emailRouter: Router = Router();
@@ -29,6 +30,12 @@ const FIXTURES = path.resolve(__dirname, "../../fixtures/email");
 // Everything is per signed-in user, except endpoints called by Google or the mail relay.
 const PUBLIC_PATHS = new Set(["/gmail/callback", "/gmail/push", "/inbound"]);
 emailRouter.use((req, res, next) => (PUBLIC_PATHS.has(req.path) ? next() : requireSession(req, res, next)));
+// remember who has used the feature (admin dashboard)
+emailRouter.use((req, _res, next) => {
+  if (PUBLIC_PATHS.has(req.path)) return next();
+  const { userId, email } = sessionOf(req);
+  emailStore.touchUser(userId, email).then(() => next(), next);
+});
 
 /** The user always comes from the session cookie, never from the request. */
 const userIdOf = (req: Request): string => sessionOf(req).userId;
@@ -36,10 +43,9 @@ const userIdOf = (req: Request): string => sessionOf(req).userId;
 const fail = (res: Response, e: unknown, status = 500) =>
   res.status(e instanceof GmailAccessRevoked ? 409 : status).json({ success: false, error: (e as Error).message });
 
-emailRouter.get("/status", (req, res) => {
+emailRouter.get("/status", async (req, res) => {
   const userId = userIdOf(req);
-  const gmail = emailStore.getGmail(userId);
-  const alias = emailStore.getAliasForUser(userId);
+  const [gmail, alias] = await Promise.all([emailStore.getGmail(userId), emailStore.getAliasForUser(userId)]);
   res.json({
     success: true,
     data: {
@@ -58,8 +64,8 @@ emailRouter.get("/status", (req, res) => {
   });
 });
 
-emailRouter.get("/transactions", (req, res) => {
-  res.json({ success: true, data: emailStore.listTransactions(userIdOf(req)) });
+emailRouter.get("/transactions", async (req, res) => {
+  res.json({ success: true, data: await emailStore.listTransactions(userIdOf(req)) });
 });
 
 const ReviewBody = z.object({
@@ -68,11 +74,11 @@ const ReviewBody = z.object({
 });
 
 // user confirms or corrects a low-confidence extraction
-emailRouter.patch("/transactions/:id", (req, res) => {
+emailRouter.patch("/transactions/:id", async (req, res) => {
   const body = ReviewBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ success: false, error: "Body tidak valid" });
   const { category, confirm } = body.data;
-  const tx = emailStore.updateTransaction(userIdOf(req), req.params.id, {
+  const tx = await emailStore.updateTransaction(userIdOf(req), req.params.id, {
     ...(category && { category, countsTowardSpending: category !== "topup" && category !== "transfer" }),
     ...(confirm && { needsReview: false }),
   });
@@ -87,6 +93,7 @@ emailRouter.post("/demo/import", async (req, res) => {
     const files = (await readdir(FIXTURES)).filter((f) => f.endsWith(".eml")).sort();
     const results = [];
     for (const f of files) results.push(await ingestEmail(await readFile(path.join(FIXTURES, f)), { userId, channel: "demo" }));
+    await reconcile(userId);
     res.json({ success: true, data: { scanned: files.length, ...summarize(results) } });
   } catch (e) {
     fail(res, e);
@@ -118,6 +125,7 @@ emailRouter.get("/gmail/callback", async (req, res) => {
     try {
       const { sub, email } = await completeLogin(code);
       setSession(res, { userId: `g_${sub}`, email });
+      await emailStore.touchUser(`g_${sub}`, email);
       return res.redirect(`${WEB_APP_URL()}${to}`);
     } catch {
       return res.redirect(`${WEB_APP_URL()}${to}${to.includes("?") ? "&" : "?"}login=error`);
@@ -158,7 +166,7 @@ emailRouter.post("/gmail/push", (req, res) => {
   try {
     const data = (req.body as { message?: { data?: string } })?.message?.data;
     const { emailAddress } = JSON.parse(Buffer.from(data ?? "", "base64").toString("utf8")) as { emailAddress?: string };
-    if (emailAddress) handleGmailPush(emailAddress);
+    if (emailAddress) handleGmailPush(emailAddress).catch((e) => console.error(`[gmail] push: ${(e as Error).message}`));
   } catch {
     // malformed message: ack anyway so Pub/Sub doesn't redeliver it forever
   }
@@ -172,13 +180,13 @@ emailRouter.delete("/gmail", async (req, res) => {
 
 // ---- Option B: unique forwarding address ----
 
-emailRouter.post("/forward/alias", (req, res) => {
-  const a = getOrCreateAlias(userIdOf(req));
+emailRouter.post("/forward/alias", async (req, res) => {
+  const a = await getOrCreateAlias(userIdOf(req));
   res.json({ success: true, data: { address: a.alias, status: a.status, confirmationCode: a.confirmationCode } });
 });
 
-emailRouter.delete("/forward", (req, res) => {
-  removeAlias(userIdOf(req));
+emailRouter.delete("/forward", async (req, res) => {
+  await removeAlias(userIdOf(req));
   res.json({ success: true });
 });
 
@@ -205,7 +213,7 @@ emailRouter.post("/inbound", express.raw({ type: "*/*", limit: "15mb" }), async 
 emailRouter.delete("/all", async (req, res) => {
   const userId = userIdOf(req);
   await disconnectGmail(userId);
-  removeAlias(userId);
-  emailStore.deleteTransactions(userId);
+  await removeAlias(userId);
+  await emailStore.deleteTransactions(userId);
   res.json({ success: true });
 });

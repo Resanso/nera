@@ -1,16 +1,17 @@
-import express from "express";
+import "dotenv/config";
+import express, { type NextFunction, type Request, type Response } from "express";
+// Express 4 ignores rejected promises from async handlers; this routes them to the error handler
+import "express-async-errors";
 import cors from "cors";
-import dotenv from "dotenv";
 import { riskRouter } from "./routes/risk";
 import { simulationRouter } from "./routes/simulation";
 import { coachRouter } from "./routes/coach";
 import { bniMockRouter } from "./routes/bni-mock";
 import { emailRouter } from "./routes/email";
 import { authRouter } from "./routes/auth";
+import { adminRouter } from "./routes/admin";
 import { startSmtpServer } from "./email/smtp";
 import { startGmailScheduler } from "./email/gmail";
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -26,6 +27,7 @@ app.use("/api/coach", coachRouter);
 app.use("/api/bni", bniMockRouter);
 app.use("/api/email", emailRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/health", (_req, res) => {
   res.json({
@@ -33,6 +35,11 @@ app.get("/health", (_req, res) => {
     service: "NERA Financial Safety Engine",
     timestamp: new Date().toISOString(),
   });
+});
+
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("[NERA API]", err.message);
+  res.status(500).json({ success: false, error: "Terjadi kesalahan di server." });
 });
 
 app.listen(port, () => {

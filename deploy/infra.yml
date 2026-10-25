@@ -1,0 +1,52 @@
+# Long-lived services, untouched by app deploys.
+#   db:     Postgres for email import data (shared by blue/green api and the worker)
+#   worker: inbound SMTP on host port 25 + Gmail sync scheduler (exactly one instance)
+# Managed by deploy/deploy.sh; variables come from .env.deploy (--env-file).
+name: nera-infra
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nera-db
+    environment:
+      POSTGRES_USER: nera
+      POSTGRES_DB: nera
+      POSTGRES_PASSWORD: ${NERA_DB_PASSWORD:?set NERA_DB_PASSWORD in .env.deploy}
+    volumes:
+      - nera-pgdata:/var/lib/postgresql/data
+    networks: [nera-net]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "nera"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    image: nera-api:${TAG:?set TAG}
+    command: ["pnpm", "exec", "tsx", "src/worker.ts"]
+    env_file: ../.env.deploy
+    environment:
+      DATABASE_URL: postgres://nera:${NERA_DB_PASSWORD}@nera-db:5432/nera
+      WEB_APP_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+      GOOGLE_REDIRECT_URI: ${PUBLIC_URL}/api/email/gmail/callback
+      SMTP_PORT: "2525"
+      SMTP_HOSTNAME: ${MAIL_HOST:?set MAIL_HOST}
+      # certbot's certificate for MAIL_HOST, used for STARTTLS
+      SMTP_TLS_DIR: /etc/letsencrypt/live/${MAIL_HOST}
+      GMAIL_POLL_MINUTES: "10"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - "25:2525"
+    networks: [nera-net]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  nera-pgdata:
+
+networks:
+  nera-net:
+    external: true

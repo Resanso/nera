@@ -15,7 +15,8 @@ authRouter.get("/google", (req, res) => {
 authRouter.get("/me", (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ success: false });
-  res.json({ success: true, data: { email: s.email } });
+  const admins = (process.env.ADMIN_EMAILS ?? "").toLowerCase().split(",").map((e) => e.trim());
+  res.json({ success: true, data: { email: s.email, isAdmin: admins.includes(s.email.toLowerCase()) } });
 });
 
 authRouter.post("/logout", (_req, res) => {

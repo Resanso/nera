@@ -38,6 +38,8 @@ export interface EmailTransaction {
   needsReview: boolean;
   /** Top-ups and transfers from the user's own BNI account are not new spending. */
   countsTowardSpending: boolean;
+  /** Same payment already counted from another email (e.g. a bank notification for a Traveloka receipt). */
+  duplicateOf?: string;
   extractedBy: "rules" | "ai";
   createdAt: string;
 }
