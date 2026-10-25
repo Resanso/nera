@@ -23,19 +23,23 @@ export function decrypt(payload: string): string {
   return Buffer.concat([decipher.update(enc), decipher.final()]).toString("utf8");
 }
 
-/** Signed, expiring OAuth `state` so the callback can't be replayed for another user. */
-export function signState(userId: string, ttlMs = 10 * 60_000): string {
-  const body = Buffer.from(JSON.stringify({ u: userId, e: Date.now() + ttlMs, n: randomBytes(8).toString("hex") })).toString("base64url");
+export type OAuthState =
+  | { p: "gmail"; u: string }
+  | { p: "login"; r: string };
+
+/** Signed, expiring OAuth `state`: the callback can't be replayed or pointed at another user. */
+export function signState(state: OAuthState, ttlMs = 10 * 60_000): string {
+  const body = Buffer.from(JSON.stringify({ ...state, e: Date.now() + ttlMs, n: randomBytes(8).toString("hex") })).toString("base64url");
   const sig = createHmac("sha256", key()).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
 
-export function verifyState(state: string): string | null {
+export function verifyState(state: string): OAuthState | null {
   const [body, sig] = state.split(".");
   if (!body || !sig) return null;
   const expected = createHmac("sha256", key()).update(body).digest();
   const given = Buffer.from(sig, "base64url");
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
-  const { u, e } = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as { u: string; e: number };
-  return Date.now() < e ? u : null;
+  const { e, ...rest } = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as OAuthState & { e: number };
+  return Date.now() < e ? rest : null;
 }

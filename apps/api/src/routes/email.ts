@@ -4,11 +4,13 @@ import { timingSafeEqual } from "node:crypto";
 import express, { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { maiaClient } from "@nera/ai";
+import { requireSession, sessionOf, setSession } from "../auth/session";
 import { verifyState } from "../email/crypto";
 import { getOrCreateAlias, handleInbound, removeAlias } from "../email/forward";
 import {
   GmailAccessRevoked,
   completeGmailConnect,
+  completeLogin,
   disconnectGmail,
   gmailAuthUrl,
   handleGmailPush,
@@ -24,14 +26,12 @@ export const emailRouter: Router = Router();
 const WEB_APP_URL = () => process.env.WEB_APP_URL ?? "http://localhost:3000";
 const FIXTURES = path.resolve(__dirname, "../../fixtures/email");
 
-/**
- * The prototype has no auth yet: the web app sends a user id header.
- * Replace with the wondr session before this leaves the demo.
- */
-function userIdOf(req: Request): string {
-  const raw = (req.header("x-nera-user") ?? req.query.user ?? "demo-student") as string;
-  return /^[\w-]{1,64}$/.test(raw) ? raw : "demo-student";
-}
+// Everything is per signed-in user, except endpoints called by Google or the mail relay.
+const PUBLIC_PATHS = new Set(["/gmail/callback", "/gmail/push", "/inbound"]);
+emailRouter.use((req, res, next) => (PUBLIC_PATHS.has(req.path) ? next() : requireSession(req, res, next)));
+
+/** The user always comes from the session cookie, never from the request. */
+const userIdOf = (req: Request): string => sessionOf(req).userId;
 
 const fail = (res: Response, e: unknown, status = 500) =>
   res.status(e instanceof GmailAccessRevoked ? 409 : status).json({ success: false, error: (e as Error).message });
@@ -100,14 +100,34 @@ emailRouter.get("/gmail/connect", (req, res) => {
   res.redirect(gmailAuthUrl(userIdOf(req)));
 });
 
+/** Only same-site paths, so the login redirect can't be turned into an open redirect. */
+const safeReturnTo = (r: string | undefined) => (r && r.startsWith("/") && !r.startsWith("//") ? r : "/");
+
+/**
+ * The one registered OAuth redirect URI, shared by "Masuk dengan Google" (state.p = login)
+ * and "Hubungkan Gmail" (state.p = gmail).
+ */
 emailRouter.get("/gmail/callback", async (req, res) => {
-  const back = (status: string) => res.redirect(`${WEB_APP_URL()}/email?gmail=${status}`);
   const { code, state, error } = req.query as Record<string, string | undefined>;
+  const parsed = state ? verifyState(state) : null;
+  const back = (status: string) => res.redirect(`${WEB_APP_URL()}/email?gmail=${status}`);
+
+  if (parsed?.p === "login") {
+    const to = safeReturnTo(parsed.r);
+    if (error || !code) return res.redirect(`${WEB_APP_URL()}${to}`);
+    try {
+      const { sub, email } = await completeLogin(code);
+      setSession(res, { userId: `g_${sub}`, email });
+      return res.redirect(`${WEB_APP_URL()}${to}`);
+    } catch {
+      return res.redirect(`${WEB_APP_URL()}${to}${to.includes("?") ? "&" : "?"}login=error`);
+    }
+  }
+
   if (error) return back("denied");
-  const userId = state ? verifyState(state) : null;
-  if (!code || !userId) return back("invalid");
+  if (!code || parsed?.p !== "gmail") return back("invalid");
   try {
-    await completeGmailConnect(userId, code);
+    await completeGmailConnect(parsed.u, code);
     back("connected");
   } catch {
     back("error");

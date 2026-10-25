@@ -30,9 +30,48 @@ export function gmailAuthUrl(userId: string): string {
     access_type: "offline",
     // force the consent screen so Google always returns a refresh token
     prompt: "consent",
-    state: signState(userId),
+    state: signState({ p: "gmail", u: userId }),
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+/**
+ * "Masuk dengan Google": identity only (openid email), no Gmail access.
+ * Shares the registered redirect URI with the Gmail flow; `state.p` tells them apart.
+ */
+export function loginAuthUrl(returnTo: string): string {
+  const { clientId, redirectUri } = config();
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "openid email",
+    prompt: "select_account",
+    state: signState({ p: "login", r: returnTo }),
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+/** Exchange the login code for the Google account id (`sub`) and verified email. */
+export async function completeLogin(code: string): Promise<{ sub: string; email: string }> {
+  const { clientId, clientSecret, redirectUri } = config();
+  const tokens = (await tokenRequest({
+    code,
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: redirectUri,
+    grant_type: "authorization_code",
+  })) as { id_token?: string };
+  if (!tokens.id_token) throw new Error("Google tidak mengembalikan id_token");
+  // received directly from Google's token endpoint over TLS, so the payload can be trusted as is
+  const claims = JSON.parse(Buffer.from(tokens.id_token.split(".")[1], "base64url").toString("utf8")) as {
+    sub: string;
+    email?: string;
+    email_verified?: boolean;
+    aud: string;
+  };
+  if (claims.aud !== clientId || !claims.email || !claims.email_verified) throw new Error("Akun Google tidak valid");
+  return { sub: claims.sub, email: claims.email };
 }
 
 async function tokenRequest(body: Record<string, string>) {
