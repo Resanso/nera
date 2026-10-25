@@ -67,8 +67,8 @@ const INCOME = /dana masuk|penerimaan dana|kamu menerima|anda menerima|uang masu
  * "Pengembalian Barang/Dana" and refund policies on every order email (Shopee).
  */
 const INCOME_BODY = /dana masuk|uang masuk|transfer masuk|dana (?:telah|sudah) (?:dikembalikan|masuk)/i;
-/** Shipping/delivery updates repeat an order that was already paid; never a new payment. */
-export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai|sudahkah kamu menerima|sudah menerima pesanan|permintaan pengembalian/i;
+/** Follow-ups to an order that was already paid (shipping, "did you receive it?", returns, refund notices); never a new payment. */
+export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai|sudahkah kamu menerima|sudah menerima pesanan|permintaan pengembalian|informasi terkait refund/i;
 /** Failed or cancelled payments: the money never moved. */
 export const FAILED = /tidak berhasil|\bgagal\b|dibatalkan|ditolak|\bfailed\b|unsuccessful|declined/i;
 /** Money sent to a person or account: not a purchase, kept out of spending totals. */
@@ -85,7 +85,7 @@ function kindFromSubject(subject: string): EmailCategory | "income" | null {
   if (TRANSFER.test(subject)) return "transfer";
   return null;
 }
-const PROMO = /promo|diskon|voucher|flash sale|penawaran|newsletter|cashback hingga/i;
+const PROMO = /promo|diskon|voucher|flash sale|penawaran|newsletter|cashback hingga|\bsale\b|wishlist|recommended deals/i;
 
 /** "Rp 25.000" / "Rp25,000" / "IDR 25.000,00" -> 25000 */
 export function parseRupiah(raw: string): number {

@@ -29,8 +29,10 @@ async function main() {
     await emailStore.deleteTransactions(conn.userId, "gmail");
     await emailStore.clearGmailSeen(conn.userId);
     const total = { scanned: 0, imported: 0, duplicates: 0, ignored: 0 };
+    // re-read as far back as the user's history import went, not just the default 90 days
+    const days = Math.max(90, conn.backfill?.days ?? 0);
     for (;;) {
-      const r = await syncGmail(conn.userId);
+      const r = await syncGmail(conn.userId, { days, max: 200 });
       for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += r[k];
       if (r.scanned === 0) break;
     }
