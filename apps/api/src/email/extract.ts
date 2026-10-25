@@ -41,7 +41,23 @@ const CATEGORY_RULES: [EmailCategory, RegExp][] = [
   ["shopping", /pesanan|belanja|checkout|keranjang/i],
 ];
 
-const INCOME = /dana masuk|kamu menerima|anda menerima|uang masuk|refund|pengembalian dana|cashback (?:diterima|masuk)/i;
+const INCOME = /dana masuk|penerimaan dana|kamu menerima|anda menerima|uang masuk|transfer masuk|refund|pengembalian dana|cashback (?:diterima|masuk)/i;
+/** Failed or cancelled payments: the money never moved. */
+export const FAILED = /tidak berhasil|\bgagal\b|dibatalkan|ditolak|\bfailed\b|unsuccessful|declined/i;
+/** Money sent to a person or account: not a purchase, kept out of spending totals. */
+const TRANSFER = /\btransfer\b|kirim uang|mengirim(?:kan)? uang ke|send money/i;
+const TOPUP = /\btop[\s-]?up\b|isi saldo/i;
+
+/**
+ * The subject says what kind of notification this is far more reliably than the body,
+ * which mixes labels like "Penerima" into payments and transfers alike.
+ */
+function kindFromSubject(subject: string): EmailCategory | "income" | null {
+  if (INCOME.test(subject)) return "income";
+  if (TOPUP.test(subject)) return "topup";
+  if (TRANSFER.test(subject)) return "transfer";
+  return null;
+}
 const PROMO = /promo|diskon|voucher|flash sale|penawaran|newsletter|cashback hingga/i;
 
 /** "Rp 25.000" / "Rp25,000" / "IDR 25.000,00" -> 25000 */
@@ -68,7 +84,8 @@ function findTotal(text: string): { amount: number; keyword: boolean } | null {
 }
 
 function findMerchant(text: string): string | undefined {
-  const m = text.match(/(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)\s*[:-]?\s*([^\n]{2,60})/i);
+  // whole words only: "penerima" must not match inside "penerimaan dana"
+  const m = text.match(/\b(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)\b\s*[:-]?\s*([^\n]{2,60})/i);
   // stop at the next label or column gap ("Ayam Geprek  Order ID: ...")
   return m?.[1].split(/\s{2,}|\b(?:order id|no\.|invoice|booking)\b/i)[0].trim() || undefined;
 }
@@ -102,11 +119,12 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
   const externalRef = findRef(haystack);
   const confidence = 0.5 + (total.keyword ? 0.3 : 0) + (merchant ? 0.1 : 0) + (externalRef ? 0.1 : 0);
 
+  const kind = kindFromSubject(email.subject);
   return {
     amount: total.amount,
-    type: INCOME.test(haystack) ? "income" : "expense",
+    type: kind === "income" || INCOME.test(haystack) ? "income" : "expense",
     merchant: merchant ?? provider,
-    category: categorize(haystack, fallback),
+    category: kind && kind !== "income" ? kind : categorize(haystack, fallback),
     externalRef,
     confidence: Math.min(1, confidence),
     extractedBy: "rules",

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { simpleParser } from "mailparser";
-import { extractWithAI, extractWithRules } from "./extract";
+import { FAILED, extractWithAI, extractWithRules } from "./extract";
 import { findSender } from "./senders";
 import { emailStore } from "./store";
 import type { EmailTransaction, IngestResult, ParsedEmail } from "./types";
@@ -51,6 +51,9 @@ export async function ingestEmail(
   const email = await parseRaw(raw);
   const sender = findSender(email.fromDomain);
   if (!sender) return { status: "ignored", reason: "sender_not_allowed" };
+
+  // "Pembayaran Tidak Berhasil" still shows an amount; nothing was paid
+  if (FAILED.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
 
   const messageHash = hash(email.messageId || `${email.from}|${email.subject}|${email.date.toISOString()}`);
   if (emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
