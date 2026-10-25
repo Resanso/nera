@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { ingestEmail, parseRaw } from "./ingest";
 import { reconcile } from "./reconcile";
+import { hasConsent } from "./consent";
 import { emailStore, type ForwardAlias } from "./store";
 import type { IngestResult } from "./types";
 
@@ -35,6 +36,7 @@ function gmailConfirmationCode(from: string, subject: string, text: string): str
 
 export type InboundOutcome =
   | { status: "unknown_alias" }
+  | { status: "no_consent" }
   | { status: "confirmation" }
   | { status: "unverified_sender" }
   | IngestResult;
@@ -54,6 +56,8 @@ export async function handleInbound(
 ): Promise<InboundOutcome> {
   const alias = await emailStore.getAlias(recipient.trim());
   if (!alias) return { status: "unknown_alias" };
+  // consent withdrawn: drop the mail unread
+  if (!(await hasConsent(alias.userId, "email_import"))) return { status: "no_consent" };
 
   const email = await parseRaw(raw);
   if (opts.dkimDomains && !opts.dkimDomains.some((d) => aligned(email.fromDomain, d))) {
@@ -65,7 +69,8 @@ export async function handleInbound(
     return { status: "confirmation" };
   }
 
-  const result = await ingestEmail(raw, { userId: alias.userId, channel: "forward" });
+  const allowAI = await hasConsent(alias.userId, "ai_processing");
+  const result = await ingestEmail(raw, { userId: alias.userId, channel: "forward", allowAI });
   // any mail from the user's filter proves forwarding works, even if it wasn't a receipt
   await emailStore.setAlias({ ...alias, status: "active", confirmationCode: undefined, lastReceivedAt: new Date().toISOString() });
   if (result.status === "imported") await reconcile(alias.userId);

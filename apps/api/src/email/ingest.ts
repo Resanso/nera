@@ -56,7 +56,8 @@ const hash = (s: string) => createHash("sha256").update(s).digest("hex");
  */
 export async function ingestEmail(
   raw: Buffer | string,
-  opts: { userId: string; channel: EmailTransaction["channel"] },
+  // allowAI: the user granted "ai_processing"; without it only the rules read receipts
+  opts: { userId: string; channel: EmailTransaction["channel"]; allowAI?: boolean },
 ): Promise<IngestResult> {
   const email = await parseRaw(raw);
   const listed = findSender(email.fromDomain);
@@ -76,7 +77,7 @@ export async function ingestEmail(
   // unlisted senders need an explicit "Total ..." line; a bare "Rp 50.000" in a chatty
   // email isn't a receipt. Without one, only the AI may still recognize it.
   if (x && !listed && x.confidence < 0.8) x = null;
-  if (!x || x.confidence < 0.7) x = (await extractWithAI(email, sender.provider)) ?? x;
+  if (opts.allowAI && (!x || x.confidence < 0.7)) x = (await extractWithAI(email, sender.provider)) ?? x;
   if (!x) return { status: "ignored", reason: "not_a_transaction" };
 
   const isOwnMoneyMove = x.category === "topup" || x.category === "transfer";

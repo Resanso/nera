@@ -13,6 +13,8 @@ import { CATEGORY_LABEL, NotSignedIn, emailApi, type EmailCategory, type EmailTr
 type State = {
   status: "idle" | "loading" | "signed-out" | "ready" | "error";
   transactions: EmailTransaction[];
+  /** user agreed to AI processing; the chatbot only gets spending context with it */
+  aiConsent: boolean;
   loadedAt: number;
   load: (force?: boolean) => Promise<void>;
 };
@@ -22,13 +24,15 @@ const STALE_MS = 60_000;
 export const useEmailSpendingStore = create<State>((set, get) => ({
   status: "idle",
   transactions: [],
+  aiConsent: false,
   loadedAt: 0,
   load: async (force = false) => {
     const { status, loadedAt } = get();
     if (status === "loading" || (!force && status === "ready" && Date.now() - loadedAt < STALE_MS)) return;
     set({ status: "loading" });
     try {
-      set({ status: "ready", transactions: await emailApi.transactions(), loadedAt: Date.now() });
+      const [transactions, status] = await Promise.all([emailApi.transactions(), emailApi.status()]);
+      set({ status: "ready", transactions, aiConsent: status.consent.aiProcessing, loadedAt: Date.now() });
     } catch (e) {
       set({ status: e instanceof NotSignedIn ? "signed-out" : "error", transactions: [] });
     }
@@ -54,6 +58,7 @@ export const POCKET_CATEGORIES: Partial<Record<BudgetPocketIcon, EmailCategory[]
 
 export type EmailSpending = {
   ready: boolean;
+  aiConsent: boolean;
   monthTotal: number;
   byCategory: { category: EmailCategory; label: string; amount: number }[];
   /** newest first, counted spending and income, for transaction lists */
@@ -62,7 +67,7 @@ export type EmailSpending = {
 };
 
 export function useEmailSpending(): EmailSpending {
-  const { status, transactions, load } = useEmailSpendingStore();
+  const { status, transactions, aiConsent, load } = useEmailSpendingStore();
   useEffect(() => {
     load();
   }, [load]);
@@ -73,6 +78,7 @@ export function useEmailSpending(): EmailSpending {
 
   return {
     ready: status === "ready",
+    aiConsent,
     monthTotal: month.reduce((sum, t) => sum + t.amount, 0),
     byCategory: [...totals]
       .map(([category, amount]) => ({ category, label: CATEGORY_LABEL[category], amount }))
@@ -84,7 +90,8 @@ export function useEmailSpending(): EmailSpending {
 
 /** Plain-text summary for the coach's context. */
 export function spendingSummary(s: EmailSpending): string | null {
-  if (!s.ready || s.monthTotal === 0) return null;
+  // only shared with the AI chatbot when the user agreed to AI processing
+  if (!s.ready || !s.aiConsent || s.monthTotal === 0) return null;
   const rp = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
   const parts = s.byCategory.slice(0, 4).map((c) => `${c.label} ${rp(c.amount)}`);
   return `Pengeluaran di luar BNI bulan ini (dari struk email): ${rp(s.monthTotal)}. Terbesar: ${parts.join(", ")}.`;

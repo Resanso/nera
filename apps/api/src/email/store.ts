@@ -36,10 +36,16 @@ export type ForwardAlias = {
 
 export type NeraUser = { id: string; email: string; createdAt: string; lastSeenAt: string };
 
+export type ConsentKind = "email_import" | "ai_processing";
+/** Latest decision per kind; every grant/revoke is kept as an event for audit. */
+export type ConsentState = { granted: boolean; version: string; at: string };
+
 export type TransactionPatch = Partial<Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending" | "duplicateOf">>;
 
 export interface EmailStore {
   touchUser(id: string, email: string): Promise<void>;
+  recordConsent(userId: string, kind: ConsentKind, granted: boolean, version: string): Promise<void>;
+  getConsents(userId: string): Promise<Partial<Record<ConsentKind, ConsentState>>>;
   listUsers(): Promise<NeraUser[]>;
   /** Every user with a Gmail link, alias or imported transaction (including ones not in listUsers). */
   listUserIdsWithData(): Promise<string[]>;
@@ -73,6 +79,7 @@ export interface EmailStore {
 /** Local development and tests: nothing survives a restart. */
 class MemoryStore implements EmailStore {
   private users = new Map<string, NeraUser>();
+  private consents = new Map<string, Partial<Record<ConsentKind, ConsentState>>>();
   private transactions = new Map<string, EmailTransaction[]>();
   private gmail = new Map<string, GmailConnection>();
   private seen = new Map<string, Set<string>>();
@@ -85,6 +92,12 @@ class MemoryStore implements EmailStore {
   }
   async listUsers() {
     return [...this.users.values()];
+  }
+  async recordConsent(userId: string, kind: ConsentKind, granted: boolean, version: string) {
+    this.consents.set(userId, { ...this.consents.get(userId), [kind]: { granted, version, at: new Date().toISOString() } });
+  }
+  async getConsents(userId: string) {
+    return { ...this.consents.get(userId) };
   }
   async listUserIdsWithData() {
     return [...new Set([...this.transactions.keys(), ...this.gmail.keys(), ...[...this.aliases.values()].map((a) => a.userId)])];
@@ -191,6 +204,15 @@ create table if not exists nera_email_transactions (
 );
 create index if not exists nera_email_transactions_user on nera_email_transactions (user_id, occurred_at desc);
 alter table nera_gmail_links add column if not exists backfill jsonb;
+create table if not exists nera_consent_events (
+  id bigserial primary key,
+  user_id text not null,
+  kind text not null,
+  granted boolean not null,
+  version text not null,
+  at timestamptz not null default now()
+);
+create index if not exists nera_consent_events_user on nera_consent_events (user_id, kind, at desc);
 `;
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : undefined);
@@ -220,6 +242,20 @@ class PgStore implements EmailStore {
       [id, email],
     );
   }
+  async recordConsent(userId: string, kind: ConsentKind, granted: boolean, version: string) {
+    await this.q("insert into nera_consent_events (user_id, kind, granted, version) values ($1, $2, $3, $4)", [userId, kind, granted, version]);
+  }
+  async getConsents(userId: string) {
+    const rows = await this.q<{ kind: ConsentKind; granted: boolean; version: string; at: Date }>(
+      `select distinct on (kind) kind, granted, version, at from nera_consent_events
+       where user_id = $1 order by kind, at desc, id desc`,
+      [userId],
+    );
+    return Object.fromEntries(rows.map((r) => [r.kind, { granted: r.granted, version: r.version, at: iso(r.at)! }])) as Partial<
+      Record<ConsentKind, ConsentState>
+    >;
+  }
+
   async listUsers() {
     const rows = await this.q<{ id: string; email: string; created_at: Date; last_seen_at: Date }>(
       "select * from nera_users order by last_seen_at desc",

@@ -47,6 +47,7 @@ export type EmailStatus = {
   forward: { address: string; status: "waiting" | "confirm" | "active"; confirmationCode?: string; lastReceivedAt?: string } | null;
   senders: { provider: string; domains: string[] }[];
   aiExtraction: boolean;
+  consent: { version: string; emailImport: boolean; aiProcessing: boolean; emailImportAt?: string; aiProcessingAt?: string };
 };
 
 export type SyncSummary = { scanned: number; imported: number; duplicates: number; ignored: number };
@@ -76,6 +77,8 @@ export const authApi = {
 
 export type MoneyInsights = {
   month: string;
+  label: string;
+  isCurrentMonth: boolean;
   daysElapsed: number;
   daysInMonth: number;
   total: number;
@@ -89,6 +92,7 @@ export type MoneyInsights = {
   notCounted: { transfersOut: number; topups: number; income: number; needsReview: number };
   narrative: { summary: string; insights: string[]; tips: string[] };
   generatedBy: "ai" | "rules";
+  aiAllowed: boolean;
 };
 
 /** Insights as plain text, for the chatbot's context. */
@@ -103,11 +107,19 @@ export function insightsAsContext(i: MoneyInsights): string {
 }
 
 export const emailApi = {
-  insights: () => call<MoneyInsights>("/email/insights"),
+  /** No period: the current month. Otherwise compared with the previous period of the same length. */
+  insights: (period?: { from: Date; to: Date; label: string }) =>
+    call<MoneyInsights>(
+      period
+        ? `/email/insights?${new URLSearchParams({ from: period.from.toISOString(), to: period.to.toISOString(), label: period.label })}`
+        : "/email/insights",
+    ),
   status: () => call<EmailStatus>("/email/status"),
   transactions: () => call<EmailTransaction[]>("/email/transactions"),
   importDemo: () => call<SyncSummary>("/email/demo/import", { method: "POST" }),
   syncGmail: () => call<SyncSummary>("/email/gmail/sync", { method: "POST" }),
+  setConsent: (kind: "email_import" | "ai_processing", granted: boolean) =>
+    call<void>("/email/consent", { method: "POST", body: JSON.stringify({ kind, granted }) }),
   backfillGmail: (days: 180 | 365 | 3650) => call<void>("/email/gmail/backfill", { method: "POST", body: JSON.stringify({ days }) }),
   disconnectGmail: () => call<void>("/email/gmail", { method: "DELETE" }),
   createAlias: () => call<NonNullable<EmailStatus["forward"]>>("/email/forward/alias", { method: "POST" }),
@@ -143,6 +155,7 @@ export type AdminOverview = {
     forward: { status: "waiting" | "confirm" | "active"; lastReceivedAt?: string } | null;
     transactions: { total: number; gmail: number; forward: number; demo: number; needsReview: number };
     lastTransactionAt?: string;
+    consent: { emailImport: boolean; aiProcessing: boolean };
   }[];
 };
 

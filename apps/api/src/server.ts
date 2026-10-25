@@ -11,6 +11,7 @@ import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { startSmtpServer } from "./email/smtp";
 import { startGmailScheduler } from "./email/gmail";
+import { ConsentRequired } from "./email/consent";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -36,6 +37,8 @@ app.get("/health", (_req, res) => {
 });
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  // a missing consent is the user's decision, not a server fault
+  if (err instanceof ConsentRequired) return res.status(403).json({ success: false, error: err.message, consentRequired: err.kind });
   console.error("[NERA API]", err.message);
   res.status(500).json({ success: false, error: "Terjadi kesalahan di server." });
 });

@@ -1,6 +1,7 @@
 import { decrypt, encrypt, signState } from "./crypto";
 import { ingestEmail, summarize } from "./ingest";
 import { reconcile } from "./reconcile";
+import { ConsentRequired, hasConsent, requireConsent } from "./consent";
 import { gmailSenderQuery } from "./senders";
 import { emailStore } from "./store";
 import type { IngestResult } from "./types";
@@ -155,7 +156,9 @@ const running = new Map<string, Promise<SyncSummary>>();
  * Pull receipts from allowed senders only, newest first, skipping messages already seen.
  * Concurrent triggers (button, push, scheduler) for the same user share one run.
  */
-export function syncGmail(userId: string, opts?: { days?: number; max?: number }): Promise<SyncSummary> {
+type SyncOpts = { days?: number; max?: number; onProgress?: (done: SyncSummary) => void };
+
+export function syncGmail(userId: string, opts?: SyncOpts): Promise<SyncSummary> {
   const inFlight = running.get(userId);
   // same default window: share the run. A custom window (backfill) waits, then runs its own.
   if (inFlight) return opts ? inFlight.catch(() => undefined).then(() => syncGmail(userId, opts)) : inFlight;
@@ -164,7 +167,9 @@ export function syncGmail(userId: string, opts?: { days?: number; max?: number }
   return run;
 }
 
-async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<SyncSummary> {
+async function runSync(userId: string, { days = 90, max = 100, onProgress }: SyncOpts = {}): Promise<SyncSummary> {
+  await requireConsent(userId, "email_import");
+  const allowAI = await hasConsent(userId, "ai_processing");
   const token = await accessToken(userId);
   const seen = await emailStore.seenGmailIds(userId);
 
@@ -184,9 +189,10 @@ async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<S
     // one at a time: Gmail rate-limits concurrent requests per user
     for (const id of todo) {
       const m = await gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`);
-      results.push(await ingestEmail(Buffer.from(m.raw, "base64url"), { userId, channel: "gmail" }));
+      results.push(await ingestEmail(Buffer.from(m.raw, "base64url"), { userId, channel: "gmail", allowAI }));
       // recorded per message, so a failed sync resumes where it stopped
       await emailStore.markGmailSeen(userId, id);
+      onProgress?.({ scanned: results.length, ...summarize(results) });
     }
   } finally {
     // re-read the connection so a disconnect during the run isn't undone
@@ -201,6 +207,7 @@ async function runSync(userId: string, { days = 90, max = 100 } = {}): Promise<S
 
 /** Ask the worker to pull older receipts. Progress is stored, so it survives restarts. */
 export async function requestBackfill(userId: string, days: number) {
+  await requireConsent(userId, "email_import");
   if (!(await emailStore.getGmail(userId))) throw new Error("Gmail belum terhubung");
   await emailStore.setBackfill(userId, { days, status: "pending", scanned: 0, imported: 0, updatedAt: new Date().toISOString() });
 }
@@ -210,11 +217,25 @@ export async function runBackfills() {
   for (const conn of await emailStore.listGmail()) {
     const b = conn.backfill;
     if (!b || b.status === "done" || b.status === "error") continue;
-    let progress = { ...b, status: "running" as const };
+    let progress = { ...b, status: "running" as const, updatedAt: new Date().toISOString() };
+    await emailStore.setBackfill(conn.userId, progress);
     try {
       for (;;) {
-        const r = await syncGmail(conn.userId, { days: b.days, max: 200 });
-        progress = { ...progress, scanned: progress.scanned + r.scanned, imported: progress.imported + r.imported, updatedAt: new Date().toISOString() };
+        // live progress for the UI, at most every 3s
+        let lastWrite = 0;
+        let pendingWrite: Promise<unknown> = Promise.resolve();
+        const base = { scanned: progress.scanned, imported: progress.imported };
+        const onProgress = (done: SyncSummary) => {
+          if (Date.now() - lastWrite < 3000) return;
+          lastWrite = Date.now();
+          pendingWrite = emailStore
+            .setBackfill(conn.userId, { ...progress, scanned: base.scanned + done.scanned, imported: base.imported + done.imported, updatedAt: new Date().toISOString() })
+            .catch(() => undefined);
+        };
+        const r = await syncGmail(conn.userId, { days: b.days, max: 200, onProgress }).finally(() => pendingWrite);
+        // a late progress write must not land after the final status below
+        await pendingWrite;
+        progress = { ...progress, scanned: base.scanned + r.scanned, imported: base.imported + r.imported, updatedAt: new Date().toISOString() };
         // a disconnect or a new request while running ends this run
         const latest = (await emailStore.getGmail(conn.userId))?.backfill;
         if (!latest || latest.days !== b.days) return;
@@ -254,7 +275,7 @@ export async function startGmailWatch(userId: string) {
 export async function handleGmailPush(emailAddress: string) {
   for (const conn of await emailStore.listGmail()) {
     if (conn.googleEmail?.toLowerCase() !== emailAddress.toLowerCase()) continue;
-    syncGmail(conn.userId).catch((e) => console.error(`[gmail] push sync: ${(e as Error).message}`));
+    syncGmail(conn.userId).catch((e) => e instanceof ConsentRequired || console.error(`[gmail] push sync: ${(e as Error).message}`));
   }
 }
 
@@ -274,7 +295,8 @@ export function startGmailScheduler() {
         }
         await syncGmail(conn.userId);
       } catch (e) {
-        console.error(`[gmail] scheduled sync: ${(e as Error).message}`);
+        // no consent (yet, or withdrawn): nothing to do for this user
+        if (!(e instanceof ConsentRequired)) console.error(`[gmail] scheduled sync: ${(e as Error).message}`);
       }
     }
   };

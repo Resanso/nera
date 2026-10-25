@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState, useRef, useEffect } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { MarkdownRenderer } from "../../../components/common/MarkdownRenderer";
@@ -57,7 +58,10 @@ export default function RecoveryPage() {
   const [tenorMonths, setTenorMonths] = useState<number>(3);
 
   // spending outside BNI from email receipts: aggregates only, never the emails themselves
-  const emailSummary = spendingSummary(useEmailSpending());
+  const spending = useEmailSpending();
+  const emailSummary = spendingSummary(spending);
+  // has email spending, but hasn't allowed the AI to use it
+  const canInviteAi = spending.ready && !spending.aiConsent && spending.monthTotal > 0;
   // full "where did my money go" analysis, sent as context when available
   const [insightsContext, setInsightsContext] = useState<string | null>(null);
   useEffect(() => {
@@ -309,6 +313,15 @@ export default function RecoveryPage() {
             <p className="text-xs text-[#766D61] max-w-[280px]">
               Tanyakan apa saja seputar evaluasi pinjaman, simulasi cicilan, dan strategi bebas utang.
             </p>
+            {canInviteAi && (
+              <Link
+                href="/email#consent"
+                className="mt-2 max-w-[300px] rounded-2xl bg-[#FFF3D6] px-3.5 py-2.5 text-[11px] leading-relaxed text-[#76520E]"
+              >
+                Mau saran yang lebih personal? Izinkan Nera memakai ringkasan pengeluaran dari emailmu.{" "}
+                <span className="font-bold underline underline-offset-2">Atur persetujuan</span>
+              </Link>
+            )}
           </div>
         )}
 

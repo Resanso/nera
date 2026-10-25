@@ -200,7 +200,11 @@ export default function OnboardingPage() {
             </button>
           ) : step === 0 ? (
             <p className="text-center text-[10px] leading-relaxed text-[#A79F92]">
-              Dengan melanjutkan, kamu menyetujui pemrosesan data sesuai kebijakan privasi Nera.
+              Dengan melanjutkan, kamu menyetujui pemrosesan data sesuai{" "}
+              <a href="/privacy" className="underline underline-offset-2">
+                kebijakan privasi Nera
+              </a>
+              . Impor email dan bantuan AI diminta terpisah.
             </p>
           ) : (
             <button

@@ -6,6 +6,10 @@ import { Check, Copy, Inbox, LogOut, Mail, RefreshCw, ShieldCheck, Sparkles, Tra
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { MoneyInsightsCard } from "../../../components/insights/MoneyInsightsCard";
+import { ConsentCard } from "../../../components/consent/ConsentCard";
+import { useEmailSpendingStore } from "../../../lib/emailSpending";
+import { PeriodFilter } from "../../../components/insights/PeriodFilter";
+import { inPeriod, presetPeriod, type Period } from "../../../lib/period";
 import type { NeraMood } from "../../../components/mascot/moods";
 import {
   CATEGORY_LABEL,
@@ -99,7 +103,12 @@ export default function EmailImportPage() {
     else
       setNotice({
         tone: "error",
-        text: result === "denied" ? "Akses Gmail tidak diberikan." : "Gagal menghubungkan Gmail. Coba lagi.",
+        text:
+          result === "denied"
+            ? "Akses Gmail tidak diberikan."
+            : result === "consent"
+              ? "Setujui dulu impor email di kartu Persetujuan, lalu hubungkan Gmail."
+              : "Gagal menghubungkan Gmail. Coba lagi.",
       });
   }, [refresh, run]);
 
@@ -141,11 +150,11 @@ export default function EmailImportPage() {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const counted = useMemo(() => txs.filter((t) => t.countsTowardSpending && !t.needsReview), [txs]);
-  const since90 = Date.now() - 90 * 24 * 60 * 60 * 1000;
-  const spend = counted.filter((t) => Date.parse(t.occurredAt) >= since90).reduce((sum, t) => sum + t.amount, 0);
-  const monthKey = new Date().toISOString().slice(0, 7);
-  const spendThisMonth = counted.filter((t) => t.occurredAt.startsWith(monthKey)).reduce((sum, t) => sum + t.amount, 0);
+  // one period drives the stats, the analysis and the list
+  const [period, setPeriod] = useState<Period>(() => presetPeriod("this_month"));
+  const periodTxs = useMemo(() => txs.filter((t) => inPeriod(t.occurredAt, period)), [txs, period]);
+  const periodCounted = periodTxs.filter((t) => t.countsTowardSpending && !t.needsReview);
+  const periodSpend = periodCounted.reduce((sum, t) => sum + t.amount, 0);
   const byId = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs]);
   const filterQuery = status ? `from:(${status.senders.flatMap((s) => s.domains).join(" OR ")})` : "";
 
@@ -167,15 +176,21 @@ export default function EmailImportPage() {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5">
             <div className="rounded-[19px] bg-[#F7F7F7] p-3.5">
-              <p className="text-[11px] text-[#736B60]">Transaksi dari email</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{txs.length}</p>
+              <p className="text-[11px] text-[#736B60]">Transaksi · {period.label.toLowerCase()}</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{periodTxs.length}</p>
+              <p className="mt-0.5 text-[11px] text-[#736B60]">dari {txs.length} total</p>
             </div>
             <div className="rounded-[19px] bg-[#F7F7F7] p-3.5">
-              <p className="text-[11px] text-[#736B60]">Pengeluaran bulan ini</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{formatRupiah(spendThisMonth)}</p>
-              <p className="mt-0.5 text-[11px] text-[#736B60]">90 hari: {formatRupiah(spend)}</p>
+              <p className="text-[11px] text-[#736B60]">Pengeluaran · {period.label.toLowerCase()}</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#2F240E]">{formatRupiah(periodSpend)}</p>
+              <p className="mt-0.5 text-[11px] text-[#736B60]">{periodCounted.length} transaksi dihitung</p>
             </div>
           </div>
+          {txs.length > 0 && (
+            <div className="mt-3">
+              <PeriodFilter value={period} onChange={setPeriod} />
+            </div>
+          )}
         </div>
 
         {account && (
@@ -224,7 +239,23 @@ export default function EmailImportPage() {
 
         {account && (
           <>
-            {txs.length > 0 && <MoneyInsightsCard refreshKey={txs.length} />}
+            {status && (
+              <ConsentCard
+                consent={status.consent}
+                busy={busy?.startsWith("consent") ?? false}
+                onChange={(kind, granted) =>
+                  run(`consent-${kind}`, async () => {
+                    await emailApi.setConsent(kind, granted);
+                    // Beranda, Kantong and the chatbot read consent from the shared store
+                    await useEmailSpendingStore.getState().load(true);
+                    if (kind === "email_import") return granted ? "Terima kasih. Sekarang kamu bisa menghubungkan Gmail." : "Persetujuan dicabut. Gmail diputus dan data email dihapus.";
+                    return granted ? "Bantuan AI aktif." : "Bantuan AI dimatikan. Nera memakai aturan biasa.";
+                  })
+                }
+              />
+            )}
+
+            {txs.length > 0 && <MoneyInsightsCard refreshKey={txs.length} period={period} />}
 
             {/* PRIVACY */}
             <section className="rounded-[24px] bg-white p-5">
@@ -234,8 +265,11 @@ export default function EmailImportPage() {
               </div>
               <p className="mt-2 text-[13px] leading-relaxed text-[#736B60]">
                 Email dari pengirim di bawah, plus email yang Gmail kelompokkan sebagai Pembelian (pengirim lain ditandai
-                  &quot;Perlu dicek&quot;). Nera menyimpan nominal, merchant dan tanggal, lalu membuang isi email.
-                Data ini hanya untuk catatan dan saran pribadimu, tidak dipakai untuk penilaian kredit atau iklan.
+                &quot;Perlu dicek&quot;). Nera menyimpan nominal, merchant dan tanggal; isi email tidak disimpan.
+                {status?.consent.aiProcessing
+                  ? " Bantuan AI aktif: struk yang sulit dibaca dikirim ke AI dengan data pribadi disamarkan."
+                  : " Bantuan AI tidak aktif: tidak ada data yang dikirim ke AI."}{" "}
+                Hanya untuk catatan dan saran pribadimu, tidak untuk penilaian kredit atau iklan.
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {status?.senders.map((s) => (
@@ -267,6 +301,12 @@ export default function EmailImportPage() {
                 )}
               </div>
 
+              {status && !status.consent.emailImport && (
+                <p className="mt-3 rounded-xl bg-[#FFF3D6] px-3 py-2 text-xs text-[#76520E]">
+                  Setujui impor email di kartu Persetujuan di atas untuk menghubungkan Gmail.
+                </p>
+              )}
+
               {status && !status.gmail.configured && (
                 <p className="mt-3 rounded-xl bg-[#F7F7F7] px-3 py-2 text-xs text-[#736B60]">
                   Belum dikonfigurasi di server. Isi GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET dan EMAIL_TOKEN_KEY di API.
@@ -296,7 +336,7 @@ export default function EmailImportPage() {
                 ) : (
                   <Button
                     fullWidth
-                    disabled={!status?.gmail.configured}
+                    disabled={!status?.gmail.configured || !status?.consent.emailImport}
                     onClick={() => {
                       setMood("thinking");
                       window.location.href = emailApi.gmailConnectUrl();
@@ -385,6 +425,7 @@ export default function EmailImportPage() {
                   fullWidth
                   variant="secondary"
                   isLoading={busy === "alias"}
+                  disabled={!status?.consent.emailImport}
                   onClick={() => run("alias", async () => void (await emailApi.createAlias()))}
                 >
                   Buat alamat penerusan
@@ -469,9 +510,12 @@ export default function EmailImportPage() {
             {/* TRANSACTIONS */}
             {txs.length > 0 && (
               <section className="space-y-3">
-                <h3 className="text-[15px] font-bold text-[#2F240E]">Transaksi dari email</h3>
+                <h3 className="text-[15px] font-bold text-[#2F240E]">
+                  Transaksi dari email <span className="font-medium text-[#736B60]">· {period.label.toLowerCase()} ({periodTxs.length})</span>
+                </h3>
+                {periodTxs.length === 0 && <p className="rounded-[20px] bg-white px-4 py-6 text-center text-xs text-[#736B60]">Tidak ada transaksi di periode ini.</p>}
                 <ul className="divide-y divide-[#F1EEE8] rounded-[24px] bg-white px-4">
-                  {txs.map((t) => (
+                  {periodTxs.map((t) => (
                     <li key={t.id} className="py-3.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">

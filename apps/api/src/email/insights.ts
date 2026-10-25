@@ -24,11 +24,15 @@ const rp = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`;
 
 export type MoneyInsights = {
   month: string;
+  /** "Bulan ini", "3 bulan terakhir", "1 Jan – 31 Mar 2026" ... */
+  label: string;
+  /** current calendar month: compare with the same days of last month and project the month end */
+  isCurrentMonth: boolean;
   daysElapsed: number;
   daysInMonth: number;
   total: number;
   count: number;
-  /** same days of last month, so a half-finished month compares fairly */
+  /** previous period of the same length (for the current month: same days of last month) */
   lastMonthSamePeriod: number;
   projectedMonthEnd: number;
   byCategory: { category: EmailCategory; label: string; amount: number; share: number; lastMonth: number; count: number }[];
@@ -40,19 +44,46 @@ export type MoneyInsights = {
   generatedBy: "ai" | "rules";
 };
 
-/** Where did the money go this month: aggregates from imported email receipts. */
-export async function moneyInsights(userId: string, now = new Date()): Promise<MoneyInsights> {
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Where did the money go: aggregates from imported email receipts. Defaults to the
+ * current month; `from`/`to` (to exclusive) pick any period, compared with the period
+ * of the same length right before it.
+ */
+export async function moneyInsights(
+  userId: string,
+  opts: { allowAI: boolean; from?: Date; to?: Date; label?: string },
+  now = new Date(),
+): Promise<MoneyInsights> {
   const txs = await emailStore.listTransactions(userId);
   const y = now.getFullYear();
   const m = now.getMonth();
-  const monthStart = new Date(y, m, 1);
-  const lastStart = new Date(y, m - 1, 1);
-  const daysElapsed = now.getDate();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  // last month up to the same day of the month
-  const lastCutoff = new Date(y, m - 1, Math.min(daysElapsed, new Date(y, m, 0).getDate()), 23, 59, 59);
+  const custom = Boolean(opts.from && opts.to);
 
-  const inMonth = (t: EmailTransaction) => new Date(t.occurredAt) >= monthStart;
+  let monthStart: Date, periodEnd: Date, lastStart: Date, lastCutoff: Date, daysElapsed: number, daysInMonth: number;
+  if (custom) {
+    monthStart = opts.from!;
+    periodEnd = opts.to!;
+    const len = periodEnd.getTime() - monthStart.getTime();
+    lastStart = new Date(monthStart.getTime() - len);
+    lastCutoff = new Date(monthStart.getTime() - 1);
+    daysElapsed = Math.max(1, Math.ceil((Math.min(periodEnd.getTime(), now.getTime()) - monthStart.getTime()) / DAY));
+    daysInMonth = Math.max(1, Math.round(len / DAY));
+  } else {
+    monthStart = new Date(y, m, 1);
+    periodEnd = new Date(y, m + 1, 1);
+    lastStart = new Date(y, m - 1, 1);
+    daysElapsed = now.getDate();
+    daysInMonth = new Date(y, m + 1, 0).getDate();
+    // last month up to the same day of the month
+    lastCutoff = new Date(y, m - 1, Math.min(daysElapsed, new Date(y, m, 0).getDate()), 23, 59, 59);
+  }
+
+  const inMonth = (t: EmailTransaction) => {
+    const d = new Date(t.occurredAt);
+    return d >= monthStart && d < periodEnd;
+  };
   const inLastPeriod = (t: EmailTransaction) => {
     const d = new Date(t.occurredAt);
     return d >= lastStart && d <= lastCutoff;
@@ -89,12 +120,14 @@ export async function moneyInsights(userId: string, now = new Date()): Promise<M
   const small = spend.filter((t) => t.amount < SMALL_PURCHASE);
   const stats = {
     month: monthStart.toISOString().slice(0, 7),
+    label: custom ? (opts.label ?? "Periode ini") : "Bulan ini",
+    isCurrentMonth: !custom,
     daysElapsed,
     daysInMonth,
     total,
     count: spend.length,
     lastMonthSamePeriod: sum(lastSpend),
-    projectedMonthEnd: daysElapsed ? (total / daysElapsed) * daysInMonth : total,
+    projectedMonthEnd: !custom && daysElapsed ? (total / daysElapsed) * daysInMonth : total,
     byCategory,
     topMerchants,
     biggest: [...spend]
@@ -110,7 +143,8 @@ export async function moneyInsights(userId: string, now = new Date()): Promise<M
     },
   };
 
-  const ai = total > 0 ? await narrateWithAI(stats) : null;
+  // only aggregates go to the AI, and only with the user's "ai_processing" consent
+  const ai = total > 0 && opts.allowAI ? await narrateWithAI(stats) : null;
   return { ...stats, narrative: ai ?? narrateWithRules(stats), generatedBy: ai ? "ai" : "rules" };
 }
 
@@ -130,9 +164,10 @@ export function narrateWithRules(s: Stats): MoneyInsights["narrative"] {
     diff === null
       ? ""
       : Math.abs(diff) < 0.05
-        ? ", hampir sama dengan periode yang sama bulan lalu"
-        : `, ${Math.round(Math.abs(diff) * 100)}% ${diff > 0 ? "lebih tinggi" : "lebih rendah"} dari periode yang sama bulan lalu`;
-  const summary = `Dalam ${s.daysElapsed} hari, ${rp(s.total)} keluar lewat ${s.count} transaksi di luar BNI${trend}.`;
+        ? `, hampir sama dengan ${s.isCurrentMonth ? "periode yang sama bulan lalu" : "periode sebelumnya"}`
+        : `, ${Math.round(Math.abs(diff) * 100)}% ${diff > 0 ? "lebih tinggi" : "lebih rendah"} dari ${s.isCurrentMonth ? "periode yang sama bulan lalu" : "periode sebelumnya"}`;
+  const when = s.isCurrentMonth ? `Dalam ${s.daysElapsed} hari` : s.label;
+  const summary = `${when}, ${rp(s.total)} keluar lewat ${s.count} transaksi di luar BNI${trend}.`;
 
   const insights: string[] = [];
   const top = s.byCategory[0];
@@ -144,13 +179,13 @@ export function narrateWithRules(s: Stats): MoneyInsights["narrative"] {
   const jump = s.byCategory
     .filter((c) => c.lastMonth > 0 && c.amount > c.lastMonth * 1.3 && c.amount - c.lastMonth > 50_000)
     .sort((a, b) => b.amount - b.lastMonth - (a.amount - a.lastMonth))[0];
-  if (jump) insights.push(`${jump.label} naik dari ${rp(jump.lastMonth)} jadi ${rp(jump.amount)} dibanding periode yang sama bulan lalu.`);
+  if (jump) insights.push(`${jump.label} naik dari ${rp(jump.lastMonth)} jadi ${rp(jump.amount)} dibanding ${s.isCurrentMonth ? "periode yang sama bulan lalu" : "periode sebelumnya"}.`);
   if (s.smallPurchases.count >= 5) {
     insights.push(`${s.smallPurchases.count} jajan kecil di bawah ${rp(SMALL_PURCHASE)} totalnya ${rp(s.smallPurchases.total)}. Kecil satu-satu, lumayan kalau dikumpulkan.`);
   }
   const biggest = s.biggest[0];
   if (biggest && biggest.amount > s.total * 0.25) insights.push(`Satu transaksi terbesar: ${biggest.merchant} ${rp(biggest.amount)}.`);
-  insights.push(`Dengan ritme ini, akhir bulan pengeluaran di luar BNI sekitar ${rp(s.projectedMonthEnd)}.`);
+  if (s.isCurrentMonth) insights.push(`Dengan ritme ini, akhir bulan pengeluaran di luar BNI sekitar ${rp(s.projectedMonthEnd)}.`);
 
   const tips: string[] = [];
   const weekly = (top.amount / Math.max(1, s.daysElapsed)) * 7;
@@ -167,7 +202,7 @@ const Narrative = z.object({
 });
 
 const AI_INSTRUCTIONS = `Kamu Nera, teman konsultasi keuangan mahasiswa di wondr by BNI.
-Dari RINGKASAN pengeluaran (JSON) di bawah, jelaskan ke mana uang pengguna pergi bulan ini.
+Dari RINGKASAN pengeluaran (JSON) di bawah, jelaskan ke mana uang pengguna pergi pada periode tersebut.
 Bahasa Indonesia santai, hangat, tanpa menghakimi. Pakai angka dari data, jangan mengarang angka.
 Jangan memberi saran pinjaman, kredit, atau produk investasi tertentu.
 Balas HANYA JSON: {"summary": string (1-2 kalimat), "insights": string[] (3-4 poin), "tips": string[] (2-3 langkah konkret)}.`;
@@ -175,12 +210,12 @@ Balas HANYA JSON: {"summary": string (1-2 kalimat), "insights": string[] (3-4 po
 /** AI narrative from aggregates only (no email content). Null when no model is configured or it fails. */
 async function narrateWithAI(s: Stats): Promise<MoneyInsights["narrative"] | null> {
   const data = JSON.stringify({
-    bulan: s.month,
+    periode: s.label,
     hariBerjalan: `${s.daysElapsed}/${s.daysInMonth}`,
     total: s.total,
     jumlahTransaksi: s.count,
-    periodeSamaBulanLalu: s.lastMonthSamePeriod,
-    proyeksiAkhirBulan: Math.round(s.projectedMonthEnd),
+    periodeSebelumnya: s.lastMonthSamePeriod,
+    ...(s.isCurrentMonth && { proyeksiAkhirBulan: Math.round(s.projectedMonthEnd) }),
     kategori: s.byCategory.map((c) => ({ nama: c.label, total: c.amount, persen: Math.round(c.share * 100), bulanLalu: c.lastMonth, kali: c.count })),
     merchantTeratas: s.topMerchants.map((m) => ({ nama: m.name, total: m.amount, kali: m.count })),
     jajanKecil: s.smallPurchases,

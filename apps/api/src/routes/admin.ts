@@ -34,7 +34,11 @@ adminRouter.get("/overview", async (_req, res) => {
   });
   const rows = await Promise.all(
     users.map(async (u) => {
-      const [txs, alias] = await Promise.all([emailStore.listTransactions(u.id), emailStore.getAliasForUser(u.id)]);
+      const [txs, alias, consents] = await Promise.all([
+        emailStore.listTransactions(u.id),
+        emailStore.getAliasForUser(u.id),
+        emailStore.getConsents(u.id),
+      ]);
       const gmail = links.find((l) => l.userId === u.id);
       const byChannel = { gmail: 0, forward: 0, demo: 0 };
       for (const t of txs) byChannel[t.channel]++;
@@ -47,6 +51,7 @@ adminRouter.get("/overview", async (_req, res) => {
         forward: alias ? { status: alias.status, lastReceivedAt: alias.lastReceivedAt } : null,
         transactions: { total: txs.length, ...byChannel, needsReview: txs.filter((t) => t.needsReview).length },
         lastTransactionAt: txs[0]?.occurredAt,
+        consent: { emailImport: Boolean(consents.email_import?.granted), aiProcessing: Boolean(consents.ai_processing?.granted) },
       };
     }),
   );

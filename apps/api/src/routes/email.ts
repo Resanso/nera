@@ -22,6 +22,7 @@ import { ingestEmail, summarize } from "../email/ingest";
 import { ALLOWED_SENDERS } from "../email/senders";
 import { moneyInsights } from "../email/insights";
 import { reconcile } from "../email/reconcile";
+import { CONSENT_VERSION, ConsentRequired, hasConsent, requireConsent } from "../email/consent";
 import { emailStore } from "../email/store";
 
 export const emailRouter: Router = Router();
@@ -43,11 +44,19 @@ emailRouter.use((req, _res, next) => {
 const userIdOf = (req: Request): string => sessionOf(req).userId;
 
 const fail = (res: Response, e: unknown, status = 500) =>
-  res.status(e instanceof GmailAccessRevoked ? 409 : status).json({ success: false, error: (e as Error).message });
+  res
+    .status(e instanceof GmailAccessRevoked ? 409 : e instanceof ConsentRequired ? 403 : status)
+    .json({ success: false, error: (e as Error).message, ...(e instanceof ConsentRequired && { consentRequired: e.kind }) });
 
 emailRouter.get("/status", async (req, res) => {
   const userId = userIdOf(req);
-  const [gmail, alias] = await Promise.all([emailStore.getGmail(userId), emailStore.getAliasForUser(userId)]);
+  const [gmail, alias, consents] = await Promise.all([
+    emailStore.getGmail(userId),
+    emailStore.getAliasForUser(userId),
+    emailStore.getConsents(userId),
+  ]);
+  // a grant only counts for the current wording
+  const current = (k: "email_import" | "ai_processing") => Boolean(consents[k]?.granted && consents[k]?.version === CONSENT_VERSION);
   res.json({
     success: true,
     data: {
@@ -63,13 +72,51 @@ emailRouter.get("/status", async (req, res) => {
         : null,
       senders: ALLOWED_SENDERS.map((s) => ({ provider: s.provider, domains: s.domains })),
       aiExtraction: maiaClient.isConfigured,
+      consent: {
+        version: CONSENT_VERSION,
+        emailImport: current("email_import"),
+        aiProcessing: current("ai_processing"),
+        emailImportAt: consents.email_import?.at,
+        aiProcessingAt: consents.ai_processing?.at,
+      },
     },
   });
 });
 
 // "Ke mana uangku?": this month's spending explained (aggregates + AI or rule-based narrative)
 emailRouter.get("/insights", async (req, res) => {
-  res.json({ success: true, data: await moneyInsights(userIdOf(req)) });
+  const userId = userIdOf(req);
+  const allowAI = await hasConsent(userId, "ai_processing");
+  // optional period: ?from=2026-01-01&to=2026-04-01 (to exclusive) &label=3 bulan terakhir
+  const q = req.query as Record<string, string | undefined>;
+  const from = q.from ? new Date(q.from) : undefined;
+  const to = q.to ? new Date(q.to) : undefined;
+  const valid = from && to && !isNaN(+from) && !isNaN(+to) && from < to;
+  const label = q.label?.slice(0, 40);
+  res.json({
+    success: true,
+    data: { ...(await moneyInsights(userId, { allowAI, ...(valid && { from, to, label }) })), aiAllowed: allowAI },
+  });
+});
+
+const ConsentBody = z.object({ kind: z.enum(["email_import", "ai_processing"]), granted: z.boolean() });
+
+/**
+ * Record a consent decision (kept as an event for audit). Withdrawing "email_import"
+ * stops all processing: Gmail is disconnected (token revoked), the forwarding address
+ * removed, and data imported through them deleted.
+ */
+emailRouter.post("/consent", async (req, res) => {
+  const body = ConsentBody.safeParse(req.body);
+  if (!body.success) return res.status(400).json({ success: false, error: "Body tidak valid" });
+  const userId = userIdOf(req);
+  const { kind, granted } = body.data;
+  await emailStore.recordConsent(userId, kind, granted, CONSENT_VERSION);
+  if (kind === "email_import" && !granted) {
+    await disconnectGmail(userId);
+    await removeAlias(userId);
+  }
+  res.json({ success: true });
 });
 
 emailRouter.get("/transactions", async (req, res) => {
@@ -112,8 +159,9 @@ emailRouter.post("/demo/import", async (req, res) => {
 
 // ---- Option A: Gmail API (read-only) ----
 
-emailRouter.get("/gmail/connect", (req, res) => {
+emailRouter.get("/gmail/connect", async (req, res) => {
   if (!isGmailConfigured()) return res.status(503).json({ success: false, error: "Gmail OAuth belum dikonfigurasi di server" });
+  if (!(await hasConsent(userIdOf(req), "email_import"))) return res.redirect(`${WEB_APP_URL()}/email?gmail=consent`);
   res.redirect(gmailAuthUrl(userIdOf(req)));
 });
 
@@ -201,6 +249,7 @@ emailRouter.delete("/gmail", async (req, res) => {
 // ---- Option B: unique forwarding address ----
 
 emailRouter.post("/forward/alias", async (req, res) => {
+  await requireConsent(userIdOf(req), "email_import");
   const a = await getOrCreateAlias(userIdOf(req));
   res.json({ success: true, data: { address: a.alias, status: a.status, confirmationCode: a.confirmationCode } });
 });

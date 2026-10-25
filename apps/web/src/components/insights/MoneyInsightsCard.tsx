@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { MessageCircle, RefreshCw } from "lucide-react";
 import { NeraOrb } from "../mascot/NeraOrb";
 import { emailApi, type MoneyInsights } from "../../lib/emailImport";
+import type { Period } from "../../lib/period";
 
 const rp = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Math.round(n));
@@ -16,7 +17,7 @@ const BAR_COLORS = ["#FFB900", "#E58E00", "#76520E", "#C9A15A", "#E9DCC2", "#B8A
  * receipts. The explanation comes from the AI when configured, otherwise from rules;
  * either way only aggregates leave the server.
  */
-export function MoneyInsightsCard({ refreshKey }: { refreshKey?: number }) {
+export function MoneyInsightsCard({ refreshKey, period }: { refreshKey?: number; period?: Period }) {
   const [data, setData] = useState<MoneyInsights | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,13 +26,14 @@ export function MoneyInsightsCard({ refreshKey }: { refreshKey?: number }) {
     setLoading(true);
     setError(null);
     emailApi
-      .insights()
+      .insights(period && period.key !== "this_month" ? period : undefined)
       .then(setData)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [refreshKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [refreshKey, period?.from.getTime(), period?.to.getTime()]);
 
   const diff = data && data.lastMonthSamePeriod ? (data.total - data.lastMonthSamePeriod) / data.lastMonthSamePeriod : null;
   const mood = loading ? "thinking" : !data || data.total === 0 ? "wave" : diff !== null && diff > 0.2 ? "alert" : "happy";
@@ -41,10 +43,15 @@ export function MoneyInsightsCard({ refreshKey }: { refreshKey?: number }) {
       <div className="flex items-center gap-3">
         <NeraOrb mood={mood} size={56} trackPointer={false} />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-bold text-[#2F240E]">Ke mana uangku bulan ini?</h3>
+          <h3 className="text-sm font-bold text-[#2F240E]">Ke mana uangku {(period?.label ?? "bulan ini").toLowerCase()}?</h3>
           <p className="text-[11px] text-[#736B60]">
-            {loading ? "Nera sedang menghitung…" : data?.generatedBy === "ai" ? "Dianalisis AI dari ringkasan, tanpa isi email" : "Analisis otomatis Nera"}
+            {loading ? "Nera sedang menghitung…" : data?.generatedBy === "ai" ? "Dianalisis AI dari ringkasan, tanpa isi email" : "Analisis otomatis Nera (tanpa AI)"}
           </p>
+          {data && !data.aiAllowed && (
+            <a href="#consent" className="text-[11px] font-semibold text-[#76520E] underline underline-offset-2">
+              Aktifkan bantuan AI untuk analisis lebih personal
+            </a>
+          )}
         </div>
         <button type="button" onClick={load} aria-label="Hitung ulang" className="rounded-full p-2 text-[#76520E] hover:bg-[#FFF3D6]">
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />

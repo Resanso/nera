@@ -95,6 +95,7 @@ export default function AdminPage() {
                     <th className="px-5 py-3 font-semibold">Akun login</th>
                     <th className="px-3 py-3 font-semibold">Gmail (opsi A)</th>
                     <th className="px-3 py-3 font-semibold">Forward (opsi B)</th>
+                    <th className="px-3 py-3 font-semibold">Persetujuan</th>
                     <th className="px-3 py-3 text-right font-semibold">Transaksi</th>
                     <th className="px-3 py-3 font-semibold">Pertama</th>
                     <th className="px-5 py-3 font-semibold">Terakhir aktif</th>
@@ -118,6 +119,10 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className="px-3 py-3">{u.forward ? FORWARD_LABEL[u.forward.status] : <span className="text-[#736B60]">–</span>}</td>
+                      <td className="px-3 py-3 text-xs">
+                        <p>Impor email: {u.consent.emailImport ? "✓" : "–"}</p>
+                        <p>Bantuan AI: {u.consent.aiProcessing ? "✓" : "–"}</p>
+                      </td>
                       <td className="px-3 py-3 text-right tabular-nums">
                         <p className="font-semibold">{u.transactions.total}</p>
                         <p className="text-xs text-[#736B60]">
@@ -131,7 +136,7 @@ export default function AdminPage() {
                   ))}
                   {state.data.users.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-[#736B60]">
+                      <td colSpan={7} className="px-5 py-8 text-center text-[#736B60]">
                         Belum ada yang mencoba.
                       </td>
                     </tr>
