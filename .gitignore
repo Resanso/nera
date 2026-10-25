@@ -44,3 +44,6 @@ yarn-error.log*
 .codegraph
 # Deploy secrets
 .env.deploy
+
+# Google OAuth client downloads
+client_secret_*.json
