@@ -859,13 +859,6 @@ export default function HomePage() {
                 </div>
                 <ChevronRight size={16} className="shrink-0" />
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {emailSpending.byCategory.slice(0, 3).map((c) => (
-                  <span key={c.category} className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold">
-                    {c.label} {formatRupiah(c.amount)}
-                  </span>
-                ))}
-              </div>
             </Link>
           ) : (
             <Link
