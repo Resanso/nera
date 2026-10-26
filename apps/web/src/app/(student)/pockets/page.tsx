@@ -648,48 +648,46 @@ export default function PocketsPage() {
               <p className="min-w-0 truncate text-[11px] text-[#736B60]">{periodRange(period)}</p>
               <PeriodFilter value={period} onChange={setPeriod} />
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FFF0BD] text-[#6D4C00]">
-                  <Target size={16} />
-                </div>
-                <div>
-                  <p className="text-[12px] font-semibold text-[#2F240E]">
-                    {isThisMonth ? "Budget bulan ini" : `Budget ${period.key === "custom" ? "rentang ini" : period.label.toLowerCase()}`}
+            {(() => {
+              const pct = totals.budget > 0 ? Math.round((totals.spent / totals.budget) * 100) : 0;
+              const over = totals.spent >= totals.budget;
+              return (
+                <>
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-semibold text-[#736B60]">
+                        {isThisMonth ? "Terpakai bulan ini" : `Terpakai ${period.key === "custom" ? "di rentang ini" : period.label.toLowerCase()}`}
+                      </p>
+                      <p className="mt-0.5 text-[24px] font-bold leading-tight tabular-nums text-[#2F240E]">{formatRupiah(totals.spent)}</p>
+                      <p className="text-[12px] text-[#736B60]">
+                        dari budget <span className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.budget)}</span>
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums",
+                        over ? "bg-[#FBEDED] text-[#A92F2F]" : pct >= 90 ? "bg-[#FFF3D6] text-[#76520E]" : "bg-[#E3F3E9] text-[#277449]",
+                      )}
+                    >
+                      {pct}%
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#F1F2F4]">
+                    <div
+                      className={cn("h-full rounded-full transition-[width] duration-500", over ? "bg-[#C43737]" : "bg-[#FFB900]")}
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[#736B60]">
+                    {isThisMonth
+                      ? spentFromEmail > 0 && `Termasuk ${formatRupiah(spentFromEmail)} dari struk email. `
+                      : `Hanya dari email; kantong BNI baru punya data bulan ini. Budget disesuaikan ke ${Math.round(periodDays)} hari. `}
+                    {uncoveredTotal > 0 &&
+                      `${formatRupiah(uncoveredTotal)} belum masuk kantong mana pun (${uncovered.map((c) => c.label).join(", ")}).`}
                   </p>
-                  <p className="text-[10px] text-[#736B60]">
-                    {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
-                    {isThisMonth && spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
-                  </p>
-                  {!isThisMonth && (
-                    <p className="text-[10px] text-[#736B60]">
-                      Hanya dari email; kantong BNI baru punya data bulan ini. Budget disesuaikan ke {Math.round(periodDays)} hari.
-                    </p>
-                  )}
-                  {uncoveredTotal > 0 && (
-                    <p className="text-[10px] text-[#736B60]">
-                      {formatRupiah(uncoveredTotal)} dari email belum masuk kantong ({uncovered.map((c) => c.label).join(", ")})
-                    </p>
-                  )}
-                </div>
-              </div>
-              <span className="text-[12px] font-bold tabular-nums text-[#2F240E]">
-                {totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0}%
-              </span>
-            </div>
-            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F1F2F4]">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-[width] duration-500",
-                  totals.spent >= totals.budget ? "bg-[#C43737]" : "bg-[#FFB900]"
-                )}
-                style={{
-                  width: `${
-                    totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0
-                  }%`,
-                }}
-              />
-            </div>
+                </>
+              );
+            })()}
           </section>
         )}
 
