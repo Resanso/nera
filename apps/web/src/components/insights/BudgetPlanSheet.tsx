@@ -58,7 +58,7 @@ export function BudgetPlanSheet({
               <h2 className="mt-0.5 text-[20px] font-bold capitalize text-[#2F240E]">Budget {month}</h2>
               <p className="mt-0.5 text-[12px] text-[#736B60]">
                 {income === null ? (
-                  "Isi pemasukan bulanan di Aset Saya supaya Nera bisa membandingkannya."
+                  "Isi pemasukan bulanan di Kantong (Saldo & pemasukan) supaya Nera bisa membandingkannya."
                 ) : (
                   <>
                     Pemasukan <span className="font-semibold tabular-nums text-[#2F240E]">{rp(income)}</span>/bulan

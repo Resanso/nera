@@ -239,14 +239,14 @@ function ProfileCard({
         ))}
         {plan.fromMainNow > 0 && (
           <div className="flex justify-between gap-3">
-            <dt className="text-[#736B60]">Sekarang dari Kantong Utama</dt>
+            <dt className="text-[#736B60]">Sekarang dari saldo</dt>
             <dd className="shrink-0 font-semibold tabular-nums text-[#2F240E]">{rp(plan.fromMainNow)}</dd>
           </div>
         )}
         {plan.perDay > 0 && (
           <div className="flex justify-between gap-3">
             <dt className="text-[#736B60]">
-              Sisihkan tiap hari dari Kantong Utama
+              Sisihkan tiap hari dari saldo
               <span className="block text-[11px]">selama {plan.daysLeft} hari</span>
             </dt>
             <dd className="shrink-0 text-right font-bold tabular-nums text-[#2F240E]">{rp(plan.perDay)}/hari</dd>
@@ -258,7 +258,7 @@ function ProfileCard({
         <span className={`mt-px shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${verdict.className}`}>{verdict.label}</span>
         <p className="text-[12px] leading-snug text-[#5C4A1E]">
           {plan.shortfall > 0
-            ? `Kantong Utama belum cukup, masih kurang ${rp(plan.shortfall)}. Coba tawar nominalnya atau geser tanggalnya.`
+            ? `Saldo yang bisa dipakai belum cukup, masih kurang ${rp(plan.shortfall)}. Coba tawar nominalnya atau geser tanggalnya.`
             : plan.daysLeft === 0
               ? "Acaranya hari ini, jadi uangnya langsung dipindah."
               : share !== null

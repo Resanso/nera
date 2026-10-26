@@ -1,9 +1,14 @@
 import { z } from "zod";
 
 /**
- * The user's own money as Nera tracks it: Kantong Utama (main), the pockets, and what moved
+ * The user's own money as Nera tracks it: "Bisa dipakai" (main), the pockets, and what moved
  * between them. Every change is an op applied here, on the server, so balances can never go
- * below zero and Aset Saya always equals Kantong Utama plus every pocket.
+ * below zero and the total always equals main plus every pocket.
+ *
+ * Two kinds of pocket with one rule each:
+ * - spending ("pos budget"): a monthly limit, no money of its own. What counts against it is
+ *   read from email receipts or logged here; a logged spend leaves main.
+ * - saving (goals, Rencana dadakan): money actually set aside, moved in and out of main.
  */
 
 const ICONS = ["food", "transport", "education", "fun", "shopping", "health", "travel", "gadget", "gift", "home", "utility"] as const;
@@ -127,7 +132,8 @@ export function applyOp(s: WalletState, op: Op, now = new Date()): { state: Wall
       return { state: { ...s, pockets, monthlyIncome: op.monthlyIncome }, activity, deleted: [] };
     case "createPocket": {
       if (pockets.some((p) => p.id === op.id)) throw new OpError("Kantong sudah ada");
-      const amount = Math.min(op.initial, main);
+      // a budget holds no money; only a goal starts with some
+      const amount = op.kind === "saving" ? Math.min(op.initial, main) : 0;
       pockets.push({ id: op.id, name: op.name, kind: op.kind, icon: op.icon, tone: op.tone, balance: amount, target: op.target, createdAt: at });
       main -= amount;
       if (amount > 0) activity.push(act(op.id, "topup", amount));
@@ -154,8 +160,10 @@ export function applyOp(s: WalletState, op: Op, now = new Date()): { state: Wall
     }
     case "move": {
       positive(op.amount);
-      if (op.amount > main) throw new OpError("Saldo Kantong Utama tidak cukup");
-      find(op.pocketId).balance += op.amount;
+      if (op.amount > main) throw new OpError("Saldo yang bisa dipakai tidak cukup");
+      const p = find(op.pocketId);
+      if (p.kind === "spending") throw new OpError("Pos budget tidak menyimpan uang");
+      p.balance += op.amount;
       main -= op.amount;
       activity.push(act(op.pocketId, "topup", op.amount));
       break;
@@ -163,6 +171,7 @@ export function applyOp(s: WalletState, op: Op, now = new Date()): { state: Wall
     case "withdraw": {
       positive(op.amount);
       const p = find(op.pocketId);
+      if (p.kind === "spending") throw new OpError("Pos budget tidak menyimpan uang");
       if (op.amount > p.balance) throw new OpError("Saldo kantong tidak cukup");
       p.balance -= op.amount;
       main += op.amount;
@@ -172,10 +181,17 @@ export function applyOp(s: WalletState, op: Op, now = new Date()): { state: Wall
     case "spend": {
       positive(op.amount);
       const p = find(op.pocketId);
-      if (p.kind !== "spending" && !p.profile) throw new OpError("Kantong tabungan tidak bisa dipakai belanja");
-      if (op.amount > p.balance) throw new OpError("Saldo kantong tidak cukup");
-      p.balance -= op.amount;
-      activity.push(act(p.id, "spend", op.amount, op.title || "Pembayaran QRIS"));
+      if (p.kind === "spending") {
+        // logged against the budget, paid from what's spendable
+        if (op.amount > main) throw new OpError("Saldo yang bisa dipakai tidak cukup");
+        main -= op.amount;
+      } else {
+        // a Rencana dadakan pays for its occasion from what was set aside
+        if (!p.profile) throw new OpError("Tabungan tidak dipakai untuk belanja; tarik dulu ke saldo");
+        if (op.amount > p.balance) throw new OpError("Saldo kantong tidak cukup");
+        p.balance -= op.amount;
+      }
+      activity.push(act(p.id, "spend", op.amount, op.title || "Pengeluaran"));
       break;
     }
     case "delete": {

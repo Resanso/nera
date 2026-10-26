@@ -18,11 +18,11 @@ export type ProfilePlan = {
   tone: BudgetPocketTone;
   /** whole days left before the due date; 0 when it is today */
   daysLeft: number;
-  /** moved in right away from related spending pockets */
+  /** moved in right away from other pockets (none today: budgets hold no money) */
   fromPockets: ProfileSource[];
-  /** moved in right away from Kantong Utama (only when there are no days to spread it over) */
+  /** moved in right away from "Bisa dipakai" (only when there are no days to spread it over) */
   fromMainNow: number;
-  /** to set aside from Kantong Utama every day until the due date */
+  /** to set aside from "Bisa dipakai" every day until the due date */
   perDay: number;
   /** the daily spending allowance perDay is compared with */
   dailyAllowance: number;
@@ -42,7 +42,6 @@ const TONE_FOR: Partial<Record<BudgetPocketIcon, BudgetPocketTone>> = {
 };
 
 const roundUp = (n: number, step = 1000) => Math.ceil(n / step) * step;
-const roundDown = (n: number, step = 1000) => Math.floor(n / step) * step;
 
 /** Today in WIB as YYYY-MM-DD; the due date is a calendar day in Indonesia. */
 export const todayWib = (now = new Date()) =>
@@ -53,10 +52,9 @@ const dayDiff = (dueDate: string, now: Date) => Math.round((Date.parse(dueDate) 
 export const daysUntil = (dueDate: string, now = new Date()) => Math.max(0, dayDiff(dueDate, now));
 
 /**
- * How to have the money by the due date. Nera's model only reads the request; the sums are
- * done here so they always add up. Part comes now from pockets that would have paid for a
- * similar outing (half of Fun, a quarter of a pocket of the same kind), the rest is spread
- * over the days left as a daily set-aside from Kantong Utama.
+ * How to have the money by the due date: spread over the days left as a daily set-aside
+ * from "Bisa dipakai" (budgets hold no money, so there is nothing to move from them). Nera's
+ * model only reads the request; the sums are done here so they always add up.
  */
 export function planProfile(
   draft: ProfileDraft,
@@ -64,22 +62,8 @@ export function planProfile(
   now = new Date(),
 ): ProfilePlan {
   const daysLeft = daysUntil(draft.dueDate, now);
-  let rest = draft.amount;
-
+  const rest = draft.amount;
   const fromPockets: ProfileSource[] = [];
-  if (money.balancesKnown) {
-    const related = money.pockets
-      .filter((p) => p.kind === "spending" && !p.profile && p.balance > 0)
-      .filter((p) => p.icon === "fun" || p.icon === draft.icon)
-      .sort((a, b) => (a.icon === "fun" ? -1 : 0) - (b.icon === "fun" ? -1 : 0));
-    for (const p of related) {
-      if (rest <= 0) break;
-      const amount = Math.min(rest, roundDown(p.balance * (p.icon === "fun" ? 0.5 : 0.25)));
-      if (amount <= 0) continue;
-      fromPockets.push({ pocket: p, amount });
-      rest -= amount;
-    }
-  }
 
   const main = money.balancesKnown ? money.main : Infinity;
   let fromMainNow = 0;

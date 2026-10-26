@@ -58,7 +58,7 @@ function useNotifications(): Item[] {
         icon: Wallet,
         tone: "bg-[#FFF3D6] text-[#76520E]",
         title: "Saldomu perlu dicek",
-        body: "Kantong Utama mengikuti struk email. Pastikan angkanya masih sama dengan saldo rekeningmu.",
+        body: "Saldo yang bisa dipakai mengikuti struk email. Pastikan angkanya masih sama dengan saldo rekeningmu.",
         href: "/pockets",
       });
     for (const p of pockets) {

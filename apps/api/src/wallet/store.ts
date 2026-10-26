@@ -78,6 +78,15 @@ create table if not exists nera_pocket_activity (
   primary key (user_id, id)
 );
 create index if not exists nera_pocket_activity_user on nera_pocket_activity (user_id, at desc);
+-- spending pockets became budgets without money of their own: what they held goes back to main.
+-- Safe to run on every start: once moved, their balances are 0 and nothing changes. The lock
+-- keeps the api and the worker from both moving the same money when they start together
+-- (the statements run as one transaction; each takes a fresh snapshot after the lock).
+select pg_advisory_xact_lock(4242001);
+update nera_wallets w set main_balance = w.main_balance + s.held, updated_at = now()
+  from (select user_id, sum(balance) as held from nera_pockets where kind = 'spending' and balance > 0 group by user_id) s
+  where w.user_id = s.user_id;
+update nera_pockets set balance = 0 where kind = 'spending' and balance > 0;
 `;
 
 type PocketDb = {

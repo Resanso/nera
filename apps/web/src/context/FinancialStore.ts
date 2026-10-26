@@ -566,8 +566,9 @@ export const useFinancialStore = create<FinancialStoreState>()(
 
       // Dana kantong diambil dari dan dikembalikan ke Daily Pocket (Kantong Utama),
       // jadi runway ikut menyesuaikan lewat recalculateState.
+      // a spending pocket is a budget with no money of its own; only a goal starts with some
       createBudgetPocket: (pocket, initialAmount = 0) => {
-        const amount = Math.min(Math.max(0, initialAmount), get().dailyPocket);
+        const amount = pocket.kind === "saving" ? Math.min(Math.max(0, initialAmount), get().dailyPocket) : 0;
         const newPocket: BudgetPocket = {
           ...pocket,
           id: `pocket_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -630,7 +631,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
       moveToBudgetPocket: (pocketId: string, amount: number) => {
         const s = get();
         if (amount <= 0 || amount > s.dailyPocket) return;
-        if (!s.budgetPockets.some((p) => p.id === pocketId)) return;
+        if (!s.budgetPockets.some((p) => p.id === pocketId && p.kind === "saving")) return;
 
         set({
           budgetPockets: s.budgetPockets.map((p) =>
@@ -647,7 +648,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
       withdrawFromBudgetPocket: (pocketId: string, amount: number) => {
         const s = get();
         const pocket = s.budgetPockets.find((p) => p.id === pocketId);
-        if (!pocket || amount <= 0 || amount > pocket.balance) return;
+        if (!pocket || pocket.kind !== "saving" || amount <= 0 || amount > pocket.balance) return;
 
         set({
           budgetPockets: s.budgetPockets.map((p) =>
@@ -664,14 +665,19 @@ export const useFinancialStore = create<FinancialStoreState>()(
       spendFromBudgetPocket: (pocketId: string, amount: number, title: string) => {
         const s = get();
         const pocket = s.budgetPockets.find((p) => p.id === pocketId);
-        if (!pocket || (pocket.kind !== "spending" && !pocket.profile) || amount <= 0 || amount > pocket.balance) return;
+        if (!pocket || amount <= 0) return;
+        // a budget logs the spend and the money leaves what's spendable;
+        // a Rencana dadakan pays for its occasion from what was set aside
+        const fromBudget = pocket.kind === "spending";
+        if (fromBudget ? amount > s.dailyPocket : !pocket.profile || amount > pocket.balance) return;
 
         set({
           budgetPockets: s.budgetPockets.map((p) =>
             p.id === pocketId
-              ? { ...p, balance: p.balance - amount, spentThisMonth: p.spentThisMonth + amount }
+              ? { ...p, balance: fromBudget ? p.balance : p.balance - amount, spentThisMonth: p.spentThisMonth + amount }
               : p
           ),
+          dailyPocket: fromBudget ? s.dailyPocket - amount : s.dailyPocket,
           transactions: [
             {
               id: `tx_${Date.now()}`,
@@ -687,6 +693,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           pocketActivity: [activity(pocketId, "spend", amount, title), ...s.pocketActivity],
         });
         mirror({ op: "spend", pocketId, amount, title });
+        if (fromBudget) get().recalculateState();
       },
 
       deleteBudgetPocket: (pocketId: string) => {
@@ -780,6 +787,17 @@ export const useFinancialStore = create<FinancialStoreState>()(
     {
       name: "nera-financial-store",
       storage: createJSONStorage(() => localStorage),
+      // v1: spending pockets became budgets without money; what they held goes back to main
+      version: 1,
+      migrate: (persisted, version) => {
+        const s = persisted as FinancialStoreState;
+        if (version < 1 && s?.budgetPockets) {
+          const held = s.budgetPockets.filter((p) => p.kind === "spending").reduce((sum, p) => sum + p.balance, 0);
+          s.dailyPocket = (s.dailyPocket ?? 0) + (s.assetsSet ? held : 0);
+          s.budgetPockets = s.budgetPockets.map((p) => (p.kind === "spending" ? { ...p, balance: 0 } : p));
+        }
+        return s;
+      },
     }
   )
 );

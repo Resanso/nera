@@ -15,8 +15,8 @@ type Row =
   | { kind: "activity"; at: string; a: PocketActivity };
 
 const ACTIVITY = {
-  topup: { label: "Isi dari Kantong Utama", icon: ArrowDownToLine, sign: "+" },
-  withdraw: { label: "Tarik ke Kantong Utama", icon: ArrowUpFromLine, sign: "−" },
+  topup: { label: "Disisihkan dari saldo", icon: ArrowDownToLine, sign: "+" },
+  withdraw: { label: "Ditarik ke saldo", icon: ArrowUpFromLine, sign: "−" },
   spend: { label: "Pengeluaran", icon: ReceiptText, sign: "−" },
 } as const;
 
@@ -35,7 +35,7 @@ export function PocketHistory({
   emailTxs: EmailTransaction[];
   /** this pocket's own activity this month */
   activity: PocketActivity[];
-  /** BNI spending the pocket reports this month, logged or not */
+  /** spending the pocket reports this month besides email (logged, or the demo's seeded figure) */
   spentThisMonth: number;
   onEditEmail: (tx: EmailTransaction) => void;
 }) {
@@ -59,7 +59,7 @@ export function PocketHistory({
       {fromEmail > 0 && (
         <p className="text-[11px] leading-relaxed text-[#736B60]">
           Terpakai {rp(fromEmail + logged + earlier)}: {rp(fromEmail)} dari struk email
-          {logged + earlier > 0 && `, ${rp(logged + earlier)} dari kantong BNI`}. Ketuk struk email untuk melihat email aslinya atau memindahkannya.
+          {logged + earlier > 0 && `, ${rp(logged + earlier)} dicatat manual`}. Ketuk struk email untuk melihat email aslinya atau memindahkannya.
         </p>
       )}
 
@@ -104,7 +104,7 @@ export function PocketHistory({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-semibold text-[#2F240E]">{a.title || meta.label}</span>
                   <span className="block truncate text-[11px] text-[#736B60]">
-                    {day(a.at)} · {a.kind === "spend" ? "Dicatat di kantong" : "Kantong BNI"}
+                    {day(a.at)} · {a.kind === "spend" ? "Dicatat manual" : "Saldo Nera"}
                   </span>
                 </span>
                 <span className={`shrink-0 text-[13px] font-bold tabular-nums ${a.kind === "topup" ? "text-[#277449]" : "text-[#2F240E]"}`}>
@@ -121,7 +121,7 @@ export function PocketHistory({
                 <ReceiptText size={15} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold text-[#2F240E]">Pengeluaran BNI sebelumnya</span>
+                <span className="block text-[13px] font-semibold text-[#2F240E]">Pengeluaran sebelumnya (demo)</span>
                 <span className="block text-[11px] text-[#736B60]">Awal bulan, sebelum riwayat dicatat</span>
               </span>
               <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#2F240E]">−{rp(earlier)}</span>

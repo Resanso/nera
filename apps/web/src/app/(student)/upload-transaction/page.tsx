@@ -336,7 +336,7 @@ export default function UploadTransactionPage() {
             <div>
               <p className="text-[14px] font-bold text-[#2F240E]">Catat Transaksi Manual</p>
               <p className="mt-0.5 text-[11px] text-[#736B60]">
-                Isi cepat pengeluaran tanpa file — langsung masuk ke riwayat & Kantong Utama.
+                Isi cepat pengeluaran tanpa file — langsung masuk ke riwayat & saldo yang bisa dipakai.
               </p>
             </div>
 

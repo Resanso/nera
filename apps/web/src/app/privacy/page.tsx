@@ -28,9 +28,9 @@ const sections: { title: string; body: React.ReactNode }[] = [
         </li>
         <li>Alamat penerusan: email yang kamu teruskan ke alamat Nera milikmu diproses dengan cara yang sama.</li>
         <li>
-          Kantong (kalau kamu masuk dengan Google): saldo yang kamu isi sendiri (Aset Saya), pemasukan bulanan, kantong dan
+          Kantong (kalau kamu masuk dengan Google): total saldo yang kamu isi sendiri, pemasukan bulanan, kantong dan
           riwayatnya tersimpan di server Nera, supaya angkanya sama di semua perangkat. Tanpa masuk, semuanya hanya ada di
-          perangkatmu. Dengan &quot;Estimasi dari struk email&quot;, Kantong Utama berkurang sesuai struk email sejak saldo
+          perangkatmu. Dengan &quot;Estimasi dari struk email&quot;, saldo yang bisa dipakai berkurang sesuai struk email sejak saldo
           terakhir kamu isi atau konfirmasi; dihitung di server dari transaksi yang sudah diimpor. Data BNI lain di aplikasi
           masih data demo.
         </li>
@@ -53,7 +53,7 @@ const sections: { title: string; body: React.ReactNode }[] = [
         <p>
           Estimasi &quot;uangmu bertahan&quot; dan rekomendasi budget harian di Beranda memakai struk email{" "}
           <strong>hanya jika</strong> kamu menyalakan &quot;Estimasi dari struk email&quot;; tanpa itu, keduanya memakai data
-          BNI. Pengaturan yang sama membuat saldo Aset Saya berkurang sendiri sesuai struk email. Skor kondisi keuangan selalu
+          BNI. Pengaturan yang sama membuat saldo di Kantong berkurang sendiri sesuai struk email. Skor kondisi keuangan selalu
           dihitung dari data BNI saja.
         </p>
         <p>
