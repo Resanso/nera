@@ -258,8 +258,8 @@ const pocketSubtitle = (pocket: BudgetPocket) =>
 
 export default function PocketsPage() {
   const {
-    dailyPocket,
-    budgetPockets,
+    dailyPocket: storedMain,
+    budgetPockets: storedPockets,
     createBudgetPocket,
     moveToBudgetPocket,
     withdrawFromBudgetPocket,
@@ -271,6 +271,13 @@ export default function PocketsPage() {
     assetsSet,
     setTotalAssets,
   } = useFinancialStore();
+  // the seeded balances are demo money, not the user's: until they enter their own
+  // total, every balance on this page reads Rp0 (budgets and spending still show)
+  const dailyPocket = assetsSet ? storedMain : 0;
+  const budgetPockets = useMemo(
+    () => (assetsSet ? storedPockets : storedPockets.map((p) => ({ ...p, balance: 0 }))),
+    [assetsSet, storedPockets],
+  );
   const [assetInput, setAssetInput] = useState("");
   const [assetError, setAssetError] = useState<string | null>(null);
 
@@ -609,7 +616,7 @@ export default function PocketsPage() {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[15px] font-bold tabular-nums text-[#2F240E]">
-              {money(assetsSet ? totals.all : 0)}
+              {money(totals.all)}
             </span>
             {!assetsSet && (
               <button
@@ -633,12 +640,12 @@ export default function PocketsPage() {
         </section>
 
         {/* AUTO BUDGET: the whole budget from the user's own receipts */}
-        {plan && activeFilter !== "investment" && (
+        {plan && activeFilter !== "investment" && planAppliedMonth !== monthKey && (
           <section className="flex items-center gap-3 rounded-[20px] bg-[#FFF0BD] px-4 py-3.5">
             <NeraOrb mood="happy" size={40} still trackPointer={false} />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-bold text-[#2F240E]">
-                {planAppliedMonth === monthKey ? "Budget otomatis sudah dipakai" : "Nera sudah menyusun budgetmu"}
+                Nera sudah menyusun budgetmu
               </p>
               <p className="text-[11px] leading-snug text-[#5C4A1E]">
                 {plan.lines.filter((l) => !l.occasional).length} kantong · <span className="tabular-nums">{formatRupiah(plan.total)}</span>/bulan, dari kebiasaanmu sendiri
@@ -649,7 +656,7 @@ export default function PocketsPage() {
               onClick={() => setIsPlanOpen(true)}
               className="h-9 shrink-0 rounded-full bg-[#2F240E] px-3.5 text-[12px] font-semibold text-white hover:bg-[#46371A]"
             >
-              {planAppliedMonth === monthKey ? "Susun ulang" : "Lihat usulan"}
+              Lihat usulan
             </button>
           </section>
         )}
@@ -691,13 +698,50 @@ export default function PocketsPage() {
                       style={{ width: `${Math.min(100, pct)}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-[11px] leading-relaxed text-[#736B60]">
-                    {isThisMonth
-                      ? spentFromEmail > 0 && `Termasuk ${formatRupiah(spentFromEmail)} dari struk email. `
-                      : `Hanya dari email; kantong BNI baru punya data bulan ini. Budget disesuaikan ke ${Math.round(periodDays)} hari. `}
-                    {uncoveredTotal > 0 &&
-                      `${formatRupiah(uncoveredTotal)} belum masuk kantong mana pun (${uncovered.map((c) => c.label).join(", ")}).`}
-                  </p>
+                  <dl className="mt-3 space-y-1.5 border-t border-[#F1EEE8] pt-3 text-[12px]">
+                    {isThisMonth && (
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-[#736B60]">Dari kantong BNI</dt>
+                        <dd className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.spent - spentFromEmail)}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#736B60]">Dari struk email</dt>
+                      <dd className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(spentFromEmail)}</dd>
+                    </div>
+                    {uncoveredTotal > 0 && (
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-[#736B60]">
+                          Email tanpa kantong ({uncovered.map((c) => c.label).join(", ")})
+                          <span className="block text-[11px]">tidak dihitung di sini</span>
+                        </dt>
+                        <dd className="tabular-nums text-[#736B60]">{formatRupiah(uncoveredTotal)}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#736B60]">
+                        Budget = target {spendingPockets.length} kantong belanja
+                        {!isThisMonth && <span className="block text-[11px]">disesuaikan ke {Math.round(periodDays)} hari</span>}
+                      </dt>
+                      <dd className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.budget)}</dd>
+                    </div>
+                  </dl>
+                  {isThisMonth && monthlyAllowance > 0 && totals.budget > monthlyAllowance && (
+                    <p className="mt-3 rounded-xl bg-[#FBEDED] px-3 py-2 text-[12px] leading-relaxed text-[#A92F2F]">
+                      Budget melebihi pemasukan bulananmu ({formatRupiah(monthlyAllowance)}) sebesar{" "}
+                      <b className="tabular-nums">{formatRupiah(totals.budget - monthlyAllowance)}</b>. Turunkan target kantong yang
+                      paling besar.
+                    </p>
+                  )}
+                  {plan && planAppliedMonth === monthKey && (
+                    <button
+                      type="button"
+                      onClick={() => setIsPlanOpen(true)}
+                      className="mt-3 text-[12px] font-semibold text-[#76520E] underline underline-offset-2"
+                    >
+                      Susun ulang budget otomatis
+                    </button>
+                  )}
                 </>
               );
             })()}
@@ -713,9 +757,9 @@ export default function PocketsPage() {
                     <button
                       key="main"
                       type="button"
-                      onClick={() => setIsMainOpen(true)}
+                      onClick={() => (assetsSet ? setIsMainOpen(true) : (setAssetInput(""), setAssetError(null), setIsInfoOpen(true)))}
                       className={cn(
-                        "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
+                        "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
                         mainTone.card
                       )}
                     >
@@ -741,7 +785,7 @@ export default function PocketsPage() {
                           {money(dailyPocket)}
                         </p>
                         <p className={cn("mt-1 text-[11px] font-medium", mainTone.muted)}>
-                          Kantong Utama
+                          {assetsSet ? "Siap dipakai" : "Saldo belum diatur"}
                         </p>
                       </div>
                     </button>
@@ -760,7 +804,7 @@ export default function PocketsPage() {
                       openDetail(pocket.id, "history")
                     }
                     className={cn(
-                      "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
+                      "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
                       tone.card
                     )}
                   >

@@ -590,9 +590,16 @@ export const useFinancialStore = create<FinancialStoreState>()(
       },
 
       setTotalAssets: (total: number) => {
-        const inPockets = get().budgetPockets.reduce((sum, p) => sum + p.balance, 0);
+        const s = get();
+        // the first time, the seeded pocket balances were demo money: start them at 0
+        if (!s.assetsSet) {
+          set({ dailyPocket: total, budgetPockets: s.budgetPockets.map((p) => ({ ...p, balance: 0 })), assetsSet: true });
+          get().recalculateState();
+          return true;
+        }
+        const inPockets = s.budgetPockets.reduce((sum, p) => sum + p.balance, 0);
         if (total < inPockets) return false;
-        set({ dailyPocket: total - inPockets, assetsSet: true });
+        set({ dailyPocket: total - inPockets });
         get().recalculateState();
         return true;
       },
