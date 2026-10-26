@@ -478,8 +478,11 @@ export default function EmailImportPage() {
                       ) : (
                         <>
                           <p className="mt-0.5 text-[11px] text-[#736B60]">
-                            {backfill?.status === "done"
-                              ? `Selesai: ${backfill.imported} transaksi dari ${BACKFILL_LABEL[backfill.days] ?? `${backfill.days} hari`} terakhir (${backfill.scanned} email diperiksa).`
+                            {backfill?.status === "done" && backfill.scanned === 0
+                              ? // asked again after an earlier run: every email was already read
+                                `Riwayat ${BACKFILL_LABEL[backfill.days] ?? `${backfill.days} hari`} terakhir sudah lengkap. Semua email sudah dibaca sebelumnya, tidak ada yang baru.`
+                              : backfill?.status === "done"
+                              ? `Selesai:${backfill.imported} transaksi dari ${BACKFILL_LABEL[backfill.days] ?? `${backfill.days} hari`} terakhir (${backfill.scanned} email diperiksa).`
                               : backfill?.status === "error"
                                 ? `Terhenti: ${backfill.error}. Coba mulai lagi, progres sebelumnya tidak hilang.`
                                 : "Sinkron rutin hanya 90 hari. Tarik riwayat lebih jauh; bisa makan beberapa menit."}
