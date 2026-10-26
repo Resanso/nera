@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
-import { useEmailSpending, useEmailSpendingStore, weeklyJump } from "../../lib/emailSpending";
+import { POCKET_CATEGORIES, useEmailSpending, useEmailSpendingStore, weeklyJump } from "../../lib/emailSpending";
 import { EmailPlanningConsent } from "../../components/consent/ConsentCard";
 import { useEmailBalanceSync } from "../../lib/emailBalance";
 import { emailApi } from "../../lib/emailImport";
@@ -14,7 +14,7 @@ import type { EmailCategory, EmailTransaction } from "../../lib/emailImport";
 import { useTransactionDetail } from "../../components/insights/TransactionSheet";
 import { GOAL_META, useOnboardingHydrated, useOnboardingStore } from "../../context/OnboardingStore";
 import { Modal, Button } from "@nera/ui";
-import { classifyPersonas } from "@nera/core";
+import { classifyPersonas, type BudgetPocket } from "@nera/core";
 import {
   FileText,
   Wallet,
@@ -148,6 +148,11 @@ export default function HomePage() {
   const monthSpent = spendingPockets.reduce((sum, p) => sum + p.spentThisMonth + emailSpending.spentForPocket(p.icon), 0);
   const monthBudget = spendingPockets.reduce((sum, p) => sum + p.targetAmount, 0);
   const monthPct = monthBudget > 0 ? Math.round((monthSpent / monthBudget) * 100) : 0;
+  // receipts in categories no pos covers: in "Pengeluaran", not in the budget
+  const coveredIcons = new Set(spendingPockets.map((p) => p.icon));
+  const outsideBudget = emailSpending.byCategory
+    .filter((c) => !Object.entries(POCKET_CATEGORIES).some(([icon, cats]) => coveredIcons.has(icon as BudgetPocket["icon"]) && cats?.includes(c.category)))
+    .reduce((sum, c) => sum + c.amount, 0);
   const today = new Date();
   const daysLeftInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate() + 1;
 
@@ -339,12 +344,17 @@ export default function HomePage() {
               </>
             ) : (
               <>
-                <p className="text-sm font-medium text-[#766D61]">Terpakai bulan ini</p>
+                <p className="text-sm font-medium text-[#766D61]">Terpakai dari budget</p>
                 <h2 className="text-[28px] font-bold text-[#2F240E] tracking-tight leading-tight mt-1 tabular-nums">
                   {formatRupiah(monthSpent)}
                 </h2>
                 <p className="text-xs text-[#817B70] mt-1">
                   dari budget <span className="font-semibold tabular-nums">{formatRupiah(monthBudget)}</span>
+                  {outsideBudget > 0 && (
+                    <span className="block">
+                      + <span className="tabular-nums">{formatRupiah(outsideBudget)}</span> di luar budget
+                    </span>
+                  )}
                 </p>
               </>
             )}
@@ -507,7 +517,7 @@ export default function HomePage() {
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-[#2F240E] leading-tight">Pengeluaran</p>
                         <span className="text-[10px] text-[#76520E]/80 block mt-0.5">
-                          {hasEmailData ? `${emailSpending.spends.filter((t) => t.occurredAt.slice(0, 7) === today.toISOString().slice(0, 7)).length} struk email bulan ini` : "Belum ada struk email"}
+                          {hasEmailData ? `${emailSpending.monthCount} struk email bulan ini` : "Belum ada struk email"}
                         </span>
                       </div>
                     </div>

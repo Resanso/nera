@@ -46,6 +46,7 @@ export type MoneyInsights = {
 };
 
 const DAY = 24 * 60 * 60 * 1000;
+const WIB_MS = 7 * 60 * 60 * 1000;
 
 /**
  * Where did the money go: aggregates from imported email receipts. Defaults to the
@@ -58,8 +59,12 @@ export async function moneyInsights(
   now = new Date(),
 ): Promise<MoneyInsights> {
   const txs = (await emailStore.listTransactions(userId)).filter((t) => !t.dismissed);
-  const y = now.getFullYear();
-  const m = now.getMonth();
+  // months are counted in WIB, like the app shows them: the server runs in UTC, where
+  // 1 Oct 00:50 WIB still falls in September
+  const local = new Date(now.getTime() + WIB_MS);
+  const y = local.getUTCFullYear();
+  const m = local.getUTCMonth();
+  const wib = (yy: number, mm: number, d: number, h = 0, mi = 0, s = 0) => new Date(Date.UTC(yy, mm, d, h, mi, s) - WIB_MS);
   const custom = Boolean(opts.from && opts.to);
 
   let monthStart: Date, periodEnd: Date, lastStart: Date, lastCutoff: Date, daysElapsed: number, daysInMonth: number;
@@ -75,13 +80,13 @@ export async function moneyInsights(
     daysElapsed = Math.max(1, Math.ceil((Math.min(periodEnd.getTime(), now.getTime()) - start) / DAY));
     daysInMonth = Math.max(1, Math.round(len / DAY));
   } else {
-    monthStart = new Date(y, m, 1);
-    periodEnd = new Date(y, m + 1, 1);
-    lastStart = new Date(y, m - 1, 1);
-    daysElapsed = now.getDate();
-    daysInMonth = new Date(y, m + 1, 0).getDate();
+    monthStart = wib(y, m, 1);
+    periodEnd = wib(y, m + 1, 1);
+    lastStart = wib(y, m - 1, 1);
+    daysElapsed = local.getUTCDate();
+    daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
     // last month up to the same day of the month
-    lastCutoff = new Date(y, m - 1, Math.min(daysElapsed, new Date(y, m, 0).getDate()), 23, 59, 59);
+    lastCutoff = wib(y, m - 1, Math.min(daysElapsed, new Date(Date.UTC(y, m, 0)).getUTCDate()), 23, 59, 59);
   }
 
   const inMonth = (t: EmailTransaction) => {
@@ -123,7 +128,7 @@ export async function moneyInsights(
 
   const small = spend.filter((t) => t.amount < SMALL_PURCHASE);
   const stats = {
-    month: monthStart.toISOString().slice(0, 7),
+    month: custom ? monthStart.toISOString().slice(0, 7) : `${y}-${String(m + 1).padStart(2, "0")}`,
     label: custom ? (opts.label ?? "Periode ini") : "Bulan ini",
     isCurrentMonth: !custom,
     daysElapsed,

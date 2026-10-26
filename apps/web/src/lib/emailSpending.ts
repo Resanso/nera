@@ -70,6 +70,7 @@ export const POCKET_CATEGORIES: Partial<Record<BudgetPocketIcon, EmailCategory[]
 
 export type SpendingTotals = {
   total: number;
+  count: number;
   byCategory: { category: EmailCategory; label: string; amount: number }[];
   spentForPocket: (icon: BudgetPocketIcon) => number;
 };
@@ -79,6 +80,7 @@ function summarize(spends: EmailTransaction[]): SpendingTotals {
   for (const t of spends) totals.set(t.category, (totals.get(t.category) ?? 0) + t.amount);
   return {
     total: spends.reduce((sum, t) => sum + t.amount, 0),
+    count: spends.length,
     byCategory: [...totals]
       .map(([category, amount]) => ({ category, label: CATEGORY_LABEL[category], amount }))
       .sort((a, b) => b.amount - a.amount),
@@ -90,6 +92,8 @@ export type EmailSpending = {
   ready: boolean;
   aiConsent: boolean;
   monthTotal: number;
+  /** counted receipts this month, the ones monthTotal adds up */
+  monthCount: number;
   byCategory: SpendingTotals["byCategory"];
   /**
    * newest first, counted spending only, for transaction lists. Income from email is left
@@ -119,6 +123,7 @@ export function useEmailSpending(): EmailSpending {
     ready: status === "ready",
     aiConsent,
     monthTotal: month.total,
+    monthCount: month.count,
     byCategory: month.byCategory,
     recent: spends,
     spentForPocket: month.spentForPocket,
