@@ -3,9 +3,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
-import { POCKET_CATEGORIES, suggestPockets, useEmailSpending, type PocketSuggestion } from "../../../lib/emailSpending";
+import { POCKET_CATEGORIES, suggestPockets, useEmailSpending, useEmailSpendingStore, type PocketSuggestion } from "../../../lib/emailSpending";
+import { CATEGORY_LABEL, emailApi, type EmailTransaction } from "../../../lib/emailImport";
+import { PocketHistory } from "../../../components/insights/PocketHistory";
+import { TransactionSheet, type TransactionEdit } from "../../../components/insights/TransactionSheet";
 import { PeriodFilter, periodRange } from "../../../components/insights/PeriodFilter";
-import { presetPeriod, type Period } from "../../../lib/period";
+import { inPeriod, presetPeriod, type Period } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
@@ -30,6 +33,7 @@ import {
   Home,
   ArrowDownToLine,
   ArrowUpFromLine,
+  History,
   ReceiptText,
   Target,
   Trash2,
@@ -203,7 +207,7 @@ const MAIN_TONE: BudgetPocketTone = "mint";
 
 const QUICK_AMOUNTS = [25000, 50000, 100000, 250000];
 
-type DetailMode = "topup" | "spend" | "withdraw";
+type DetailMode = "history" | "topup" | "spend" | "withdraw";
 
 type FilterId = "all" | "mine" | "investment";
 
@@ -261,6 +265,7 @@ export default function PocketsPage() {
     spendFromBudgetPocket,
     deleteBudgetPocket,
     setBudgetPocketTarget,
+    pocketActivity,
   } = useFinancialStore();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -326,6 +331,32 @@ export default function PocketsPage() {
   const uncoveredTotal = uncovered.reduce((sum, c) => sum + c.amount, 0);
 
   const spendingPockets = budgetPockets.filter((p) => p.kind === "spending").map(forPeriod);
+
+  // pocket history: this month's receipts in the pocket's categories, plus its own activity
+  const thisMonth = presetPeriod("this_month");
+  const historyFor = (p: BudgetPocket) => ({
+    emailTxs:
+      p.kind === "spending"
+        ? emailSpending.spends.filter((t) => POCKET_CATEGORIES[p.icon]?.includes(t.category) && inPeriod(t.occurredAt, thisMonth))
+        : [],
+    activity: pocketActivity.filter((a) => a.pocketId === p.id && inPeriod(a.at, thisMonth)),
+  });
+  const allEmailTxs = useEmailSpendingStore((s) => s.transactions);
+  const [editingTx, setEditingTx] = useState<EmailTransaction | null>(null);
+  const saveTxEdit = async (t: EmailTransaction, edit: TransactionEdit) => {
+    setEditingTx(null);
+    try {
+      const r = await emailApi.editTransaction(t.id, edit);
+      await useEmailSpendingStore.getState().load(true);
+      if ("dismissed" in edit) triggerToast(`${t.merchant} disembunyikan`);
+      else
+        triggerToast(
+          `${r.alsoChanged > 0 ? `${r.alsoChanged + 1} transaksi ` : ""}${t.merchant} dipindah ke ${CATEGORY_LABEL[edit.category]}`,
+        );
+    } catch (e) {
+      triggerToast((e as Error).message);
+    }
+  };
 
   // pocket suggestions from email history; "Nanti" hides one on this device only
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -590,6 +621,58 @@ export default function PocketsPage() {
           </div>
         </section>
 
+        {/* BUDGET SUMMARY */}
+        {spendingPockets.length > 0 && (
+          <section className="rounded-[20px] bg-white px-4 py-3.5">
+            <div className="mb-3 flex items-center justify-between gap-2 border-b border-[#F1EEE8] pb-3">
+              <p className="min-w-0 truncate text-[11px] text-[#736B60]">{periodRange(period)}</p>
+              <PeriodFilter value={period} onChange={setPeriod} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FFF0BD] text-[#6D4C00]">
+                  <Target size={16} />
+                </div>
+                <div>
+                  <p className="text-[12px] font-semibold text-[#2F240E]">
+                    {isThisMonth ? "Budget bulan ini" : `Budget ${period.key === "custom" ? "rentang ini" : period.label.toLowerCase()}`}
+                  </p>
+                  <p className="text-[10px] text-[#736B60]">
+                    {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
+                    {isThisMonth && spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
+                  </p>
+                  {!isThisMonth && (
+                    <p className="text-[10px] text-[#736B60]">
+                      Hanya dari email; kantong BNI baru punya data bulan ini. Budget disesuaikan ke {Math.round(periodDays)} hari.
+                    </p>
+                  )}
+                  {uncoveredTotal > 0 && (
+                    <p className="text-[10px] text-[#736B60]">
+                      {formatRupiah(uncoveredTotal)} dari email belum masuk kantong ({uncovered.map((c) => c.label).join(", ")})
+                    </p>
+                  )}
+                </div>
+              </div>
+              <span className="text-[12px] font-bold tabular-nums text-[#2F240E]">
+                {totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0}%
+              </span>
+            </div>
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F1F2F4]">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width] duration-500",
+                  totals.spent >= totals.budget ? "bg-[#C43737]" : "bg-[#FFB900]"
+                )}
+                style={{
+                  width: `${
+                    totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </section>
+        )}
+
         {/* POCKET GRID */}
         <section>
           <div className="grid grid-cols-2 gap-3">
@@ -643,7 +726,7 @@ export default function PocketsPage() {
                     key={pocket.id}
                     type="button"
                     onClick={() =>
-                      openDetail(pocket.id, pocket.kind === "spending" && pocket.balance > 0 ? "spend" : "topup")
+                      openDetail(pocket.id, "history")
                     }
                     className={cn(
                       "flex min-h-[186px] flex-col rounded-[24px] p-4 text-left transition-transform duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]",
@@ -789,57 +872,6 @@ export default function PocketsPage() {
           </section>
         )}
 
-        {/* BUDGET SUMMARY */}
-        {spendingPockets.length > 0 && (
-          <section className="rounded-[20px] bg-white px-4 py-3.5">
-            <div className="mb-3 flex items-center justify-between gap-2 border-b border-[#F1EEE8] pb-3">
-              <p className="min-w-0 truncate text-[11px] text-[#736B60]">{periodRange(period)}</p>
-              <PeriodFilter value={period} onChange={setPeriod} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FFF0BD] text-[#6D4C00]">
-                  <Target size={16} />
-                </div>
-                <div>
-                  <p className="text-[12px] font-semibold text-[#2F240E]">
-                    {isThisMonth ? "Budget bulan ini" : `Budget ${period.key === "custom" ? "rentang ini" : period.label.toLowerCase()}`}
-                  </p>
-                  <p className="text-[10px] text-[#736B60]">
-                    {formatRupiah(totals.spent)} dari {formatRupiah(totals.budget)}
-                    {isThisMonth && spentFromEmail > 0 && ` · termasuk ${formatRupiah(spentFromEmail)} dari email`}
-                  </p>
-                  {!isThisMonth && (
-                    <p className="text-[10px] text-[#736B60]">
-                      Hanya dari email; kantong BNI baru punya data bulan ini. Budget disesuaikan ke {Math.round(periodDays)} hari.
-                    </p>
-                  )}
-                  {uncoveredTotal > 0 && (
-                    <p className="text-[10px] text-[#736B60]">
-                      {formatRupiah(uncoveredTotal)} dari email belum masuk kantong ({uncovered.map((c) => c.label).join(", ")})
-                    </p>
-                  )}
-                </div>
-              </div>
-              <span className="text-[12px] font-bold tabular-nums text-[#2F240E]">
-                {totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0}%
-              </span>
-            </div>
-            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F1F2F4]">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-[width] duration-500",
-                  totals.spent >= totals.budget ? "bg-[#C43737]" : "bg-[#FFB900]"
-                )}
-                style={{
-                  width: `${
-                    totals.budget > 0 ? Math.min(100, Math.round((totals.spent / totals.budget) * 100)) : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </section>
-        )}
       </main>
 
       {/* TOAST */}
@@ -1051,6 +1083,7 @@ export default function PocketsPage() {
             const status = isSpending ? spendingStatus(pct) : null;
             const remaining = Math.max(0, selectedPocket.targetAmount - selectedPocket.balance);
             const modes: { id: DetailMode; label: string; icon: React.ElementType }[] = [
+              { id: "history", label: "Riwayat", icon: History },
               { id: "topup", label: "Isi", icon: ArrowDownToLine },
               ...(isSpending ? [{ id: "spend" as const, label: "Pakai", icon: ReceiptText }] : []),
               { id: "withdraw", label: "Tarik", icon: ArrowUpFromLine },
@@ -1128,6 +1161,13 @@ export default function PocketsPage() {
                   })}
                 </div>
 
+                {detailMode === "history" ? (
+                  <PocketHistory
+                    {...historyFor(selectedPocket)}
+                    spentThisMonth={isSpending ? selectedPocket.spentThisMonth : 0}
+                    onEditEmail={setEditingTx}
+                  />
+                ) : (
                 <form onSubmit={handleDetailSubmit} className="space-y-3">
                   {detailMode === "spend" && (
                     <div>
@@ -1205,6 +1245,7 @@ export default function PocketsPage() {
                     {detailMode === "withdraw" && "Tarik ke Kantong Utama"}
                   </Button>
                 </form>
+                )}
 
                 <div className="border-t border-[#E9E5DD] pt-3">
                   {isConfirmingDelete ? (
@@ -1238,6 +1279,10 @@ export default function PocketsPage() {
             );
           })()}
       </Modal>
+
+      {editingTx && (
+        <TransactionSheet tx={editingTx} all={allEmailTxs} onClose={() => setEditingTx(null)} onSave={(edit) => saveTxEdit(editingTx, edit)} />
+      )}
 
       {/* MODAL: BUAT KANTONG */}
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Buat Kantong Baru">

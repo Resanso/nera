@@ -23,6 +23,26 @@ import {
   detectPredatoryTransfers,
 } from "@nera/core";
 
+/** What happened inside one budget pocket, for its history. */
+export type PocketActivity = {
+  id: string;
+  pocketId: string;
+  kind: "topup" | "spend" | "withdraw";
+  amount: number;
+  /** what the money was spent on ("Makan siang kantin") */
+  title?: string;
+  at: string;
+};
+
+const activity = (pocketId: string, kind: PocketActivity["kind"], amount: number, title?: string): PocketActivity => ({
+  id: `pa_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+  pocketId,
+  kind,
+  amount,
+  ...(title && { title }),
+  at: new Date().toISOString(),
+});
+
 export interface FinancialStoreState extends FinancialStateData {
   transactions: Transaction[];
   nudges: SmartNudge[];
@@ -35,6 +55,8 @@ export interface FinancialStoreState extends FinancialStateData {
   isParentPaired: boolean;
   emergencyTopUpRequests: EmergencyTopUpRequest[];
   budgetPockets: BudgetPocket[];
+  /** newest first; kept on this device like the pockets themselves */
+  pocketActivity: PocketActivity[];
 
   // Actions
   recalculateState: () => void;
@@ -213,6 +235,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
       isSweepModalOpen: false,
       isParentPaired: false,
       emergencyTopUpRequests: INITIAL_EMERGENCY_TOPUP_REQUESTS,
+      pocketActivity: [],
       budgetPockets: INITIAL_BUDGET_POCKETS,
 
       recalculateState: () => {
@@ -483,6 +506,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
         set((s) => ({
           budgetPockets: [...s.budgetPockets, newPocket],
           dailyPocket: s.dailyPocket - amount,
+          pocketActivity: amount > 0 ? [activity(newPocket.id, "topup", amount), ...s.pocketActivity] : s.pocketActivity,
         }));
 
         if (amount > 0) get().recalculateState();
@@ -498,6 +522,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
             p.id === pocketId ? { ...p, balance: p.balance + amount } : p
           ),
           dailyPocket: s.dailyPocket - amount,
+          pocketActivity: [activity(pocketId, "topup", amount), ...s.pocketActivity],
         });
 
         get().recalculateState();
@@ -513,6 +538,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
             p.id === pocketId ? { ...p, balance: p.balance - amount } : p
           ),
           dailyPocket: s.dailyPocket + amount,
+          pocketActivity: [activity(pocketId, "withdraw", amount), ...s.pocketActivity],
         });
 
         get().recalculateState();
@@ -541,6 +567,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
             },
             ...s.transactions,
           ],
+          pocketActivity: [activity(pocketId, "spend", amount, title), ...s.pocketActivity],
         });
       },
 
@@ -551,6 +578,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
         set((s) => ({
           budgetPockets: s.budgetPockets.filter((p) => p.id !== pocketId),
           dailyPocket: s.dailyPocket + pocket.balance,
+          pocketActivity: s.pocketActivity.filter((a) => a.pocketId !== pocketId),
         }));
 
         if (pocket.balance > 0) get().recalculateState();
@@ -577,6 +605,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           isParentPaired: false,
           emergencyTopUpRequests: INITIAL_EMERGENCY_TOPUP_REQUESTS,
           budgetPockets: INITIAL_BUDGET_POCKETS,
+          pocketActivity: [],
         });
       },
     }),

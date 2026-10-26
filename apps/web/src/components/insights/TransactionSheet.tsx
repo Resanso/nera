@@ -73,7 +73,7 @@ export function TransactionSheet({
   };
 
   return createPortal(
-    <div className="absolute inset-0 z-50" role="dialog" aria-modal="true" aria-label="Ubah transaksi">
+    <div className="absolute inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Ubah transaksi">
       <button type="button" aria-label="Tutup" onClick={onClose} className="animate-overlay-in absolute inset-0 h-full w-full bg-[#2F240E]/45 backdrop-blur-[2px]" />
       <div className="animate-sheet-in absolute inset-x-0 bottom-0 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <div className="flex max-h-[85dvh] flex-col rounded-[26px] bg-white p-3 shadow-[0_-12px_40px_rgba(47,36,14,0.28)]">
