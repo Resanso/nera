@@ -3,7 +3,7 @@ import { hash, ingestEmail, parseRaw, summarize } from "./ingest";
 import { reconcile } from "./reconcile";
 import { ConsentRequired, hasConsent, requireConsent } from "./consent";
 import { gmailSenderQuery } from "./senders";
-import { emailStore, type GmailConnection } from "./store";
+import { emailStore, type GmailBackfill, type GmailConnection } from "./store";
 import type { EmailTransaction, IngestResult, ParsedEmail } from "./types";
 
 const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
@@ -348,42 +348,43 @@ export async function requestBackfill(userId: string, days: number) {
   }
 }
 
-/** Process requested backfills, one batch of up to 200 emails at a time, saving progress after each. */
+/**
+ * Process requested backfills in turns: one batch of up to 200 emails per mailbox per round,
+ * saving progress after each, so a 10-year history doesn't hold up everyone queued behind it.
+ */
 export async function runBackfills() {
-  for (const conn of await emailStore.listGmail()) {
-    const b = conn.backfill;
-    if (!b || b.status === "done" || b.status === "error") continue;
-    let progress = { ...b, status: "running" as const, updatedAt: new Date().toISOString() };
-    await emailStore.setBackfill(conn.userId, conn.account, progress);
-    try {
-      for (;;) {
-        // live progress for the UI, at most every 3s
-        let lastWrite = 0;
-        let pendingWrite: Promise<unknown> = Promise.resolve();
-        const base = { scanned: progress.scanned, imported: progress.imported };
-        const onProgress = (done: SyncSummary) => {
-          if (Date.now() - lastWrite < 3000) return;
-          lastWrite = Date.now();
-          pendingWrite = emailStore
-            .setBackfill(conn.userId, conn.account, { ...progress, scanned: base.scanned + done.scanned, imported: base.imported + done.imported, updatedAt: new Date().toISOString() })
-            .catch(() => undefined);
-        };
-        const r = await syncGmail(conn.userId, { days: b.days, max: 200, account: conn.account, onProgress }).finally(() => pendingWrite);
-        // a late progress write must not land after the final status below
-        await pendingWrite;
-        progress = { ...progress, scanned: base.scanned + r.scanned, imported: base.imported + r.imported, updatedAt: new Date().toISOString() };
-        // a disconnect or a new request while running ends this run
-        const latest = (await emailStore.getGmail(conn.userId, conn.account))?.backfill;
-        if (!latest || latest.days !== b.days) return;
-        if (r.scanned === 0) {
-          await emailStore.setBackfill(conn.userId, conn.account, { ...progress, status: "done" });
-          break;
-        }
-        await emailStore.setBackfill(conn.userId, conn.account, progress);
-      }
-    } catch (e) {
-      await emailStore.setBackfill(conn.userId, conn.account, { ...progress, status: "error", error: (e as Error).message, updatedAt: new Date().toISOString() });
-    }
+  for (;;) {
+    const active = (await emailStore.listGmail()).filter((c) => c.backfill?.status === "pending" || c.backfill?.status === "running");
+    if (!active.length) return;
+    for (const conn of active) await backfillBatch(conn, conn.backfill!);
+  }
+}
+
+async function backfillBatch(conn: GmailConnection, b: GmailBackfill) {
+  let progress = { ...b, status: "running" as const, updatedAt: new Date().toISOString() };
+  await emailStore.setBackfill(conn.userId, conn.account, progress);
+  try {
+    // live progress for the UI, at most every 3s
+    let lastWrite = 0;
+    let pendingWrite: Promise<unknown> = Promise.resolve();
+    const base = { scanned: progress.scanned, imported: progress.imported };
+    const onProgress = (done: SyncSummary) => {
+      if (Date.now() - lastWrite < 3000) return;
+      lastWrite = Date.now();
+      pendingWrite = emailStore
+        .setBackfill(conn.userId, conn.account, { ...progress, scanned: base.scanned + done.scanned, imported: base.imported + done.imported, updatedAt: new Date().toISOString() })
+        .catch(() => undefined);
+    };
+    const r = await syncGmail(conn.userId, { days: b.days, max: 200, account: conn.account, onProgress }).finally(() => pendingWrite);
+    // a late progress write must not land after the final status below
+    await pendingWrite;
+    progress = { ...progress, scanned: base.scanned + r.scanned, imported: base.imported + r.imported, updatedAt: new Date().toISOString() };
+    // a disconnect or a new request while running ends this run
+    const latest = (await emailStore.getGmail(conn.userId, conn.account))?.backfill;
+    if (!latest || latest.days !== b.days) return;
+    await emailStore.setBackfill(conn.userId, conn.account, r.scanned === 0 ? { ...progress, status: "done" } : progress);
+  } catch (e) {
+    await emailStore.setBackfill(conn.userId, conn.account, { ...progress, status: "error", error: (e as Error).message, updatedAt: new Date().toISOString() });
   }
 }
 
