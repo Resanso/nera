@@ -15,7 +15,7 @@ const OCCASIONS: { re: RegExp; name: string; icon: BudgetPocketIcon }[] = [
   { re: /\b(nonton|bioskop|film)\b/i, name: "Nonton", icon: "fun" },
   { re: /\b(karaoke|bowling|main|game|timezone)\b/i, name: "Main bareng", icon: "fun" },
   { re: /\b(kado|hadiah|ulang tahun|ultah|birthday|wisuda)\b/i, name: "Kado", icon: "gift" },
-  { re: /\b(liburan|trip|staycation|healing|mudik|pulang kampung|tiket)\b/i, name: "Trip", icon: "travel" },
+  { re: /\b(liburan|trip|staycation|healing|mudik|pulang kampung|tiket|pantai|camping|hiking|piknik)\b/i, name: "Trip", icon: "travel" },
   { re: /\b(baju|sepatu|outfit|belanja)\b/i, name: "Belanja", icon: "shopping" },
   { re: /\b(seminar|workshop|kursus|buku)\b/i, name: "Kuliah", icon: "education" },
 ];
@@ -49,7 +49,8 @@ export function extractDate(text: string, today: string): string | null {
   if (/\b(hari ini|nanti malam|malam ini|sekarang)\b/.test(t)) return today;
   if (/\blusa\b/.test(t)) return addDays(today, 2);
   if (/\bbesok\b/.test(t)) return addDays(today, 1);
-  if (/\bminggu depan\b/.test(t) && !/\b(senin|selasa|rabu|kamis|jumat|sabtu)\b/.test(t)) return addDays(today, 7);
+  // "minggu depan" without a day: the Saturday of next week, when outings usually happen
+  if (/\bminggu depan\b/.test(t) && !/\b(senin|selasa|rabu|kamis|jumat|sabtu)\b/.test(t)) return addDays(today, ((6 - weekday + 7) % 7) + 7);
   if (/\bbulan depan\b/.test(t)) return addDays(today, 30);
 
   const dm = t.match(/\b(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2}|[a-z]{3,})/);

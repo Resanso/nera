@@ -30,7 +30,9 @@ Balas HANYA dengan JSON:
 
 Aturan:
 - reply: 1-2 kalimat, bahasa Indonesia santai, hangat, tanpa menghakimi. Boleh satu tips singkat yang relevan (misal AYCE sering belum termasuk minuman atau pajak). Jangan sarankan pinjaman atau paylater.
-- Kalau nominal atau tanggal belum jelas, draft = null dan reply berisi SATU pertanyaan untuk melengkapinya.
+- Begitu nominal DAN waktu acara diketahui, SELALU isi draft, walau masih ada hal yang bisa ditanyakan. Pertanyaan tambahan (misal "sudah termasuk transport?") boleh ditulis di reply, tapi draft tetap diisi.
+- Waktu yang samar tetap diisi dengan tebakan wajar dan sebut tanggalnya di reply supaya user bisa mengoreksi: "minggu depan" tanpa hari = Sabtu minggu depan, "akhir bulan" = tanggal terakhir bulan ini, "bulan depan" = tanggal 1 bulan depan.
+- draft = null HANYA kalau nominal atau waktunya sama sekali belum disebut; reply berisi SATU pertanyaan untuk melengkapinya.
 - amount dalam rupiah penuh (200rb = 200000). Pakai angka dari user; kalau user minta ditambah cadangan, masukkan ke amount.
 - dueDate: hitung dari hari ini; "Sabtu" = Sabtu terdekat yang belum lewat.
 - name: maksimal 18 karakter, untuk kartu kantong (misal "AYCE Sabtu").
@@ -134,8 +136,8 @@ export async function POST(req: NextRequest) {
 
   // the model's reading wins; the rules fill what it left out
   const merged: Partial<ProfileDraft> = { ...rules, ...clean(ai?.draft, today) };
-  // a model that answered with a question means something is still unclear
-  const complete = merged.amount && merged.dueDate && !(ai && ai.draft === null);
+  // an amount and a day are enough for a proposal; a follow-up question can sit beside the card
+  const complete = merged.amount && merged.dueDate;
   const draft: ProfileDraft | null = complete
     ? {
         amount: merged.amount!,
