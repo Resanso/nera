@@ -62,12 +62,12 @@ const CATEGORY_RULES: [EmailCategory, RegExp][] = [
   ["shopping", /pesanan|belanja|checkout|keranjang/i],
 ];
 
-const INCOME = /dana masuk|penerimaan dana|kamu menerima|anda menerima|uang masuk|transfer masuk|refund|pengembalian dana|cashback (?:diterima|masuk)/i;
+const INCOME = /dana masuk|penerimaan dana|kamu menerima|anda menerima|uang masuk|transfer masuk|transaksi masuk|refund|pengembalian dana|cashback (?:diterima|masuk)/i;
 /**
  * In the body only phrases that state money arrived count. Store footers mention
  * "Pengembalian Barang/Dana" and refund policies on every order email (Shopee).
  */
-const INCOME_BODY = /dana masuk|uang masuk|transfer masuk|dana (?:telah|sudah) (?:dikembalikan|masuk)/i;
+const INCOME_BODY = /dana masuk|uang masuk|transfer masuk|transaksi masuk ke rekening|dana (?:telah|sudah) (?:dikembalikan|masuk)/i;
 /** Follow-ups to an order that was already paid (shipping, "did you receive it?", returns, refund notices); never a new payment. */
 export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai|sudahkah kamu menerima|sudah menerima pesanan|permintaan pengembalian|informasi terkait refund/i;
 /** Failed or cancelled payments: the money never moved. */
