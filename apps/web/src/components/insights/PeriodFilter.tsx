@@ -64,8 +64,8 @@ function PeriodSheet({ value, onChange, onClose }: { value: Period; onChange: (p
   return createPortal(
     <div className="absolute inset-0 z-50" role="dialog" aria-modal="true" aria-label="Pilih periode">
       <button type="button" aria-label="Tutup" onClick={onClose} className="animate-overlay-in absolute inset-0 h-full w-full bg-[#2F240E]/45 backdrop-blur-[2px]" />
-      <div className="animate-sheet-in absolute inset-x-0 bottom-0 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-        <div className="rounded-[26px] bg-white p-3 shadow-[0_-12px_40px_rgba(47,36,14,0.28)]">
+      <div className="animate-sheet-in pointer-events-none absolute inset-x-0 bottom-0 top-12 flex flex-col justify-end px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto max-h-full overflow-y-auto rounded-[26px] bg-white p-3 shadow-[0_-12px_40px_rgba(47,36,14,0.28)]">
           <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[#D8D3C9]" />
           <div className="flex items-center gap-1 px-2 pb-2">
             {view === "range" && (

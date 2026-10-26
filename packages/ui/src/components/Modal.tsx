@@ -49,10 +49,10 @@ export const Modal: React.FC<ModalProps> = ({
           onClick={onClose}
           className="animate-overlay-in absolute inset-0 h-full w-full bg-[#2F240E]/45 backdrop-blur-[2px]"
         />
-        <div className="animate-sheet-in absolute inset-x-0 bottom-0">
+        <div className="animate-sheet-in pointer-events-none absolute inset-x-0 bottom-0 top-12 flex flex-col justify-end">
           <div
             className={cn(
-              "flex max-h-[90dvh] flex-col rounded-t-[28px] bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-12px_40px_rgba(47,36,14,0.28)]",
+              "pointer-events-auto flex max-h-full flex-col rounded-t-[28px] bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-12px_40px_rgba(47,36,14,0.28)]",
               className
             )}
           >
