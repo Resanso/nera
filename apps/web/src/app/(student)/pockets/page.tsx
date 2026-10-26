@@ -543,7 +543,7 @@ export default function PocketsPage() {
     <div className="flex flex-col min-h-full bg-[#F1F2F4]">
       <TopAppBar title="Kantong" showBack />
 
-      <main className="flex-1 px-4 pb-8 space-y-5">
+      <main className="flex-1 space-y-5 px-4 pb-8 pt-3">
         {/* SEARCH */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
