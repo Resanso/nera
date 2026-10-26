@@ -90,7 +90,8 @@ export function planProfile(
   const shortfall = Math.max(0, rest - covered);
 
   const dailyAllowance = money.dailyBudgetSafe > 0 ? money.dailyBudgetSafe : Math.round(money.monthlyAllowance / 30);
-  const share = dailyAllowance > 0 ? (daysLeft === 0 ? fromMainNow / (dailyAllowance * 7) : perDay / dailyAllowance) : 1;
+  // without an income or a balance there is nothing to weigh it against
+  const share = dailyAllowance > 0 ? (daysLeft === 0 ? fromMainNow / (dailyAllowance * 7) : perDay / dailyAllowance) : 0.3;
   const verdict = shortfall > 0 || share > 0.4 ? "berat" : share > 0.2 ? "pas" : "ringan";
 
   return { draft, tone: TONE_FOR[draft.icon] ?? "pink", daysLeft, fromPockets, fromMainNow, perDay, dailyAllowance, shortfall, verdict };

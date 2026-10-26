@@ -10,6 +10,7 @@ import { emailRouter } from "./routes/email";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { pushRouter } from "./routes/push";
+import { walletRouter } from "./routes/wallet";
 import { startSmtpServer } from "./email/smtp";
 import { startGmailScheduler } from "./email/gmail";
 import { ConsentRequired } from "./email/consent";
@@ -29,6 +30,7 @@ app.use("/api/email", emailRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/push", pushRouter);
+app.use("/api/wallet", walletRouter);
 
 app.get("/health", (_req, res) => {
   res.json({

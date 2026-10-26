@@ -35,6 +35,50 @@ export type PocketActivity = {
   at: string;
 };
 
+/**
+ * A change to the user's own money, mirrored to the server when signed in (lib/wallet.ts).
+ * The server applies the same change and its reply replaces the local state, so the DB is
+ * the truth and this store is its cache. Signed out, the store works on its own (demo).
+ */
+export type WalletOp =
+  | { op: "setAssets"; total: number }
+  | { op: "setIncome"; monthlyIncome: number | null }
+  | { op: "confirmBalance" }
+  | { op: "createPocket"; id: string; name: string; kind: BudgetPocket["kind"]; icon: BudgetPocket["icon"]; tone: BudgetPocket["tone"]; target: number; initial: number }
+  | {
+      op: "createProfilePocket";
+      id: string;
+      name: string;
+      icon: BudgetPocket["icon"];
+      tone: BudgetPocket["tone"];
+      target: number;
+      profile: PocketProfile;
+      from: { pocketId: string; amount: number }[];
+      fromMain: number;
+    }
+  | { op: "move" | "withdraw"; pocketId: string; amount: number }
+  | { op: "spend"; pocketId: string; amount: number; title: string }
+  | { op: "delete"; pocketId: string }
+  | { op: "setTarget"; pocketId: string; target: number };
+
+/** What GET /api/wallet and every op reply with. */
+export type WalletView = {
+  main: number;
+  assetsSet: boolean;
+  monthlyIncome: number | null;
+  anchorAt: string | null;
+  emailDeduction: { amount: number; receipts: number; since: string } | null;
+  pockets: (Omit<BudgetPocket, "targetAmount" | "spentThisMonth"> & { target: number; spentThisMonth: number })[];
+  activity: PocketActivity[];
+};
+
+let remote: ((op: WalletOp) => void) | null = null;
+/** lib/wallet.ts plugs the server in here once the user is signed in. */
+export const setWalletRemote = (fn: ((op: WalletOp) => void) | null) => {
+  remote = fn;
+};
+const mirror = (op: WalletOp) => remote?.(op);
+
 const activity = (pocketId: string, kind: PocketActivity["kind"], amount: number, title?: string): PocketActivity => ({
   id: `pa_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
   pocketId,
@@ -62,8 +106,12 @@ export interface FinancialStoreState extends FinancialStateData {
   assetsSet: boolean;
   /** when the user last entered or confirmed their total; email receipts after it lower Kantong Utama */
   balanceAnchorAt: string | null;
-  /** receipts taken off Kantong Utama since the anchor: id → amount */
-  emailDeductions: Record<string, number>;
+  /** receipts the server took off Kantong Utama since the anchor (with "email_planning") */
+  emailDeduction: WalletView["emailDeduction"];
+  /** monthly income the user entered; null until then */
+  monthlyIncome: number | null;
+  /** the wallet comes from the server (signed in); false: this device only */
+  walletSynced: boolean;
 
   // Actions
   recalculateState: () => void;
@@ -101,13 +149,11 @@ export interface FinancialStoreState extends FinancialStateData {
   setBudgetPocketTarget: (pocketId: string, targetAmount: number) => void;
   /** Kantong Utama becomes the total minus what sits in pockets; false when the total is smaller */
   setTotalAssets: (total: number) => boolean;
-  /**
-   * Keeps Kantong Utama in step with counted email spending since the anchor: new receipts
-   * are taken off, receipts since hidden or recategorized give their amount back.
-   */
-  applyEmailSpending: (spends: { id: string; amount: number; occurredAt: string }[]) => void;
   /** the user says the balance Nera shows is right: it becomes the new anchor */
   confirmBalance: () => void;
+  setMonthlyIncome: (amount: number | null) => void;
+  /** replaces the user's money with the server's (signed in) */
+  hydrateWallet: (v: WalletView) => void;
 }
 
 const POCKET_TX_CATEGORY: Record<BudgetPocket["icon"], Transaction["category"]> = {
@@ -260,7 +306,9 @@ export const useFinancialStore = create<FinancialStoreState>()(
       pocketActivity: [],
       assetsSet: false,
       balanceAnchorAt: null,
-      emailDeductions: {},
+      emailDeduction: null,
+      monthlyIncome: null,
+      walletSynced: false,
       budgetPockets: INITIAL_BUDGET_POCKETS,
 
       recalculateState: () => {
@@ -534,6 +582,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           pocketActivity: amount > 0 ? [activity(newPocket.id, "topup", amount), ...s.pocketActivity] : s.pocketActivity,
         }));
 
+        mirror({ op: "createPocket", id: newPocket.id, name: pocket.name, kind: pocket.kind, icon: pocket.icon, tone: pocket.tone, target: pocket.targetAmount, initial: amount });
         if (amount > 0) get().recalculateState();
       },
 
@@ -563,6 +612,17 @@ export const useFinancialStore = create<FinancialStoreState>()(
           ],
         });
 
+        mirror({
+          op: "createProfilePocket",
+          id,
+          name: pocket.name,
+          icon: pocket.icon,
+          tone: pocket.tone,
+          target: pocket.targetAmount,
+          profile: pocket.profile,
+          from: moves,
+          fromMain: main,
+        });
         if (main > 0) get().recalculateState();
         return id;
       },
@@ -579,6 +639,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           dailyPocket: s.dailyPocket - amount,
           pocketActivity: [activity(pocketId, "topup", amount), ...s.pocketActivity],
         });
+        mirror({ op: "move", pocketId, amount });
 
         get().recalculateState();
       },
@@ -595,6 +656,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           dailyPocket: s.dailyPocket + amount,
           pocketActivity: [activity(pocketId, "withdraw", amount), ...s.pocketActivity],
         });
+        mirror({ op: "withdraw", pocketId, amount });
 
         get().recalculateState();
       },
@@ -624,6 +686,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           ],
           pocketActivity: [activity(pocketId, "spend", amount, title), ...s.pocketActivity],
         });
+        mirror({ op: "spend", pocketId, amount, title });
       },
 
       deleteBudgetPocket: (pocketId: string) => {
@@ -635,50 +698,52 @@ export const useFinancialStore = create<FinancialStoreState>()(
           dailyPocket: s.dailyPocket + pocket.balance,
           pocketActivity: s.pocketActivity.filter((a) => a.pocketId !== pocketId),
         }));
+        mirror({ op: "delete", pocketId });
 
         if (pocket.balance > 0) get().recalculateState();
       },
 
       setTotalAssets: (total: number) => {
         const s = get();
-        // the first time, the seeded pocket balances were demo money: start them at 0
         // the total already reflects everything spent so far: receipts count from here on
-        const anchor = { balanceAnchorAt: new Date().toISOString(), emailDeductions: {} };
-        if (!s.assetsSet) {
+        const anchor = { balanceAnchorAt: new Date().toISOString(), emailDeduction: null };
+        // signed out, the first time: the seeded pocket balances were demo money, start them at 0
+        // (signed in, the server's pockets are already the user's)
+        if (!s.assetsSet && !s.walletSynced) {
           set({ dailyPocket: total, budgetPockets: s.budgetPockets.map((p) => ({ ...p, balance: 0 })), assetsSet: true, ...anchor });
           get().recalculateState();
           return true;
         }
         const inPockets = s.budgetPockets.reduce((sum, p) => sum + p.balance, 0);
         if (total < inPockets) return false;
-        set({ dailyPocket: total - inPockets, ...anchor });
+        set({ dailyPocket: total - inPockets, assetsSet: true, ...anchor });
+        mirror({ op: "setAssets", total });
         get().recalculateState();
         return true;
       },
 
-      applyEmailSpending: (spends) => {
-        const s = get();
-        if (!s.assetsSet) return;
-        // set before balances followed receipts: count from now, never retroactively
-        if (!s.balanceAnchorAt) {
-          set({ balanceAnchorAt: new Date().toISOString(), emailDeductions: {} });
-          return;
-        }
-        const since = Date.parse(s.balanceAnchorAt);
-        const next: Record<string, number> = {};
-        for (const t of spends) if (Date.parse(t.occurredAt) > since) next[t.id] = t.amount;
-        const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
-        const prevIds = Object.keys(s.emailDeductions);
-        const delta = sum(s.emailDeductions) - sum(next);
-        if (delta === 0 && prevIds.length === Object.keys(next).length && prevIds.every((id) => id in next)) return;
-        // not clamped at 0: a negative Kantong Utama means money came in that Nera can't see,
-        // and the page asks the user for their balance
-        set({ dailyPocket: s.dailyPocket + delta, emailDeductions: next });
-        get().recalculateState();
+      confirmBalance: () => {
+        set({ balanceAnchorAt: new Date().toISOString(), emailDeduction: null });
+        mirror({ op: "confirmBalance" });
       },
 
-      confirmBalance: () => {
-        set({ balanceAnchorAt: new Date().toISOString(), emailDeductions: {} });
+      setMonthlyIncome: (amount) => {
+        set({ monthlyIncome: amount });
+        mirror({ op: "setIncome", monthlyIncome: amount });
+      },
+
+      hydrateWallet: (v) => {
+        set({
+          dailyPocket: v.main,
+          assetsSet: v.assetsSet,
+          monthlyIncome: v.monthlyIncome,
+          balanceAnchorAt: v.anchorAt,
+          emailDeduction: v.emailDeduction,
+          budgetPockets: v.pockets.map(({ target, ...p }) => ({ ...p, targetAmount: target })),
+          pocketActivity: v.activity,
+          walletSynced: true,
+        });
+        get().recalculateState();
       },
 
       // only the budget/target changes; no money moves
@@ -686,6 +751,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
         set((s) => ({
           budgetPockets: s.budgetPockets.map((p) => (p.id === pocketId ? { ...p, targetAmount: Math.max(0, targetAmount) } : p)),
         }));
+        mirror({ op: "setTarget", pocketId, target: Math.max(0, Math.round(targetAmount)) });
       },
 
       resetToDefault: () => {
@@ -705,7 +771,9 @@ export const useFinancialStore = create<FinancialStoreState>()(
           pocketActivity: [],
           assetsSet: false,
           balanceAnchorAt: null,
-          emailDeductions: {},
+          emailDeduction: null,
+          monthlyIncome: null,
+          walletSynced: false,
         });
       },
     }),

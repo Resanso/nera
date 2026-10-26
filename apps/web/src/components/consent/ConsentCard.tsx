@@ -135,7 +135,7 @@ export function EmailPlanningConsent({ consent, busy, onChange }: Props) {
       </div>
       <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] leading-relaxed text-[#736B60]">
         <li>Pengeluaran dari struk email ikut menghitung &quot;Uangmu bertahan&quot; dan rekomendasi budget harian di Beranda.</li>
-        <li>Saldo yang kamu isi di Aset Saya berkurang sendiri sesuai struk email, di perangkatmu. Seminggu sekali Nera memintamu mengecek.</li>
+        <li>Saldo yang kamu isi di Aset Saya berkurang sendiri sesuai struk email. Seminggu sekali Nera memintamu mengecek.</li>
         <li>Hanya kamu yang melihat hasilnya. Skor kondisi keuangan dan penawaran produk tetap memakai data BNI saja.</li>
         <li>Bisa dimatikan kapan saja; estimasi kembali memakai data BNI.</li>
       </ul>

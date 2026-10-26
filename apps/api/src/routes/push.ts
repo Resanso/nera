@@ -4,7 +4,7 @@ import { requireSession, sessionOf } from "../auth/session";
 import { pushStore } from "../push/store";
 import { isPushConfigured, sendToUser } from "../push/reminders";
 
-/** Web Push reminders: turning them on per browser, and the pocket fields they need. */
+/** Web Push reminders: turning them on per browser. The pockets they're about are in the wallet. */
 export const pushRouter: Router = Router();
 pushRouter.use(requireSession);
 
@@ -48,7 +48,7 @@ pushRouter.post("/unsubscribe", async (req, res) => {
   const userId = userIdOf(req);
   const mine = (await pushStore.subscriptionsFor(userId)).some((s) => s.endpoint === body.data.endpoint);
   if (mine) await pushStore.removeSubscription(body.data.endpoint);
-  // no browser left to remind: nothing about the user's pockets stays on the server
+  // no browser left to remind: drop the preferences too
   if (!(await pushStore.subscriptionsFor(userId)).length) await pushStore.deleteUser(userId);
   res.json({ success: true, data: null });
 });
@@ -59,26 +59,6 @@ pushRouter.patch("/prefs", async (req, res) => {
   const userId = userIdOf(req);
   await pushStore.setPrefs({ ...(await pushStore.getPrefs(userId)), showAmounts: body.data.showAmounts });
   res.json({ success: true, data: null });
-});
-
-const ReminderInput = z.object({
-  pocketId: z.string().min(1).max(80),
-  name: z.string().min(1).max(40),
-  occasion: z.string().min(1).max(80),
-  target: z.number().int().min(0).max(1_000_000_000),
-  saved: z.number().int().min(0).max(1_000_000_000),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  lastTopupAt: z.string().datetime().optional(),
-});
-
-pushRouter.put("/reminders", async (req, res) => {
-  const body = z.object({ reminders: z.array(ReminderInput).max(30) }).safeParse(req.body);
-  if (!body.success) return res.status(400).json({ success: false, error: "Data pengingat tidak valid" });
-  const userId = userIdOf(req);
-  // kept only while some browser has reminders on
-  if (!(await pushStore.subscriptionsFor(userId)).length) return res.json({ success: true, data: { stored: false } });
-  await pushStore.setReminders(userId, body.data.reminders);
-  res.json({ success: true, data: { stored: true } });
 });
 
 pushRouter.post("/test", async (req, res) => {

@@ -22,8 +22,8 @@ export function BudgetPlanSheet({
   onClose,
 }: {
   plan: BudgetPlan;
-  /** monthly income from BNI (allowance) */
-  income: number;
+  /** monthly income the user entered in Aset Saya; null until then */
+  income: number | null;
   onApply: (lines: ChosenLine[]) => void;
   onClose: () => void;
 }) {
@@ -41,7 +41,7 @@ export function BudgetPlanSheet({
 
   const chosen = rows.filter((r) => r.on && parseAmount(r.amount) > 0);
   const total = chosen.reduce((s, r) => s + parseAmount(r.amount), 0);
-  const left = income - total;
+  const left = income === null ? null : income - total;
   const month = new Intl.DateTimeFormat("id-ID", { month: "long" }).format(new Date());
   const span = plan.months >= 2.5 ? "3 bulan" : plan.months >= 1.5 ? "2 bulan" : "1 bulan";
   const update = (i: number, patch: Partial<(typeof rows)[number]>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -57,7 +57,13 @@ export function BudgetPlanSheet({
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#76520E]">Usulan dari {span} terakhir</p>
               <h2 className="mt-0.5 text-[20px] font-bold capitalize text-[#2F240E]">Budget {month}</h2>
               <p className="mt-0.5 text-[12px] text-[#736B60]">
-                Pemasukan <span className="font-semibold tabular-nums text-[#2F240E]">{rp(income)}</span>/bulan dari kiriman BNI
+                {income === null ? (
+                  "Isi pemasukan bulanan di Aset Saya supaya Nera bisa membandingkannya."
+                ) : (
+                  <>
+                    Pemasukan <span className="font-semibold tabular-nums text-[#2F240E]">{rp(income)}</span>/bulan
+                  </>
+                )}
               </p>
             </div>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
@@ -103,7 +109,7 @@ export function BudgetPlanSheet({
                       </label>
                     </div>
                     <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[#F1EEE8]">
-                      <div className="h-full rounded-full bg-[#B07A00]" style={{ width: `${income > 0 ? Math.min(100, (amount / income) * 100) : 0}%` }} />
+                      <div className="h-full rounded-full bg-[#B07A00]" style={{ width: `${income ? Math.min(100, (amount / income) * 100) : 0}%` }} />
                     </div>
                     <p className="mt-1 text-[11px] leading-snug text-[#736B60]">
                       rata-rata kamu <span className="tabular-nums">{rp(l.monthlyAvg)}</span>/bln
@@ -130,7 +136,7 @@ export function BudgetPlanSheet({
               <span className="text-[#736B60]">Total budget</span>
               <span className="font-bold tabular-nums text-[#2F240E]">{rp(total)}</span>
             </div>
-            {left >= 0 ? (
+            {left === null ? null : left >= 0 ? (
               <p className="text-[12px] text-[#277449]">
                 Sisa <span className="font-semibold tabular-nums">{rp(left)}</span> bisa masuk tabungan.
               </p>

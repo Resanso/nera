@@ -1,5 +1,19 @@
 import webpush from "web-push";
-import { pushStore, type Reminder } from "./store";
+import { pushStore } from "./store";
+import { walletStore } from "../wallet/store";
+
+/** A Rencana dadakan pocket as the reminders see it. */
+export type Reminder = {
+  pocketId: string;
+  name: string;
+  occasion: string;
+  target: number;
+  saved: number;
+  /** YYYY-MM-DD (WIB) */
+  dueDate: string;
+  toppedUpToday: boolean;
+  reachedNotified: boolean;
+};
 
 /**
  * Reminders for Rencana dadakan pockets, sent by Web Push from the worker:
@@ -69,18 +83,32 @@ export async function runReminders(now = new Date()) {
   for (const userId of await pushStore.subscribedUserIds()) {
     const prefs = await pushStore.getPrefs(userId);
     if (prefs.lastSentOn === today) continue;
-    const reminders = (await pushStore.remindersFor(userId)).filter((r) => daysBetween(today, r.dueDate) >= 0);
+    const wallet = await walletStore.get(userId);
+    if (!wallet) continue;
+    const topups = await walletStore.activitySince(userId, new Date(`${today}T00:00:00+07:00`).toISOString());
+    const reminders: Reminder[] = wallet.pockets
+      .filter((p) => p.profile && daysBetween(today, p.profile.dueDate) >= 0)
+      .map((p) => ({
+        pocketId: p.id,
+        name: p.name,
+        occasion: p.profile!.occasion,
+        target: p.target,
+        saved: p.balance,
+        dueDate: p.profile!.dueDate,
+        toppedUpToday: topups.some((a) => a.pocketId === p.id && a.kind === "topup"),
+        reachedNotified: p.reachedTarget !== undefined && p.reachedTarget >= p.target,
+      }))
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
     const reached = reminders.find((r) => r.saved >= r.target && !r.reachedNotified);
     let payload: PushPayload | null = null;
     if (reached) {
       payload = { title: `${reached.name} sudah terkumpul`, body: `Uang untuk ${reached.occasion} siap dipakai. Mantap!`, url: "/pockets", tag: `reached-${reached.pocketId}` };
     } else {
-      const toppedUpToday = (r: Reminder) => r.lastTopupAt && wib(new Date(r.lastTopupAt)).date === today;
       const due = (r: Reminder) => hour >= 19 || r.dueDate === today;
-      const short = reminders.filter((r) => r.saved < r.target && !toppedUpToday(r) && due(r));
+      const short = reminders.filter((r) => r.saved < r.target && !r.toppedUpToday && due(r));
       if (short.length) {
-        const r = short[0]; // remindersFor is ordered by due date: the most urgent first
+        const r = short[0]; // the most urgent first
         const n = nudgeFor(r, today, prefs.showAmounts);
         payload = { ...n, body: short.length > 1 ? `${n.body} (+${short.length - 1} rencana lain)` : n.body, url: "/pockets", tag: "nudge" };
       }
@@ -89,7 +117,7 @@ export async function runReminders(now = new Date()) {
 
     const sent = await sendToUser(userId, payload);
     if (sent > 0) {
-      if (reached) await pushStore.markReached(userId, reached.pocketId);
+      if (reached) await walletStore.markReached(userId, reached.pocketId, reached.target);
       await pushStore.setPrefs({ ...prefs, lastSentOn: today });
     }
   }

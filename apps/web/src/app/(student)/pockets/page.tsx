@@ -13,7 +13,8 @@ import { inPeriod, presetPeriod, type Period } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { PocketProfileSheet } from "../../../components/insights/PocketProfileSheet";
 import { dueLabel, perDayNow, type ProfilePlan } from "../../../lib/pocketProfile";
-import { usePushState, useReminderSync } from "../../../lib/push";
+import { usePushState } from "../../../lib/push";
+import { onWalletError } from "../../../lib/wallet";
 import { ReminderToggle } from "../../../components/insights/ReminderToggle";
 import { EmailPlanningConsent } from "../../../components/consent/ConsentCard";
 import { useEmailBalance, useEmailBalanceSync } from "../../../lib/emailBalance";
@@ -284,8 +285,8 @@ export default function PocketsPage() {
     deleteBudgetPocket,
     setBudgetPocketTarget,
     pocketActivity,
-    monthlyAllowance,
-    dailyBudgetSafe,
+    monthlyIncome,
+    setMonthlyIncome,
     assetsSet,
     setTotalAssets,
     confirmBalance,
@@ -302,6 +303,7 @@ export default function PocketsPage() {
     [assetsSet, storedPockets],
   );
   const [assetInput, setAssetInput] = useState("");
+  const [incomeInput, setIncomeInput] = useState("");
   const [assetError, setAssetError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -579,9 +581,10 @@ export default function PocketsPage() {
 
   const mainTone = POCKET_TONES[MAIN_TONE];
 
-  // reminders for Rencana dadakan pockets (Web Push); the server only gets what they need
+  // reminders for Rencana dadakan pockets (Web Push); the worker reads the pockets from the DB
   const push = usePushState();
-  useReminderSync(budgetPockets, pocketActivity, push.state === "on");
+  // an op the server turned down (a balance changed elsewhere): say why; the DB's numbers are back
+  useEffect(() => onWalletError((msg) => triggerToast(msg)), []);
 
   return (
     <div className="flex flex-col min-h-full bg-[#F1F2F4]">
@@ -798,7 +801,7 @@ export default function PocketsPage() {
                   <dl className="mt-3 space-y-1.5 border-t border-[#F1EEE8] pt-3 text-[12px]">
                     {isThisMonth && (
                       <div className="flex justify-between gap-2">
-                        <dt className="text-[#736B60]">Dari kantong BNI</dt>
+                        <dt className="text-[#736B60]">Dicatat di kantong</dt>
                         <dd className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.spent - spentFromEmail)}</dd>
                       </div>
                     )}
@@ -823,10 +826,10 @@ export default function PocketsPage() {
                       <dd className="font-semibold tabular-nums text-[#2F240E]">{formatRupiah(totals.budget)}</dd>
                     </div>
                   </dl>
-                  {isThisMonth && monthlyAllowance > 0 && totals.budget > monthlyAllowance && (
+                  {isThisMonth && monthlyIncome !== null && monthlyIncome > 0 && totals.budget > monthlyIncome && (
                     <p className="mt-3 rounded-xl bg-[#FBEDED] px-3 py-2 text-[12px] leading-relaxed text-[#A92F2F]">
-                      Budget melebihi pemasukan bulananmu ({formatRupiah(monthlyAllowance)}) sebesar{" "}
-                      <b className="tabular-nums">{formatRupiah(totals.budget - monthlyAllowance)}</b>. Turunkan target kantong yang
+                      Budget melebihi pemasukan bulananmu ({formatRupiah(monthlyIncome)}) sebesar{" "}
+                      <b className="tabular-nums">{formatRupiah(totals.budget - monthlyIncome)}</b>. Turunkan target kantong yang
                       paling besar.
                     </p>
                   )}
@@ -1112,6 +1115,41 @@ export default function PocketsPage() {
                 Kantong Utama jadi total ini dikurangi isi kantong ({formatRupiah(totals.inPockets)}).
               </p>
             )}
+          </form>
+          {/* the income budgets are measured against; the user's own figure, not BNI demo data */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const income = parseAmount(incomeInput);
+              setMonthlyIncome(income > 0 ? income : null);
+              setIncomeInput("");
+              triggerToast(income > 0 ? `Pemasukan bulanan diatur ke ${formatRupiah(income)}` : "Pemasukan bulanan dikosongkan");
+            }}
+            className="space-y-2"
+          >
+            <label htmlFor="monthly-income" className="block text-xs font-semibold text-[#2F240E]">
+              Pemasukan per bulan
+            </label>
+            <div className="flex gap-2">
+              <div className="flex flex-1 items-center rounded-xl border border-[#E9E5DD] px-3 focus-within:border-[#76520E]">
+                <span className="text-sm font-semibold text-[#736B60]">Rp</span>
+                <input
+                  id="monthly-income"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder={monthlyIncome ? monthlyIncome.toLocaleString("id-ID") : "Uang saku, gaji, kiriman"}
+                  value={incomeInput}
+                  onChange={(e) => setIncomeInput(formatAmountInput(e.target.value))}
+                  className="w-full bg-transparent px-2 py-2.5 text-base font-semibold tabular-nums text-[#2F240E] focus:outline-none"
+                />
+              </div>
+              <Button type="submit" variant="outline" disabled={!incomeInput}>
+                Simpan
+              </Button>
+            </div>
+            <p className="text-[11px] text-[#736B60]">
+              {monthlyIncome ? `Sekarang ${formatRupiah(monthlyIncome)}. ` : "Belum diisi. "}Dipakai untuk membandingkan budget kantong.
+            </p>
           </form>
           {assetsSet && (
           <div className="overflow-hidden rounded-[18px] border border-[#E9E5DD] divide-y divide-[#F0EEE9]">
@@ -1519,7 +1557,18 @@ export default function PocketsPage() {
 
       {isProfileOpen && (
         <PocketProfileSheet
-          money={{ main: dailyPocket, pockets: budgetPockets, dailyBudgetSafe, monthlyAllowance, balancesKnown: assetsSet }}
+          money={{
+            main: dailyPocket,
+            pockets: budgetPockets,
+            // what a day may cost: the income spread over the month, else the balance over the days left
+            dailyBudgetSafe: monthlyIncome
+              ? Math.round(monthlyIncome / 30)
+              : assetsSet
+                ? Math.round(Math.max(0, dailyPocket) / Math.max(1, new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate() + 1))
+                : 0,
+            monthlyAllowance: 0,
+            balancesKnown: assetsSet,
+          }}
           icons={POCKET_ICONS}
           tones={POCKET_TONES}
           onCreate={createFromProfile}
@@ -1528,7 +1577,7 @@ export default function PocketsPage() {
       )}
 
       {isPlanOpen && plan && (
-        <BudgetPlanSheet plan={plan} income={monthlyAllowance} onApply={applyPlan} onClose={() => setIsPlanOpen(false)} />
+        <BudgetPlanSheet plan={plan} income={monthlyIncome} onApply={applyPlan} onClose={() => setIsPlanOpen(false)} />
       )}
 
       {editingTx && (

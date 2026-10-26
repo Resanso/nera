@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BudgetPocket } from "@nera/core";
-import type { PocketActivity } from "../context/FinancialStore";
 import { call } from "./emailImport";
 
 /**
@@ -90,39 +88,4 @@ export function usePushState() {
   }, [version]);
 
   return { state, showAmounts, setShowAmounts, refresh: () => setVersion((v) => v + 1) };
-}
-
-/**
- * Copies what reminders need about each Rencana dadakan pocket to the server, whenever
- * they change and this browser has reminders on. Nothing else about the pockets leaves
- * the device.
- */
-export function useReminderSync(pockets: BudgetPocket[], activity: PocketActivity[], on: boolean) {
-  const key = JSON.stringify(
-    pockets
-      .filter((p) => p.profile)
-      .map((p) => [p.id, p.name, p.targetAmount, p.balance, p.profile!.dueDate, activity.find((a) => a.pocketId === p.id && a.kind === "topup")?.at]),
-  );
-  useEffect(() => {
-    if (!on) return;
-    const t = setTimeout(async () => {
-      const sub = await currentSubscription().catch(() => null);
-      if (!sub) return;
-      const reminders = pockets
-        .filter((p) => p.profile)
-        .map((p) => ({
-          pocketId: p.id,
-          name: p.name.slice(0, 40),
-          occasion: p.profile!.occasion.slice(0, 80),
-          target: Math.round(p.targetAmount),
-          saved: Math.round(p.balance),
-          dueDate: p.profile!.dueDate,
-          // pocketActivity is newest first
-          lastTopupAt: activity.find((a) => a.pocketId === p.id && a.kind === "topup")?.at,
-        }));
-      await call("/push/reminders", { method: "PUT", body: JSON.stringify({ reminders }) }).catch(() => undefined);
-    }, 1500);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, on]);
 }

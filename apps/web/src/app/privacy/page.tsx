@@ -28,14 +28,16 @@ const sections: { title: string; body: React.ReactNode }[] = [
         </li>
         <li>Alamat penerusan: email yang kamu teruskan ke alamat Nera milikmu diproses dengan cara yang sama.</li>
         <li>
-          Saldo yang kamu isi sendiri (Aset Saya) dan kantong tersimpan di perangkatmu. Dengan &quot;Estimasi dari struk
-          email&quot;, saldo itu berkurang sesuai struk email di perangkatmu juga; daftar struk yang sudah dikurangi ikut
-          tersimpan di sana. Data BNI lain di aplikasi masih data demo.
+          Kantong (kalau kamu masuk dengan Google): saldo yang kamu isi sendiri (Aset Saya), pemasukan bulanan, kantong dan
+          riwayatnya tersimpan di server Nera, supaya angkanya sama di semua perangkat. Tanpa masuk, semuanya hanya ada di
+          perangkatmu. Dengan &quot;Estimasi dari struk email&quot;, Kantong Utama berkurang sesuai struk email sejak saldo
+          terakhir kamu isi atau konfirmasi; dihitung di server dari transaksi yang sudah diimpor. Data BNI lain di aplikasi
+          masih data demo.
         </li>
         <li>
-          Pengingat (hanya kalau kamu menyalakannya): alamat notifikasi browsermu, serta nama, target, saldo, tanggal dan
-          waktu isi terakhir dari kantong Rencana dadakan, supaya Nera bisa mengingatkan. Mematikan pengingat di semua
-          perangkat menghapus data ini dari server.
+          Pengingat (hanya kalau kamu menyalakannya): alamat notifikasi browsermu dan pilihan tampilan nominal. Isi
+          pengingatnya diambil dari kantong Rencana dadakan di atas. Mematikan pengingat di semua perangkat menghapus
+          alamat notifikasi itu dari server.
         </li>
       </ul>
     ),
