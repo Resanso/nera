@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
-import { POCKET_CATEGORIES, suggestPockets, useEmailSpending, useEmailSpendingStore, type PocketSuggestion } from "../../../lib/emailSpending";
+import { POCKET_CATEGORIES, planBudget, useEmailSpending, useEmailSpendingStore } from "../../../lib/emailSpending";
+import { BudgetPlanSheet, type ChosenLine } from "../../../components/insights/BudgetPlanSheet";
 import { CATEGORY_LABEL, emailApi, type EmailTransaction } from "../../../lib/emailImport";
 import { PocketHistory } from "../../../components/insights/PocketHistory";
 import { TransactionSheet, type TransactionEdit } from "../../../components/insights/TransactionSheet";
@@ -250,7 +251,7 @@ const spendingStatus = (pct: number) => {
   return null;
 };
 
-const DISMISSED_KEY = "nera-pocket-suggestions-dismissed";
+const PLAN_APPLIED_KEY = "nera-budget-plan-applied";
 
 const pocketSubtitle = (pocket: BudgetPocket) =>
   pocket.kind === "saving" ? "Kantong Tabungan" : "Kantong Belanja";
@@ -266,6 +267,7 @@ export default function PocketsPage() {
     deleteBudgetPocket,
     setBudgetPocketTarget,
     pocketActivity,
+    monthlyAllowance,
   } = useFinancialStore();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -358,37 +360,33 @@ export default function PocketsPage() {
     }
   };
 
-  // pocket suggestions from email history; "Nanti" hides one on this device only
-  const [dismissed, setDismissed] = useState<string[]>([]);
+  // the whole budget proposed from email history ("Pakai budget ini")
+  const plan = useMemo(
+    () => (emailSpending.ready ? planBudget(emailSpending.spends, budgetPockets) : null),
+    [emailSpending.ready, emailSpending.spends, budgetPockets],
+  );
+  const [isPlanOpen, setIsPlanOpen] = useState(false);
+  const monthKey = new Date().toISOString().slice(0, 7);
+  const [planAppliedMonth, setPlanAppliedMonth] = useState<string | null>(null);
   useEffect(() => {
     try {
-      setDismissed(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"));
+      setPlanAppliedMonth(localStorage.getItem(PLAN_APPLIED_KEY));
     } catch {}
   }, []);
-  const dismiss = (key: string) => {
-    const next = [...dismissed, key];
-    setDismissed(next);
-    try {
-      localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
-    } catch {}
-  };
-  const suggestions = useMemo(
-    () => (emailSpending.ready ? suggestPockets(emailSpending.spends, budgetPockets).filter((x) => !dismissed.includes(x.key)) : []),
-    [emailSpending.ready, emailSpending.spends, budgetPockets, dismissed],
-  );
-  const applySuggestion = (x: PocketSuggestion) => {
-    if (x.kind === "raise") {
-      setBudgetPocketTarget(x.pocketId, x.budget);
-      triggerToast(`Budget ${x.name} jadi ${formatRupiah(x.budget)}/bulan`);
-      return;
+  const applyPlan = (lines: ChosenLine[]) => {
+    for (const l of lines) {
+      if (l.pocket) setBudgetPocketTarget(l.pocket.id, l.budget);
+      else createBudgetPocket({ name: l.name, kind: "spending", icon: l.icon, tone: l.tone, targetAmount: l.budget }, 0);
     }
-    resetCreateForm();
-    setNewKind("spending");
-    setNewName(x.name);
-    setNewIcon(x.icon);
-    setNewTone(x.tone);
-    setNewTarget(x.budget.toLocaleString("id-ID"));
-    setIsCreateOpen(true);
+    setIsPlanOpen(false);
+    setPlanAppliedMonth(monthKey);
+    try {
+      localStorage.setItem(PLAN_APPLIED_KEY, monthKey);
+    } catch {}
+    const created = lines.filter((l) => !l.pocket).length;
+    triggerToast(
+      `Budget ${formatRupiah(lines.reduce((s, l) => s + l.budget, 0))}/bulan dipakai${created ? ` · ${created} kantong baru` : ""}`,
+    );
   };
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
   const selectedPocket = budgetPockets.find((p) => p.id === selectedId) ?? null;
@@ -621,6 +619,28 @@ export default function PocketsPage() {
           </div>
         </section>
 
+        {/* AUTO BUDGET: the whole budget from the user's own receipts */}
+        {plan && activeFilter !== "investment" && (
+          <section className="flex items-center gap-3 rounded-[20px] bg-[#FFF0BD] px-4 py-3.5">
+            <NeraOrb mood="happy" size={40} still trackPointer={false} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-[#2F240E]">
+                {planAppliedMonth === monthKey ? "Budget otomatis sudah dipakai" : "Nera sudah menyusun budgetmu"}
+              </p>
+              <p className="text-[11px] leading-snug text-[#5C4A1E]">
+                {plan.lines.length} kantong · <span className="tabular-nums">{formatRupiah(plan.total)}</span>/bulan, dari kebiasaanmu sendiri
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPlanOpen(true)}
+              className="h-9 shrink-0 rounded-full bg-[#2F240E] px-3.5 text-[12px] font-semibold text-white hover:bg-[#46371A]"
+            >
+              {planAppliedMonth === monthKey ? "Susun ulang" : "Lihat usulan"}
+            </button>
+          </section>
+        )}
+
         {/* BUDGET SUMMARY */}
         {spendingPockets.length > 0 && (
           <section className="rounded-[20px] bg-white px-4 py-3.5">
@@ -812,65 +832,6 @@ export default function PocketsPage() {
               </button>
             </div>
           </section>
-
-        {/* SUGGESTIONS: below the grid so pockets stay first; one swipeable row */}
-        {suggestions.length > 0 && activeFilter !== "investment" && (
-          <section aria-label="Rekomendasi kantong">
-            <div className="mb-2 flex items-center gap-2">
-              <NeraOrb mood="happy" size={28} still trackPointer={false} />
-              <div className="min-w-0">
-                <h3 className="text-[14px] font-bold text-[#2F240E]">Rekomendasi Nera</h3>
-                <p className="text-[11px] text-[#736B60]">Dari riwayat transaksi email 3 bulan terakhir</p>
-              </div>
-            </div>
-            <ul className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-              {suggestions.map((x) => {
-                const Icon = POCKET_ICONS[x.kind === "create" ? x.icon : budgetPockets.find((p) => p.id === x.pocketId)?.icon ?? "food"];
-                return (
-                  <li
-                    key={x.key}
-                    className={cn("flex shrink-0 snap-start flex-col rounded-[20px] bg-white p-3.5", suggestions.length > 1 ? "w-[82%]" : "w-full")}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#FFF0BD] text-[#6D4C00]">
-                        <Icon size={18} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-[#2F240E]">
-                          {x.kind === "create" ? `Buat kantong ${x.name}` : `Sesuaikan budget ${x.name}`}
-                        </p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-[#736B60]">
-                          {x.kind === "create"
-                            ? `Rata-rata ${formatRupiah(Math.round(x.monthlyAvg))}/bulan keluar untuk ini, belum ada kantongnya.`
-                            : `Budget ${formatRupiah(x.current)}, padahal rata-rata ${formatRupiah(Math.round(x.monthlyAvg))}/bulan.`}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-2.5 rounded-xl bg-[#F7F7F7] px-3 py-2 text-[11px] text-[#736B60]">
-                      Saran budget <b className="tabular-nums text-[#2F240E]">{formatRupiah(x.budget)}/bulan</b> · 10% di bawah rata-rata
-                    </p>
-                    <div className="mt-2.5 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => dismiss(x.key)}
-                        className="h-9 flex-1 rounded-xl text-[12px] font-semibold text-[#736B60] hover:bg-[#F7F5F0]"
-                      >
-                        Nanti
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applySuggestion(x)}
-                        className="h-9 flex-[2] rounded-xl bg-[#FFB900] text-[12px] font-semibold text-[#352500] hover:bg-[#E6A700]"
-                      >
-                        {x.kind === "create" ? "Buat kantong" : `Ubah ke ${formatRupiahShort(x.budget)}`}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
 
       </main>
 
@@ -1279,6 +1240,10 @@ export default function PocketsPage() {
             );
           })()}
       </Modal>
+
+      {isPlanOpen && plan && (
+        <BudgetPlanSheet plan={plan} income={monthlyAllowance} onApply={applyPlan} onClose={() => setIsPlanOpen(false)} />
+      )}
 
       {editingTx && (
         <TransactionSheet tx={editingTx} all={allEmailTxs} onClose={() => setEditingTx(null)} onSave={(edit) => saveTxEdit(editingTx, edit)} />

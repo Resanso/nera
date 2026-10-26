@@ -497,7 +497,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
         const amount = Math.min(Math.max(0, initialAmount), get().dailyPocket);
         const newPocket: BudgetPocket = {
           ...pocket,
-          id: `pocket_${Date.now()}`,
+          id: `pocket_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           balance: amount,
           spentThisMonth: 0,
           createdAt: new Date().toISOString(),

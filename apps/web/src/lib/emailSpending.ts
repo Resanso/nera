@@ -137,46 +137,61 @@ const NEW_POCKET: Partial<Record<EmailCategory, { name: string; icon: BudgetPock
   travel: { name: "Jalan-jalan", icon: "travel", tone: "cyan" },
 };
 
-export type PocketSuggestion =
-  | { kind: "create"; key: string; category: EmailCategory; name: string; icon: BudgetPocketIcon; tone: BudgetPocketTone; monthlyAvg: number; budget: number }
-  | { kind: "raise"; key: string; pocketId: string; name: string; monthlyAvg: number; current: number; budget: number };
+export type BudgetLine = {
+  category: EmailCategory;
+  name: string;
+  icon: BudgetPocketIcon;
+  tone: BudgetPocketTone;
+  monthlyAvg: number;
+  /** 90% of the average, rounded to Rp10rb */
+  budget: number;
+  /** where most of it goes, for the one-line reason */
+  topMerchants: string[];
+  /** a pocket that already covers the category: its target is updated instead of creating one */
+  pocket?: { id: string; name: string; target: number };
+};
+
+export type BudgetPlan = { lines: BudgetLine[]; months: number; total: number };
 
 /**
- * Pocket suggestions from the last 90 days of email receipts: a pocket for a category
- * the user spends on regularly but has no pocket for, or a budget that is far below
- * what they actually spend. Suggested budgets are 90% of the monthly average, a
- * reachable target rather than an aspirational one. Needs four weeks of history.
+ * A whole monthly budget from the last 90 days of receipts, for the "Pakai budget ini"
+ * screen: one line per category the user regularly spends on (Rp50rb+ a month), each at
+ * 90% of its average. Null until there are four weeks of history.
  */
-export function suggestPockets(spends: EmailTransaction[], pockets: BudgetPocket[], now = new Date()): PocketSuggestion[] {
+export function planBudget(spends: EmailTransaction[], pockets: BudgetPocket[], now = new Date()): BudgetPlan | null {
   const since = now.getTime() - 90 * DAY;
   const recent = spends.filter((t) => Date.parse(t.occurredAt) >= since);
-  if (recent.length === 0) return [];
-  const oldest = Math.min(...recent.map((t) => Date.parse(t.occurredAt)));
-  const spanDays = (now.getTime() - oldest) / DAY;
-  if (spanDays < 28) return [];
+  if (recent.length === 0) return null;
+  const spanDays = (now.getTime() - Math.min(...recent.map((t) => Date.parse(t.occurredAt)))) / DAY;
+  if (spanDays < 28) return null;
   const months = Math.min(3, spanDays / 30.44);
 
-  const monthly = new Map<EmailCategory, number>();
-  for (const t of recent) monthly.set(t.category, (monthly.get(t.category) ?? 0) + t.amount / months);
+  const byCat = new Map<EmailCategory, { total: number; merchants: Map<string, number> }>();
+  for (const t of recent) {
+    const c = byCat.get(t.category) ?? { total: 0, merchants: new Map() };
+    c.total += t.amount;
+    c.merchants.set(t.merchant, (c.merchants.get(t.merchant) ?? 0) + t.amount);
+    byCat.set(t.category, c);
+  }
 
   const spending = pockets.filter((p) => p.kind === "spending");
-  const out: PocketSuggestion[] = [];
-
-  for (const p of spending) {
-    const cats = POCKET_CATEGORIES[p.icon] ?? [];
-    const avg = cats.reduce((sum, c) => sum + (monthly.get(c) ?? 0), 0);
-    if (cats.length && avg >= p.targetAmount * 1.2 && avg - p.targetAmount >= 50_000) {
-      out.push({ kind: "raise", key: `raise:${p.id}`, pocketId: p.id, name: p.name, monthlyAvg: avg, current: p.targetAmount, budget: roundTo(avg * 0.9, 10_000) });
-    }
-  }
-  for (const [category, avg] of monthly) {
+  const lines: BudgetLine[] = [];
+  for (const [category, c] of byCat) {
     const preset = NEW_POCKET[category];
-    const covered = spending.some((p) => POCKET_CATEGORIES[p.icon]?.includes(category));
-    if (preset && !covered && avg >= 100_000) {
-      out.push({ kind: "create", key: `create:${category}`, category, ...preset, monthlyAvg: avg, budget: roundTo(avg * 0.9, 10_000) });
-    }
+    const monthlyAvg = c.total / months;
+    if (!preset || monthlyAvg < 50_000) continue;
+    const existing = spending.find((p) => POCKET_CATEGORIES[p.icon]?.includes(category));
+    lines.push({
+      category,
+      ...preset,
+      ...(existing && { name: existing.name, pocket: { id: existing.id, name: existing.name, target: existing.targetAmount } }),
+      monthlyAvg,
+      budget: roundTo(monthlyAvg * 0.9, 10_000),
+      topMerchants: [...c.merchants].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([m]) => m),
+    });
   }
-  return out.sort((a, b) => b.monthlyAvg - a.monthlyAvg).slice(0, 3);
+  lines.sort((a, b) => b.monthlyAvg - a.monthlyAvg);
+  return lines.length ? { lines, months, total: lines.reduce((s, l) => s + l.budget, 0) } : null;
 }
 
 /** The category whose spending this week jumped most above its 4-week average. */
