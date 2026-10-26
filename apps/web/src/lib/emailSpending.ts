@@ -147,6 +147,11 @@ export type BudgetLine = {
   budget: number;
   /** where most of it goes, for the one-line reason */
   topMerchants: string[];
+  /**
+   * mostly one or two big payments (a trip, tuition) rather than monthly spending: proposed
+   * unticked, since a monthly budget built from it would be far too high most months
+   */
+  occasional: boolean;
   /** a pocket that already covers the category: its target is updated instead of creating one */
   pocket?: { id: string; name: string; target: number };
 };
@@ -166,10 +171,11 @@ export function planBudget(spends: EmailTransaction[], pockets: BudgetPocket[], 
   if (spanDays < 28) return null;
   const months = Math.min(3, spanDays / 30.44);
 
-  const byCat = new Map<EmailCategory, { total: number; merchants: Map<string, number> }>();
+  const byCat = new Map<EmailCategory, { total: number; largest: number; merchants: Map<string, number> }>();
   for (const t of recent) {
-    const c = byCat.get(t.category) ?? { total: 0, merchants: new Map() };
+    const c = byCat.get(t.category) ?? { total: 0, largest: 0, merchants: new Map() };
     c.total += t.amount;
+    c.largest = Math.max(c.largest, t.amount);
     c.merchants.set(t.merchant, (c.merchants.get(t.merchant) ?? 0) + t.amount);
     byCat.set(t.category, c);
   }
@@ -187,11 +193,14 @@ export function planBudget(spends: EmailTransaction[], pockets: BudgetPocket[], 
       ...(existing && { name: existing.name, pocket: { id: existing.id, name: existing.name, target: existing.targetAmount } }),
       monthlyAvg,
       budget: roundTo(monthlyAvg * 0.9, 10_000),
+      occasional: c.largest >= c.total * 0.4,
       topMerchants: [...c.merchants].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([m]) => m),
     });
   }
-  lines.sort((a, b) => b.monthlyAvg - a.monthlyAvg);
-  return lines.length ? { lines, months, total: lines.reduce((s, l) => s + l.budget, 0) } : null;
+  // regular spending first; one-off payments last
+  lines.sort((a, b) => Number(a.occasional) - Number(b.occasional) || b.monthlyAvg - a.monthlyAvg);
+  const regular = lines.filter((l) => !l.occasional);
+  return lines.length ? { lines, months, total: regular.reduce((s, l) => s + l.budget, 0) } : null;
 }
 
 /** The category whose spending this week jumped most above its 4-week average. */

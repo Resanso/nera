@@ -28,7 +28,7 @@ export function BudgetPlanSheet({
   onClose: () => void;
 }) {
   const [target, setTarget] = useState<Element | null>(null);
-  const [rows, setRows] = useState(() => plan.lines.map((l) => ({ line: l, on: true, amount: l.budget.toLocaleString("id-ID") })));
+  const [rows, setRows] = useState(() => plan.lines.map((l) => ({ line: l, on: !l.occasional, amount: l.budget.toLocaleString("id-ID") })));
 
   useEffect(() => {
     setTarget(document.querySelector("[data-mobile-frame]") ?? document.body);
@@ -109,6 +109,11 @@ export function BudgetPlanSheet({
                       rata-rata kamu <span className="tabular-nums">{rp(l.monthlyAvg)}</span>/bln
                       {l.topMerchants.length > 0 && ` · ${l.topMerchants.join(", ")}`}
                     </p>
+                    {l.occasional && (
+                      <p className="mt-0.5 text-[11px] leading-snug text-[#76520E]">
+                        Sebagian besar dari satu pembayaran besar, jadi tidak dicentang. Lebih cocok jadi kantong tabungan.
+                      </p>
+                    )}
                     {l.pocket && (
                       <p className="text-[11px] text-[#736B60]">
                         Kantong {l.pocket.name} sekarang <span className="tabular-nums">{rp(l.pocket.target)}</span>

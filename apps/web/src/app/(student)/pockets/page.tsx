@@ -628,7 +628,7 @@ export default function PocketsPage() {
                 {planAppliedMonth === monthKey ? "Budget otomatis sudah dipakai" : "Nera sudah menyusun budgetmu"}
               </p>
               <p className="text-[11px] leading-snug text-[#5C4A1E]">
-                {plan.lines.length} kantong · <span className="tabular-nums">{formatRupiah(plan.total)}</span>/bulan, dari kebiasaanmu sendiri
+                {plan.lines.filter((l) => !l.occasional).length} kantong · <span className="tabular-nums">{formatRupiah(plan.total)}</span>/bulan, dari kebiasaanmu sendiri
               </p>
             </div>
             <button
