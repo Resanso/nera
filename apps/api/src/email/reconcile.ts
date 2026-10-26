@@ -6,7 +6,7 @@ const BANKS = new Set(ALLOWED_SENDERS.filter((s) => s.bank).map((s) => s.provide
 const PAYEE_NAMES = new Map(ALLOWED_SENDERS.map((s) => [s.provider, s.payeeNames ?? []]));
 const WINDOW_MS = 36 * 60 * 60 * 1000;
 
-const counted = (t: EmailTransaction) => t.type === "expense" && t.countsTowardSpending && !t.duplicateOf;
+const counted = (t: EmailTransaction) => t.type === "expense" && t.countsTowardSpending && !t.duplicateOf && !t.dismissed;
 
 /** Bank payment to "TRAVELOKA INDONESIA" ~ Traveloka receipt: same money, small fee difference. */
 function samePayment(bank: EmailTransaction, receipt: EmailTransaction) {

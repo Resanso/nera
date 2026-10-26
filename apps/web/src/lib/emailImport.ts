@@ -31,8 +31,13 @@ export type EmailTransaction = {
   countsTowardSpending: boolean;
   /** id of the receipt that already counts this payment */
   duplicateOf?: string;
+  /** hidden by the user: Nera misread the email */
+  dismissed?: boolean;
+  userEdited?: boolean;
   extractedBy: "rules" | "ai";
 };
+
+export type TransactionUpdate = { transaction: EmailTransaction; alsoChanged: number };
 
 export type GmailBackfill = {
   days: number;
@@ -135,7 +140,16 @@ export const emailApi = {
     call<void>(`/email/gmail${account ? `?account=${encodeURIComponent(account)}` : ""}`, { method: "DELETE" }),
   createAlias: () => call<NonNullable<EmailStatus["forward"]>>("/email/forward/alias", { method: "POST" }),
   removeAlias: () => call<void>("/email/forward", { method: "DELETE" }),
-  confirm: (id: string) => call<EmailTransaction>(`/email/transactions/${id}`, { method: "PATCH", body: JSON.stringify({ confirm: true }) }),
+  confirm: (id: string) => call<TransactionUpdate>(`/email/transactions/${id}`, { method: "PATCH", body: JSON.stringify({ confirm: true }) }),
+  /** recategorize (optionally every receipt from the merchant, remembered) or hide/unhide */
+  editTransaction: (
+    id: string,
+    edit: { category: EmailCategory; applyToMerchant?: boolean } | { dismissed: boolean },
+  ) =>
+    call<TransactionUpdate>(`/email/transactions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify("category" in edit ? { category: edit.category, ...(edit.applyToMerchant && { applyToMerchant: true }) } : edit),
+    }),
   deleteAll: () => call<void>("/email/all", { method: "DELETE" }),
   /** Full-page redirect; the session cookie identifies the user. */
   gmailConnectUrl: () => `${API_URL}/api/email/gmail/connect`,

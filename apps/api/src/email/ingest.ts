@@ -3,7 +3,7 @@ import { simpleParser } from "mailparser";
 import { FAILED, SHIPPING, extractWithAI, extractWithRules } from "./extract";
 import { findSender, isInvestmentDomain, providerFromSender } from "./senders";
 import { emailStore } from "./store";
-import { isOwnMoneyMove, type EmailTransaction, type IngestResult, type ParsedEmail } from "./types";
+import { isOwnMoneyMove, merchantKey, type EmailTransaction, type IngestResult, type ParsedEmail } from "./types";
 
 /** Receipts at or above this wait for the user to confirm before they count. */
 const REVIEW_ABOVE = 25_000_000;
@@ -84,6 +84,10 @@ export async function ingestEmail(
   if (!x) return { status: "ignored", reason: "not_a_transaction" };
 
   if (isInvestmentDomain(email.fromDomain)) x = { ...x, category: "investment" };
+  // the user's own choice for this merchant beats our guess
+  const merchant = decodeEntities(x.merchant);
+  const ruled = (await emailStore.merchantRules(opts.userId)).get(merchantKey(merchant));
+  if (ruled) x = { ...x, category: ruled };
   const transaction: EmailTransaction = {
     id: randomUUID(),
     userId: opts.userId,
@@ -91,7 +95,7 @@ export async function ingestEmail(
     channel: opts.channel,
     ...(opts.account && { account: opts.account }),
     provider: sender.provider,
-    merchant: decodeEntities(x.merchant),
+    merchant,
     amount: x.amount,
     currency: "IDR",
     type: x.type,

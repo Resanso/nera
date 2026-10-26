@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { maiaClient } from "@nera/ai";
 import { emailStore } from "./store";
-import type { EmailCategory, EmailTransaction } from "./types";
+import { isCounted, type EmailCategory, type EmailTransaction } from "./types";
 
 const LABEL: Record<EmailCategory, string> = {
   food: "Makanan",
@@ -19,7 +19,7 @@ const LABEL: Record<EmailCategory, string> = {
 
 const SMALL_PURCHASE = 30_000;
 
-const counted = (t: EmailTransaction) => t.type === "expense" && t.countsTowardSpending && !t.needsReview;
+const counted = isCounted;
 const sum = (txs: EmailTransaction[]) => txs.reduce((n, t) => n + t.amount, 0);
 const rp = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`;
 
@@ -57,7 +57,7 @@ export async function moneyInsights(
   opts: { allowAI: boolean; from?: Date; to?: Date; label?: string },
   now = new Date(),
 ): Promise<MoneyInsights> {
-  const txs = await emailStore.listTransactions(userId);
+  const txs = (await emailStore.listTransactions(userId)).filter((t) => !t.dismissed);
   const y = now.getFullYear();
   const m = now.getMonth();
   const custom = Boolean(opts.from && opts.to);

@@ -14,6 +14,12 @@ export type EmailCategory =
 /** Money moved between the user's own accounts or into investments: not spending. */
 export const isOwnMoneyMove = (c: EmailCategory) => c === "topup" || c === "transfer" || c === "investment";
 
+/** Merchant names as the user's category rules key them: "  Warteg  Arjuna " -> "warteg arjuna". */
+export const merchantKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Counted spending: not a money move, not a duplicate, not waiting for review, not dismissed. */
+export const isCounted = (t: EmailTransaction) => t.type === "expense" && t.countsTowardSpending && !t.needsReview && !t.dismissed;
+
 /**
  * A transaction extracted from an email receipt.
  *
@@ -45,6 +51,10 @@ export interface EmailTransaction {
   countsTowardSpending: boolean;
   /** Same payment already counted from another email (e.g. a bank notification for a Traveloka receipt). */
   duplicateOf?: string;
+  /** The user said Nera misread this email: hidden and never counted. */
+  dismissed?: boolean;
+  /** The user set the category or dismissed it; a re-import keeps that decision. */
+  userEdited?: boolean;
   /** Gmail only: the linked mailbox it came from (a user can link several). */
   account?: string;
   extractedBy: "rules" | "ai";

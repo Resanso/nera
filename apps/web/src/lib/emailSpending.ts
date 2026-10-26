@@ -40,8 +40,8 @@ export const useEmailSpendingStore = create<State>((set, get) => ({
   },
 }));
 
-/** Counted spending only: not transfers/top-ups, not duplicates, not awaiting review. */
-export const isCountedSpend = (t: EmailTransaction) => t.type === "expense" && t.countsTowardSpending && !t.needsReview;
+/** Counted spending only: not transfers/top-ups, not duplicates, not awaiting review, not hidden. */
+export const isCountedSpend = (t: EmailTransaction) => t.type === "expense" && t.countsTowardSpending && !t.needsReview && !t.dismissed;
 
 /** Email categories feeding each kind of budget pocket. */
 export const POCKET_CATEGORIES: Partial<Record<BudgetPocketIcon, EmailCategory[]>> = {

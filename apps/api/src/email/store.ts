@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import type { EmailTransaction } from "./types";
+import { isOwnMoneyMove, merchantKey, type EmailCategory, type EmailTransaction } from "./types";
 
 export type GmailConnection = {
   userId: string;
@@ -42,7 +42,9 @@ export type ConsentKind = "email_import" | "ai_processing";
 /** Latest decision per kind; every grant/revoke is kept as an event for audit. */
 export type ConsentState = { granted: boolean; version: string; at: string };
 
-export type TransactionPatch = Partial<Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending" | "duplicateOf">>;
+export type TransactionPatch = Partial<
+  Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending" | "duplicateOf" | "dismissed" | "userEdited">
+>;
 
 export interface EmailStore {
   touchUser(id: string, email: string): Promise<void>;
@@ -70,6 +72,10 @@ export interface EmailStore {
     before: string,
     providers?: string[],
   ): Promise<void>;
+  /** Categories the user chose for a merchant, by merchantKey; applied to future receipts. */
+  merchantRules(userId: string): Promise<Map<string, EmailCategory>>;
+  /** Remember the rule and recategorize every transaction from that merchant; returns how many changed. */
+  setMerchantRule(userId: string, key: string, category: EmailCategory): Promise<number>;
   /** `account` narrows Gmail transactions to one linked mailbox. */
   deleteTransactions(userId: string, channel?: EmailTransaction["channel"], account?: string): Promise<void>;
 
@@ -102,6 +108,7 @@ class MemoryStore implements EmailStore {
   private gmail = new Map<string, GmailConnection>();
   private seen = new Map<string, Set<string>>();
   private aliases = new Map<string, ForwardAlias>();
+  private rules = new Map<string, Map<string, EmailCategory>>();
 
   async touchUser(id: string, email: string) {
     const now = new Date().toISOString();
@@ -137,8 +144,17 @@ class MemoryStore implements EmailStore {
     if (tx) Object.assign(tx, patch);
     return tx;
   }
+  async merchantRules(userId: string) {
+    return new Map(this.rules.get(userId));
+  }
+  async setMerchantRule(userId: string, key: string, category: EmailCategory) {
+    this.rules.set(userId, new Map(this.rules.get(userId)).set(key, category));
+    const hits = (this.transactions.get(userId) ?? []).filter((t) => merchantKey(t.merchant) === key);
+    for (const t of hits) Object.assign(t, { category, countsTowardSpending: t.type === "expense" && !isOwnMoneyMove(category), userEdited: true });
+    return hits.length;
+  }
   async deleteTransactions(userId: string, channel?: EmailTransaction["channel"], account?: string) {
-    if (!channel) return void this.transactions.delete(userId);
+    if (!channel) return void (this.transactions.delete(userId), this.rules.delete(userId));
     this.transactions.set(
       userId,
       (this.transactions.get(userId) ?? []).filter((t) => t.channel !== channel || (account !== undefined && t.account !== account)),
@@ -147,12 +163,18 @@ class MemoryStore implements EmailStore {
 
   async adoptTransactions(stagingId: string, userId: string, channel: EmailTransaction["channel"], before: string, providers?: string[]) {
     const replaced = (t: EmailTransaction) => t.channel === channel && t.createdAt < before && (!providers || providers.includes(t.provider));
-    const kept = (this.transactions.get(userId) ?? []).filter((t) => !replaced(t));
+    const all = this.transactions.get(userId) ?? [];
+    const edited = new Map(all.filter((t) => t.userEdited).map((t) => [t.messageHash, t]));
+    const kept = all.filter((t) => !replaced(t));
     const hashes = new Set(kept.map((t) => t.messageHash));
     // a targeted search can match other providers' mail too; only the targeted ones move
     const staged = (this.transactions.get(stagingId) ?? [])
       .filter((t) => !hashes.has(t.messageHash) && (!providers || providers.includes(t.provider)))
-      .map((t) => ({ ...t, userId }));
+      .map((t) => {
+        const e = edited.get(t.messageHash);
+        const carried = e && { category: e.category, countsTowardSpending: e.countsTowardSpending, needsReview: e.needsReview, dismissed: e.dismissed, userEdited: true };
+        return { ...t, ...carried, userId };
+      });
     this.transactions.set(userId, [...kept, ...staged]);
     this.transactions.delete(stagingId);
   }
@@ -264,6 +286,13 @@ create table if not exists nera_consent_events (
   at timestamptz not null default now()
 );
 create index if not exists nera_consent_events_user on nera_consent_events (user_id, kind, at desc);
+create table if not exists nera_merchant_rules (
+  user_id text not null,
+  merchant_key text not null,
+  category text not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, merchant_key)
+);
 `;
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : undefined);
@@ -352,7 +381,33 @@ class PgStore implements EmailStore {
     if (channel && account !== undefined)
       await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2 and data->>'account' = $3", [userId, channel, account]);
     else if (channel) await this.q("delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2", [userId, channel]);
-    else await this.q("delete from nera_email_transactions where user_id = $1", [userId]);
+    else {
+      await this.q("delete from nera_email_transactions where user_id = $1", [userId]);
+      await this.q("delete from nera_merchant_rules where user_id = $1", [userId]);
+    }
+  }
+
+  async merchantRules(userId: string) {
+    const rows = await this.q<{ merchant_key: string; category: EmailCategory }>(
+      "select merchant_key, category from nera_merchant_rules where user_id = $1",
+      [userId],
+    );
+    return new Map(rows.map((r) => [r.merchant_key, r.category]));
+  }
+  async setMerchantRule(userId: string, key: string, category: EmailCategory) {
+    await this.q(
+      `insert into nera_merchant_rules (user_id, merchant_key, category) values ($1, $2, $3)
+       on conflict (user_id, merchant_key) do update set category = excluded.category, updated_at = now()`,
+      [userId, key, category],
+    );
+    const rows = await this.q(
+      `update nera_email_transactions set data = data || jsonb_build_object(
+         'category', $3::text, 'userEdited', true,
+         'countsTowardSpending', data->>'type' = 'expense' and not $4::boolean)
+       where user_id = $1 and lower(regexp_replace(trim(data->>'merchant'), '\\s+', ' ', 'g')) = $2 returning id`,
+      [userId, key, category, isOwnMoneyMove(category)],
+    );
+    return rows.length;
   }
 
   async adoptTransactions(stagingId: string, userId: string, channel: EmailTransaction["channel"], before: string, providers?: string[]) {
@@ -360,6 +415,15 @@ class PgStore implements EmailStore {
     const c = await this.pool.connect();
     try {
       await c.query("begin");
+      // what the user corrected by hand survives the re-read
+      await c.query(
+        `update nera_email_transactions s set data = s.data || jsonb_strip_nulls(jsonb_build_object(
+           'category', t.data->'category', 'countsTowardSpending', t.data->'countsTowardSpending',
+           'needsReview', t.data->'needsReview', 'dismissed', t.data->'dismissed', 'userEdited', true))
+         from nera_email_transactions t
+         where s.user_id = $1 and t.user_id = $2 and t.message_hash = s.message_hash and t.data->>'userEdited' = 'true'`,
+        [stagingId, userId],
+      );
       await c.query(
         `delete from nera_email_transactions where user_id = $1 and data->>'channel' = $2 and data->>'createdAt' < $3
            and ($4::text[] is null or data->>'provider' = any($4))`,

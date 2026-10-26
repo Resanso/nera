@@ -24,7 +24,7 @@ import { moneyInsights } from "../email/insights";
 import { reconcile } from "../email/reconcile";
 import { CONSENT_VERSION, ConsentRequired, hasConsent, requireConsent } from "../email/consent";
 import { emailStore, type GmailBackfill } from "../email/store";
-import { isOwnMoneyMove } from "../email/types";
+import { isOwnMoneyMove, merchantKey } from "../email/types";
 
 export const emailRouter: Router = Router();
 
@@ -144,21 +144,30 @@ emailRouter.get("/transactions", async (req, res) => {
 const ReviewBody = z.object({
   category: z.enum(["food", "transport", "shopping", "bills", "entertainment", "education", "travel", "topup", "transfer", "investment", "other"]).optional(),
   confirm: z.literal(true).optional(),
+  /** with `category`: also every other transaction from this merchant, now and later */
+  applyToMerchant: z.literal(true).optional(),
+  /** "Nera salah baca": hide it; false brings it back */
+  dismissed: z.boolean().optional(),
 });
 
-// user confirms or corrects a low-confidence extraction
+// user confirms, recategorizes or dismisses an extraction
 emailRouter.patch("/transactions/:id", async (req, res) => {
   const body = ReviewBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ success: false, error: "Body tidak valid" });
-  const { category, confirm } = body.data;
-  const tx = await emailStore.updateTransaction(userIdOf(req), req.params.id, {
-    ...(category && { category, countsTowardSpending: !isOwnMoneyMove(category) }),
+  const { category, confirm, applyToMerchant, dismissed } = body.data;
+  const userId = userIdOf(req);
+  const current = (await emailStore.listTransactions(userId)).find((t) => t.id === req.params.id);
+  if (!current) return res.status(404).json({ success: false, error: "Transaksi tidak ditemukan" });
+  const tx = await emailStore.updateTransaction(userId, current.id, {
+    ...(category && { category, countsTowardSpending: current.type === "expense" && !isOwnMoneyMove(category) }),
     ...(confirm && { needsReview: false }),
+    ...(dismissed !== undefined && { dismissed }),
+    ...((category || dismissed !== undefined) && { userEdited: true }),
   });
-  if (!tx) return res.status(404).json({ success: false, error: "Transaksi tidak ditemukan" });
-  // a confirmed receipt now counts, so it may pair with a bank notification
-  if (confirm) await reconcile(userIdOf(req));
-  res.json({ success: true, data: tx });
+  const alsoChanged = category && applyToMerchant ? (await emailStore.setMerchantRule(userId, merchantKey(current.merchant), category)) - 1 : 0;
+  // counted receipts changed, so bank notifications may pair differently
+  if (confirm || category || dismissed !== undefined) await reconcile(userId);
+  res.json({ success: true, data: { transaction: tx, alsoChanged: Math.max(0, alsoChanged) } });
 });
 
 // demo: run the real pipeline over sample receipts in fixtures/email

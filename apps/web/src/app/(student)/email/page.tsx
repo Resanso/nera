@@ -7,6 +7,7 @@ import { TopAppBar } from "../../../components/common/TopAppBar";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { MoneyInsightsCard } from "../../../components/insights/MoneyInsightsCard";
 import { SpendingCharts } from "../../../components/insights/SpendingCharts";
+import { TransactionSheet, type TransactionEdit } from "../../../components/insights/TransactionSheet";
 import { ConsentCard } from "../../../components/consent/ConsentCard";
 import { isCountedSpend, useEmailSpendingStore } from "../../../lib/emailSpending";
 import { PeriodFilter, periodRange } from "../../../components/insights/PeriodFilter";
@@ -23,6 +24,8 @@ import {
 } from "../../../lib/emailImport";
 
 const PAGE_SIZE = 20;
+/** The API holds receipts this large for review (REVIEW_ABOVE in apps/api/src/email/ingest.ts). */
+const LARGE_AMOUNT = 25_000_000;
 
 type View = "insight" | "list" | "settings";
 const VIEWS: { id: View; label: string }[] = [
@@ -162,11 +165,32 @@ export default function EmailImportPage() {
 
   // one period drives the stats, the analysis and the list
   const [period, setPeriod] = useState<Period>(() => presetPeriod("this_month"));
-  const periodTxs = useMemo(() => txs.filter((t) => inPeriod(t.occurredAt, period)), [txs, period]);
+  const periodTxs = useMemo(() => txs.filter((t) => !t.dismissed && inPeriod(t.occurredAt, period)), [txs, period]);
+  const hiddenTxs = useMemo(() => txs.filter((t) => t.dismissed && inPeriod(t.occurredAt, period)), [txs, period]);
+  const [showHidden, setShowHidden] = useState(false);
+  const [editing, setEditing] = useState<EmailTransaction | null>(null);
+
+  const saveEdit = (t: EmailTransaction, edit: TransactionEdit) => {
+    setEditing(null);
+    run(`edit-${t.id}`, async () => {
+      const r = await emailApi.editTransaction(t.id, edit);
+      // Beranda and Kantong read the shared store
+      await useEmailSpendingStore.getState().load(true);
+      if ("dismissed" in edit) return `${t.merchant} disembunyikan dan tidak dihitung lagi.`;
+      const label = CATEGORY_LABEL[edit.category];
+      return r.alsoChanged > 0 ? `${r.alsoChanged + 1} transaksi ${t.merchant} sekarang ${label}.` : `${t.merchant} sekarang ${label}.`;
+    });
+  };
+  const unhide = (t: EmailTransaction) =>
+    run(`unhide-${t.id}`, async () => {
+      await emailApi.editTransaction(t.id, { dismissed: false });
+      await useEmailSpendingStore.getState().load(true);
+      return `${t.merchant} ditampilkan lagi.`;
+    });
   // a year of receipts is a thousand rows: render a page at a time
   const [shown, setShown] = useState(PAGE_SIZE);
   useEffect(() => setShown(PAGE_SIZE), [period]);
-  const periodCounted = periodTxs.filter((t) => t.countsTowardSpending && !t.needsReview);
+  const periodCounted = periodTxs.filter(isCountedSpend);
   const periodSpend = periodCounted.reduce((sum, t) => sum + t.amount, 0);
   const periodSpends = useMemo(() => periodTxs.filter(isCountedSpend), [periodTxs]);
 
@@ -605,11 +629,17 @@ export default function EmailImportPage() {
                 <h3 className="text-[15px] font-bold text-[#2F240E]">
                   Transaksi dari email <span className="font-medium text-[#736B60]">· {period.label.toLowerCase()} ({periodTxs.length})</span>
                 </h3>
+                {periodTxs.length > 0 && <p className="text-[11px] text-[#736B60]">Ketuk transaksi untuk mengubah kategori atau menyembunyikannya.</p>}
                 {periodTxs.length === 0 && <p className="rounded-[20px] bg-white px-4 py-6 text-center text-xs text-[#736B60]">Tidak ada transaksi di periode ini.</p>}
                 <ul className="divide-y divide-[#F1EEE8] rounded-[24px] bg-white px-4">
                   {periodTxs.slice(0, shown).map((t) => (
                     <li key={t.id} className="py-3.5">
-                      <div className="flex items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(t)}
+                        aria-label={`Ubah ${t.merchant}`}
+                        className="-mx-2 flex w-[calc(100%+1rem)] items-start justify-between gap-3 rounded-xl px-2 py-1 text-left hover:bg-[#FFF8E6]"
+                      >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-[#2F240E]">{t.merchant}</p>
                           <p className="mt-0.5 text-[11px] text-[#736B60]">
@@ -620,18 +650,32 @@ export default function EmailImportPage() {
                           {t.type === "income" ? "+" : "−"}
                           {formatRupiah(t.amount)}
                         </p>
-                      </div>
+                      </button>
                       {(t.needsReview || !t.countsTowardSpending) && (
                         <div className="mt-2 flex items-center gap-2">
                           {t.needsReview ? (
                             <>
-                              <span className="rounded-full bg-[#FFF3D6] px-2 py-0.5 text-[11px] font-semibold text-[#76520E]">Perlu dicek</span>
+                              <span className="rounded-full bg-[#FFF3D6] px-2 py-0.5 text-[11px] font-semibold text-[#76520E]">
+                                {t.amount >= LARGE_AMOUNT ? "Perlu dicek · nominal sangat besar" : "Perlu dicek"}
+                              </span>
                               <button
                                 type="button"
-                                onClick={() => run(`confirm-${t.id}`, async () => void (await emailApi.confirm(t.id)))}
+                                onClick={() =>
+                                  run(`confirm-${t.id}`, async () => {
+                                    await emailApi.confirm(t.id);
+                                    await useEmailSpendingStore.getState().load(true);
+                                  })
+                                }
                                 className="text-[11px] font-bold text-[#76520E] underline underline-offset-2"
                               >
                                 Sudah benar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditing(t)}
+                                className="text-[11px] font-bold text-[#76520E] underline underline-offset-2"
+                              >
+                                Ubah
                               </button>
                             </>
                           ) : (
@@ -662,6 +706,40 @@ export default function EmailImportPage() {
                     <span className="font-medium text-[#736B60]"> · {shown} dari {periodTxs.length}</span>
                   </button>
                 )}
+                {hiddenTxs.length > 0 && (
+                  <div className="rounded-[20px] bg-white px-4 py-3">
+                    <button
+                      type="button"
+                      aria-expanded={showHidden}
+                      onClick={() => setShowHidden((v) => !v)}
+                      className="flex w-full items-center justify-between text-left text-[12px] font-semibold text-[#736B60]"
+                    >
+                      {hiddenTxs.length} transaksi disembunyikan
+                      <span className="text-[#76520E] underline underline-offset-2">{showHidden ? "Tutup" : "Lihat"}</span>
+                    </button>
+                    {showHidden && (
+                      <ul className="mt-2 divide-y divide-[#F1EEE8]">
+                        {hiddenTxs.map((t) => (
+                          <li key={t.id} className="flex items-center gap-3 py-2.5">
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[13px] font-semibold text-[#736B60] line-through">{t.merchant}</span>
+                              <span className="block text-[11px] tabular-nums text-[#736B60]">
+                                {formatRupiah(t.amount)} · {formatDate(t.occurredAt)}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => unhide(t)}
+                              className="shrink-0 text-[11px] font-bold text-[#76520E] underline underline-offset-2"
+                            >
+                              Tampilkan lagi
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 
@@ -679,6 +757,7 @@ export default function EmailImportPage() {
           </>
         )}
       </main>
+      {editing && <TransactionSheet tx={editing} all={txs} onClose={() => setEditing(null)} onSave={(edit) => saveEdit(editing, edit)} />}
     </div>
   );
 }
