@@ -16,6 +16,8 @@ type State = {
   transactions: EmailTransaction[];
   /** user agreed to AI processing; the chatbot only gets spending context with it */
   aiConsent: boolean;
+  /** receipts may feed the Beranda estimate (consent "email_planning") */
+  planningConsent: boolean;
   loadedAt: number;
   load: (force?: boolean) => Promise<void>;
 };
@@ -26,6 +28,7 @@ export const useEmailSpendingStore = create<State>((set, get) => ({
   status: "idle",
   transactions: [],
   aiConsent: false,
+  planningConsent: false,
   loadedAt: 0,
   load: async (force = false) => {
     const { status, loadedAt } = get();
@@ -33,7 +36,13 @@ export const useEmailSpendingStore = create<State>((set, get) => ({
     set({ status: "loading" });
     try {
       const [transactions, status] = await Promise.all([emailApi.transactions(), emailApi.status()]);
-      set({ status: "ready", transactions, aiConsent: status.consent.aiProcessing, loadedAt: Date.now() });
+      set({
+        status: "ready",
+        transactions,
+        aiConsent: status.consent.aiProcessing,
+        planningConsent: status.consent.emailPlanning,
+        loadedAt: Date.now(),
+      });
     } catch (e) {
       set({ status: e instanceof NotSignedIn ? "signed-out" : "error", transactions: [] });
     }

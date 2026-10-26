@@ -64,8 +64,19 @@ export type EmailStatus = {
   forward: { address: string; status: "waiting" | "confirm" | "active"; confirmationCode?: string; lastReceivedAt?: string } | null;
   senders: { provider: string; domains: string[] }[];
   aiExtraction: boolean;
-  consent: { version: string; emailImport: boolean; aiProcessing: boolean; emailImportAt?: string; aiProcessingAt?: string };
+  consent: {
+    version: string;
+    emailImport: boolean;
+    aiProcessing: boolean;
+    /** receipts may feed the Beranda estimate */
+    emailPlanning: boolean;
+    emailImportAt?: string;
+    aiProcessingAt?: string;
+    emailPlanningAt?: string;
+  };
 };
+
+export type ConsentKind = "email_import" | "ai_processing" | "email_planning";
 
 export type SyncSummary = { scanned: number; imported: number; duplicates: number; ignored: number };
 
@@ -135,7 +146,7 @@ export const emailApi = {
   transactions: () => call<EmailTransaction[]>("/email/transactions"),
   importDemo: () => call<SyncSummary>("/email/demo/import", { method: "POST" }),
   syncGmail: () => call<SyncSummary>("/email/gmail/sync", { method: "POST" }),
-  setConsent: (kind: "email_import" | "ai_processing", granted: boolean) =>
+  setConsent: (kind: ConsentKind, granted: boolean) =>
     call<void>("/email/consent", { method: "POST", body: JSON.stringify({ kind, granted }) }),
   backfillGmail: (days: 180 | 365 | 3650) => call<void>("/email/gmail/backfill", { method: "POST", body: JSON.stringify({ days }) }),
   /** one mailbox, or all of them without `account` */

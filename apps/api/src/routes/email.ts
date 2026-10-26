@@ -73,7 +73,7 @@ emailRouter.get("/status", async (req, res) => {
     emailStore.getConsents(userId),
   ]);
   // a grant only counts for the current wording
-  const current = (k: "email_import" | "ai_processing") => Boolean(consents[k]?.granted && consents[k]?.version === CONSENT_VERSION);
+  const current = (k: "email_import" | "ai_processing" | "email_planning") => Boolean(consents[k]?.granted && consents[k]?.version === CONSENT_VERSION);
   res.json({
     success: true,
     data: {
@@ -95,8 +95,10 @@ emailRouter.get("/status", async (req, res) => {
         version: CONSENT_VERSION,
         emailImport: current("email_import"),
         aiProcessing: current("ai_processing"),
+        emailPlanning: current("email_import") && current("email_planning"),
         emailImportAt: consents.email_import?.at,
         aiProcessingAt: consents.ai_processing?.at,
+        emailPlanningAt: consents.email_planning?.at,
       },
     },
   });
@@ -118,7 +120,7 @@ emailRouter.get("/insights", async (req, res) => {
   });
 });
 
-const ConsentBody = z.object({ kind: z.enum(["email_import", "ai_processing"]), granted: z.boolean() });
+const ConsentBody = z.object({ kind: z.enum(["email_import", "ai_processing", "email_planning"]), granted: z.boolean() });
 
 /**
  * Record a consent decision (kept as an event for audit). Withdrawing "email_import"
@@ -130,8 +132,12 @@ emailRouter.post("/consent", async (req, res) => {
   if (!body.success) return res.status(400).json({ success: false, error: "Body tidak valid" });
   const userId = userIdOf(req);
   const { kind, granted } = body.data;
+  if (kind === "email_planning" && granted && !(await hasConsent(userId, "email_import")))
+    return res.status(400).json({ success: false, error: "Setujui impor email dulu." });
   await emailStore.recordConsent(userId, kind, granted, CONSENT_VERSION);
   if (kind === "email_import" && !granted) {
+    // the purposes built on it end with it
+    await emailStore.recordConsent(userId, "email_planning", false, CONSENT_VERSION);
     await disconnectGmail(userId);
     await removeAlias(userId);
   }

@@ -27,7 +27,9 @@ const sections: { title: string; body: React.ReactNode }[] = [
           nominal, merchant, tanggal, kategori dan nomor pesanan. Isi email tidak disimpan.
         </li>
         <li>Alamat penerusan: email yang kamu teruskan ke alamat Nera milikmu diproses dengan cara yang sama.</li>
-        <li>Data finansial lain di aplikasi (saldo, kantong) adalah data demo yang tersimpan di perangkatmu.</li>
+        <li>
+          Saldo yang kamu isi sendiri (Aset Saya) dan kantong tersimpan di perangkatmu. Data BNI lain di aplikasi masih data demo.
+        </li>
       </ul>
     ),
   },
@@ -36,9 +38,13 @@ const sections: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <p>
-          Hanya untuk fitur yang kamu lihat: riwayat transaksi, grafik, pemakaian dan rekomendasi kantong, Insight Nera di
-          Beranda, analisis &quot;Ke mana uangku?&quot; dan saran di chatbot Nera. Skor kondisi keuangan dan estimasi
-          &quot;uangmu bertahan&quot; tetap dihitung dari data BNI saja.
+          Hanya untuk fitur yang kamu lihat: riwayat transaksi, grafik, pemakaian dan rekomendasi kantong, Insight Nera dan
+          kartu Pengeluaran di Beranda, analisis &quot;Ke mana uangku?&quot; dan saran di chatbot Nera.
+        </p>
+        <p>
+          Estimasi &quot;uangmu bertahan&quot; dan rekomendasi budget harian di Beranda memakai struk email{" "}
+          <strong>hanya jika</strong> kamu menyalakan &quot;Estimasi dari struk email&quot;; tanpa itu, keduanya memakai data
+          BNI. Skor kondisi keuangan selalu dihitung dari data BNI saja.
         </p>
         <p>
           Data dari email <strong>tidak</strong> dipakai untuk penilaian kredit, keputusan pinjaman, penawaran produk

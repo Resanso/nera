@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@nera/ui";
-import { ShieldCheck, Sparkles } from "lucide-react";
-import type { EmailStatus } from "../../lib/emailImport";
+import { CalendarClock, ShieldCheck, Sparkles } from "lucide-react";
+import type { ConsentKind, EmailStatus } from "../../lib/emailImport";
 
 type Props = {
   consent: EmailStatus["consent"];
   busy: boolean;
-  onChange: (kind: "email_import" | "ai_processing", granted: boolean) => void;
+  onChange: (kind: ConsentKind, granted: boolean) => void;
 };
 
 const formatDate = (iso?: string) =>
   iso ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso)) : "";
 
 /**
- * The two decisions a user makes before Nera touches their mail. Email import is
- * required for Gmail/forwarding; AI help is optional. Both can be withdrawn here.
+ * The decisions a user makes before Nera touches their mail. Email import is required
+ * for Gmail/forwarding; AI help and the Beranda estimate are optional. All can be withdrawn here.
  */
 export function ConsentCard({ consent, busy, onChange }: Props) {
   const [agreeImport, setAgreeImport] = useState(false);
@@ -105,6 +105,41 @@ export function ConsentCard({ consent, busy, onChange }: Props) {
         {consent.aiProcessing && <p className="mt-2 text-[11px] font-semibold text-[#2F6B1F]">Aktif sejak {formatDate(consent.aiProcessingAt)}</p>}
         {!consent.emailImport && <p className="mt-2 text-[11px] text-[#736B60]">Setujui impor email dulu.</p>}
       </div>
+
+      {/* 3. Beranda estimate from receipts: optional, a purpose added later */}
+      <EmailPlanningConsent consent={consent} busy={busy} onChange={onChange} />
     </section>
+  );
+}
+
+/** Lets receipts feed "Uangmu bertahan" and the daily budget on Beranda. Also shown there. */
+export function EmailPlanningConsent({ consent, busy, onChange }: Props) {
+  return (
+    <div className="mt-3 rounded-[16px] border border-[#F0E6D2] p-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <CalendarClock size={14} className="text-[#76520E]" />
+          <p className="text-xs font-bold text-[#2F240E]">Estimasi dari struk email (opsional)</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={consent.emailPlanning}
+          aria-label="Estimasi dari struk email"
+          disabled={busy || !consent.emailImport}
+          onClick={() => onChange("email_planning", !consent.emailPlanning)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${consent.emailPlanning ? "bg-[#58A83C]" : "bg-[#D8D3C9]"}`}
+        >
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-[left] ${consent.emailPlanning ? "left-[22px]" : "left-0.5"}`} />
+        </button>
+      </div>
+      <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] leading-relaxed text-[#736B60]">
+        <li>Pengeluaran dari struk email ikut menghitung &quot;Uangmu bertahan&quot; dan rekomendasi budget harian di Beranda.</li>
+        <li>Hanya kamu yang melihat hasilnya. Skor kondisi keuangan dan penawaran produk tetap memakai data BNI saja.</li>
+        <li>Bisa dimatikan kapan saja; estimasi kembali memakai data BNI.</li>
+      </ul>
+      {consent.emailPlanning && <p className="mt-2 text-[11px] font-semibold text-[#2F6B1F]">Aktif sejak {formatDate(consent.emailPlanningAt)}</p>}
+      {!consent.emailImport && <p className="mt-2 text-[11px] text-[#736B60]">Setujui impor email dulu.</p>}
+    </div>
   );
 }

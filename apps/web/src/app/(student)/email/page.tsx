@@ -330,6 +330,8 @@ export default function EmailImportPage() {
                         // Beranda, Kantong and the chatbot read consent from the shared store
                         await useEmailSpendingStore.getState().load(true);
                         if (kind === "email_import") return granted ? "Terima kasih. Sekarang kamu bisa menghubungkan Gmail." : "Persetujuan dicabut. Gmail diputus dan data email dihapus.";
+                        if (kind === "email_planning")
+                          return granted ? "Estimasi di Beranda sekarang memakai struk email." : "Estimasi di Beranda kembali memakai data BNI.";
                         return granted ? "Bantuan AI aktif." : "Bantuan AI dimatikan. Nera memakai aturan biasa.";
                       })
                     }

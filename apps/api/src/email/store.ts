@@ -38,7 +38,11 @@ export type ForwardAlias = {
 
 export type NeraUser = { id: string; email: string; createdAt: string; lastSeenAt: string };
 
-export type ConsentKind = "email_import" | "ai_processing";
+/**
+ * email_planning: receipts may also feed the "uangmu bertahan" estimate and the daily
+ * budget on Beranda. A purpose added later, so it is asked for separately.
+ */
+export type ConsentKind = "email_import" | "ai_processing" | "email_planning";
 /** Latest decision per kind; every grant/revoke is kept as an event for audit. */
 export type ConsentState = { granted: boolean; version: string; at: string };
 

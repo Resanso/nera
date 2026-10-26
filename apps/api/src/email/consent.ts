@@ -8,7 +8,13 @@ export const CONSENT_VERSION = "2026-10-26";
 
 export class ConsentRequired extends Error {
   constructor(public kind: ConsentKind) {
-    super(kind === "email_import" ? "Setujui dulu impor email di halaman Impor dari Email." : "Bantuan AI belum disetujui.");
+    super(
+      kind === "email_import"
+        ? "Setujui dulu impor email di halaman Impor dari Email."
+        : kind === "email_planning"
+          ? "Estimasi dari struk email belum disetujui."
+          : "Bantuan AI belum disetujui.",
+    );
   }
 }
 

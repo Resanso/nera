@@ -4,7 +4,9 @@ import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
-import { useEmailSpending, weeklyJump } from "../../lib/emailSpending";
+import { useEmailSpending, useEmailSpendingStore, weeklyJump } from "../../lib/emailSpending";
+import { EmailPlanningConsent } from "../../components/consent/ConsentCard";
+import { emailApi } from "../../lib/emailImport";
 import { NeraOrb } from "../../components/mascot/NeraOrb";
 import type { NeraMood } from "../../components/mascot/moods";
 import type { EmailCategory, EmailTransaction } from "../../lib/emailImport";
@@ -35,7 +37,7 @@ import {
   Banknote,
   PiggyBank,
   Gift,
-  Layers,
+  ReceiptText,
   LifeBuoy,
   Mail,
 } from "lucide-react";
@@ -89,6 +91,8 @@ export default function HomePage() {
     addTransaction,
     resolveNudge,
     budgetPockets,
+    assetsSet,
+    pocketActivity,
   } = useFinancialStore();
 
   const [isPayKosOpen, setIsPayKosOpen] = useState(false);
@@ -102,7 +106,8 @@ export default function HomePage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [recentOpen, setRecentOpen] = useState<null | "daily" | "lock">(null);
+  const [recentOpen, setRecentOpen] = useState<null | "daily" | "spend">(null);
+  const [isPlanningConsentOpen, setIsPlanningConsentOpen] = useState(false);
 
   const onboardingHydrated = useOnboardingHydrated();
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
@@ -123,17 +128,6 @@ export default function HomePage() {
     return `Rp${val}`;
   };
 
-  // Compute estimated runway end date
-  const runwayEndDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + runwayDays);
-    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
-  }, [runwayDays]);
-
-  // Compute runway percentage (assuming 30-day month)
-  const runwayPct = useMemo(() => {
-    return Math.min(100, Math.round((runwayDays / 30) * 100));
-  }, [runwayDays]);
 
   // Last 5 transactions
   const recentTransactions = transactions.slice(0, 5);
@@ -143,6 +137,45 @@ export default function HomePage() {
   // email-based nudges; the email data only exists for users who agreed to email import,
   // and it never feeds the score or the runway (those stay on BNI data)
   const jump = useMemo(() => (emailSpending.ready ? weeklyJump(emailSpending.spends) : null), [emailSpending.ready, emailSpending.spends]);
+  const planningConsent = useEmailSpendingStore((s) => s.planningConsent);
+
+  // this month's spending exactly as Kantong counts it: pocket spending plus the receipts
+  // that land in a pocket, against the pockets' budgets
+  const spendingPockets = budgetPockets.filter((p) => p.kind === "spending");
+  const monthSpent = spendingPockets.reduce((sum, p) => sum + p.spentThisMonth + emailSpending.spentForPocket(p.icon), 0);
+  const monthBudget = spendingPockets.reduce((sum, p) => sum + p.targetAmount, 0);
+  const monthPct = monthBudget > 0 ? Math.round((monthSpent / monthBudget) * 100) : 0;
+  const today = new Date();
+  const daysLeftInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate() + 1;
+
+  // "Uangmu bertahan" from real money: the balance the user entered and what they actually
+  // spent over the last 30 days (receipts plus spending recorded in pockets). Only with the
+  // "email_planning" consent; otherwise it stays on BNI data. The score never uses this.
+  const estimate = useMemo(() => {
+    if (!assetsSet || !planningConsent || !emailSpending.ready || emailSpending.spends.length === 0) return null;
+    const DAY = 86_400_000;
+    const now = Date.now();
+    const since = now - 30 * DAY;
+    const oldest = Math.min(...emailSpending.spends.map((t) => Date.parse(t.occurredAt)));
+    const days = Math.max(1, Math.min(30, (now - oldest) / DAY));
+    const spent =
+      emailSpending.spends.filter((t) => Date.parse(t.occurredAt) >= since).reduce((sum, t) => sum + t.amount, 0) +
+      pocketActivity.filter((a) => a.kind === "spend" && Date.parse(a.at) >= since).reduce((sum, a) => sum + a.amount, 0);
+    const perDay = spent / days;
+    const balance = dailyPocket + budgetPockets.reduce((sum, p) => sum + p.balance, 0);
+    const runway = perDay > 0 ? Math.floor(balance / perDay) : 99;
+    const budgetLeftPerDay = monthBudget > 0 ? Math.max(0, monthBudget - monthSpent) / daysLeftInMonth : Infinity;
+    return { runway: Math.min(99, runway), perDay, balance, perDayBudget: Math.min(budgetLeftPerDay, balance / daysLeftInMonth) };
+  }, [assetsSet, planningConsent, emailSpending.ready, emailSpending.spends, pocketActivity, dailyPocket, budgetPockets, monthBudget, monthSpent, daysLeftInMonth]);
+  const shownRunway = estimate?.runway ?? runwayDays;
+  const shownBudgetPerDay = estimate ? Math.round(estimate.perDayBudget) : dailyBudgetSafe;
+  const runwayEndDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + shownRunway);
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  })();
+  // share of a 30-day month the money covers
+  const runwayPct = Math.min(100, Math.round((shownRunway / 30) * 100));
   const hasEmailData = emailSpending.ready && emailSpending.spends.length > 0;
   const overBudget = budgetPockets
     .filter((p) => p.kind === "spending" && p.targetAmount > 0)
@@ -168,10 +201,6 @@ export default function HomePage() {
         .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
         .slice(0, 5),
     [transactions, emailSpending.recent],
-  );
-  const lockRecentTransactions = useMemo(
-    () => transactions.filter((t) => t.category === "saving").slice(0, 2),
-    [transactions]
   );
 
   // Top matched persona for the "Manfaat BNI Untukmu" entry point
@@ -250,8 +279,8 @@ export default function HomePage() {
     triggerToast(`Transaksi QRIS ${formatRupiah(amount)} berhasil dicatat!`);
   };
 
-  // Pocket carousel (Daily / Lock / Kantong) — swipeable with dot indicators
-  const POCKET_SLIDE_COUNT = 3;
+  // Two cards, Pocket and Pengeluaran; the hero above follows the one in view
+  const POCKET_SLIDE_COUNT = 2;
   const CAROUSEL_GAP_PX = 10; // matches gap-2.5
 
   const handleSlideScroll = () => {
@@ -284,7 +313,7 @@ export default function HomePage() {
           <div className="relative z-10 flex items-center justify-between gap-2">
             <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${stateBadge.bg} border ${stateBadge.border} ${stateBadge.text} text-[11px] font-semibold`}>
               <span className={`w-2 h-2 rounded-full ${stateBadge.dot}`} />
-              <span className="font-bold">{stateBadge.label}</span>
+              <span className="font-bold" title="Skor dihitung dari data BNI saja">{stateBadge.label}</span>
             </div>
             <Link
               href="/recovery"
@@ -295,15 +324,27 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* Title & Runway Days */}
+          {/* Title: follows the card below (Pocket: how long the money lasts; Pengeluaran: spending) */}
           <div className="mt-5 max-w-[210px] relative z-10">
-            <p className="text-sm font-medium text-[#766D61]">Uangmu bertahan</p>
-            <h2 className="text-[31px] font-bold text-[#2F240E] tracking-tight leading-tight mt-1">
-              {runwayDays} Hari Lagi
-            </h2>
-            <p className="text-xs text-[#817B70] mt-1">
-              Estimasi aman hingga {runwayEndDate}
-            </p>
+            {activeSlide === 0 ? (
+              <>
+                <p className="text-sm font-medium text-[#766D61]">Uangmu bertahan</p>
+                <h2 className="text-[31px] font-bold text-[#2F240E] tracking-tight leading-tight mt-1 tabular-nums">
+                  {shownRunway >= 99 ? "99+" : shownRunway} Hari Lagi
+                </h2>
+                <p className="text-xs text-[#817B70] mt-1">Estimasi aman hingga {runwayEndDate}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-[#766D61]">Terpakai bulan ini</p>
+                <h2 className="text-[28px] font-bold text-[#2F240E] tracking-tight leading-tight mt-1 tabular-nums">
+                  {formatRupiah(monthSpent)}
+                </h2>
+                <p className="text-xs text-[#817B70] mt-1">
+                  dari budget <span className="font-semibold tabular-nums">{formatRupiah(monthBudget)}</span>
+                </p>
+              </>
+            )}
           </div>
 
           {/* Nera: mood follows the financial state, cheers on successful actions */}
@@ -312,43 +353,73 @@ export default function HomePage() {
           </div>
 
           <div className="relative z-10 mt-7 space-y-4">
-            {/* Runway Progress Bar */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-2 rounded-full bg-[#F4ECDD] overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-[#FFB900] transition-all duration-500"
-                  style={{ width: `${runwayPct}%` }}
+                  className={`h-full rounded-full transition-[width] duration-500 ${activeSlide === 1 && monthPct >= 100 ? "bg-[#C43737]" : "bg-[#FFB900]"}`}
+                  style={{ width: `${activeSlide === 0 ? runwayPct : Math.min(100, monthPct)}%` }}
                 />
               </div>
-              <span className="text-xs font-semibold text-[#473511]">{runwayPct}%</span>
+              <span className="text-xs font-semibold tabular-nums text-[#473511]">{activeSlide === 0 ? runwayPct : monthPct}%</span>
             </div>
 
-            {/* Recommendation Info Row */}
-            <div className="flex items-center gap-1.5 text-xs text-[#817B70]">
-              <FileText size={14} className="text-[#A36A00]" />
-              <span>
-                Rekomendasi budget:{" "}
-                <strong className="text-[#533A08] font-semibold">
-                  {formatRupiah(dailyBudgetSafe)}
-                </strong>{" "}
-                / hari
-              </span>
-            </div>
-            {/* informational only: other banks' spending doesn't change BNI runway */}
-            {emailSpending.ready && emailSpending.monthTotal > 0 && (
-              <Link href="/email" className="flex items-center gap-1.5 text-xs text-[#817B70]">
-                <Mail size={14} className="text-[#A36A00]" />
-                <span>
-                  Di luar BNI:{" "}
-                  <strong className="font-semibold text-[#533A08]">
-                    {formatRupiah(Math.round(emailSpending.monthTotal / new Date().getDate()))}
-                  </strong>{" "}
-                  / hari bulan ini
-                </span>
-              </Link>
+            {activeSlide === 0 ? (
+              <>
+                <div className="flex items-center gap-1.5 text-xs text-[#817B70]">
+                  <FileText size={14} className="shrink-0 text-[#A36A00]" />
+                  <span>
+                    Rekomendasi budget: <strong className="text-[#533A08] font-semibold tabular-nums">{formatRupiah(shownBudgetPerDay)}</strong> / hari
+                  </span>
+                </div>
+                {estimate ? (
+                  <div className="flex items-start gap-1.5 text-xs text-[#817B70]">
+                    <Mail size={14} className="mt-px shrink-0 text-[#A36A00]" />
+                    <span>
+                      Dari saldo <strong className="font-semibold text-[#533A08] tabular-nums">{formatRupiah(estimate.balance)}</strong> dan
+                      pengeluaran nyata <strong className="font-semibold text-[#533A08] tabular-nums">{formatRupiah(Math.round(estimate.perDay))}</strong>/hari (30 hari terakhir)
+                    </span>
+                  </div>
+                ) : hasEmailData && !assetsSet ? (
+                  <Link href="/pockets" className="flex items-start gap-1.5 text-xs font-semibold text-[#76520E]">
+                    <Mail size={14} className="mt-px shrink-0" />
+                    <span className="underline underline-offset-2">Atur saldomu supaya estimasi ini memakai uang dan pengeluaranmu sendiri</span>
+                  </Link>
+                ) : hasEmailData && !planningConsent ? (
+                  <button type="button" onClick={() => setIsPlanningConsentOpen(true)} className="flex items-start gap-1.5 text-left text-xs font-semibold text-[#76520E]">
+                    <Mail size={14} className="mt-px shrink-0" />
+                    <span className="underline underline-offset-2">Pakai pengeluaran dari struk email untuk estimasi ini</span>
+                  </button>
+                ) : (
+                  <p className="text-[11px] text-[#A89F90]">Estimasi dari data BNI.</p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5 text-xs text-[#817B70]">
+                  <FileText size={14} className="shrink-0 text-[#A36A00]" />
+                  <span>
+                    {monthBudget > monthSpent ? (
+                      <>
+                        Sisa budget <strong className="font-semibold text-[#533A08] tabular-nums">{formatRupiah(Math.round((monthBudget - monthSpent) / daysLeftInMonth))}</strong> / hari sampai akhir bulan
+                      </>
+                    ) : (
+                      <strong className="font-semibold text-[#A92F2F]">Budget bulan ini sudah terlewati {formatRupiah(monthSpent - monthBudget)}</strong>
+                    )}
+                  </span>
+                </div>
+                {emailSpending.byCategory[0] && (
+                  <Link href="/email" className="flex items-center gap-1.5 text-xs text-[#817B70]">
+                    <Mail size={14} className="shrink-0 text-[#A36A00]" />
+                    <span>
+                      Terbesar dari email: <strong className="font-semibold text-[#533A08]">{emailSpending.byCategory[0].label}</strong>{" "}
+                      <span className="tabular-nums">{formatRupiah(emailSpending.byCategory[0].amount)}</span>
+                    </span>
+                  </Link>
+                )}
+              </>
             )}
 
-            {/* Pockets Swipe Carousel (Daily / Lock / Kantong) */}
+            {/* Pocket / Pengeluaran carousel */}
             <div className="pt-1">
               <div
                 ref={scrollRef}
@@ -365,14 +436,14 @@ export default function HomePage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-[#2F240E] leading-tight">Daily Pocket</p>
-                        <span className="text-[10px] text-[#736B60] block mt-0.5">(Siap Pakai)</span>
+                        <span className="text-[10px] text-[#736B60] block mt-0.5">{assetsSet ? "(Siap Pakai)" : "Saldo belum diatur"}</span>
                       </div>
                     </div>
                     <p
                       className="text-lg font-bold text-[#2F240E] shrink-0"
-                      title={formatRupiah(dailyPocket)}
+                      title={formatRupiah(assetsSet ? dailyPocket : 0)}
                     >
-                      {formatRupiahShort(dailyPocket)}
+                      {formatRupiahShort(assetsSet ? dailyPocket : 0)}
                     </p>
                   </div>
 
@@ -415,98 +486,67 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Slide 2: Lock Pocket */}
+                {/* Slide 2: Pengeluaran (receipts from email) */}
                 <div className="w-full shrink-0 snap-center rounded-[22px] bg-[#FFF3D6] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <div className="w-10 h-10 rounded-[13px] bg-white/75 shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
-                        <Lock size={18} />
+                        <ReceiptText size={18} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#2F240E] leading-tight">Lock Pocket</p>
+                        <p className="text-sm font-bold text-[#2F240E] leading-tight">Pengeluaran</p>
                         <span className="text-[10px] text-[#76520E]/80 block mt-0.5">
-                          (BNI Life Goals)
+                          {hasEmailData ? `${emailSpending.spends.filter((t) => t.occurredAt.slice(0, 7) === today.toISOString().slice(0, 7)).length} struk email bulan ini` : "Belum ada struk email"}
                         </span>
                       </div>
                     </div>
-                    <p
-                      className="text-lg font-bold text-[#2F240E] shrink-0 flex items-center gap-1"
-                      title={formatRupiah(lockPocket)}
-                    >
-                      <span>{formatRupiahShort(lockPocket)}</span>
-                      <Lock size={13} className="text-[#76520E] shrink-0" />
+                    <p className="text-lg font-bold text-[#2F240E] shrink-0 tabular-nums" title={formatRupiah(emailSpending.monthTotal)}>
+                      {formatRupiahShort(emailSpending.monthTotal)}
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setRecentOpen(recentOpen === "lock" ? null : "lock")}
-                    aria-expanded={recentOpen === "lock"}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#EEDB9A]/70 bg-white/80 px-4 py-2.5 text-xs font-bold text-[#76520E] transition-colors hover:bg-white"
-                  >
-                    Recent Activity
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-200 ${
-                        recentOpen === "lock" ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
+                  {hasEmailData ? (
+                    <button
+                      type="button"
+                      onClick={() => setRecentOpen(recentOpen === "spend" ? null : "spend")}
+                      aria-expanded={recentOpen === "spend"}
+                      className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#EEDB9A]/70 bg-white/80 px-4 py-2.5 text-xs font-bold text-[#76520E] transition-colors hover:bg-white"
+                    >
+                      Recent Activity
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${recentOpen === "spend" ? "rotate-180" : ""}`} />
+                    </button>
+                  ) : (
+                    <Link
+                      href="/email"
+                      className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full bg-white/80 px-4 py-2.5 text-xs font-bold text-[#76520E] hover:bg-white"
+                    >
+                      Hubungkan Gmail
+                      <ChevronRight size={14} />
+                    </Link>
+                  )}
 
-                  {recentOpen === "lock" && (
+                  {recentOpen === "spend" && (
                     <ul className="animate-overlay-in mt-2 space-y-1.5">
-                      {lockRecentTransactions.length > 0 ? (
-                        lockRecentTransactions.map((tx) => (
-                          <li
-                            key={tx.id}
-                            className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2"
+                      {emailSpending.spends.slice(0, 4).map((t) => (
+                        <li key={t.id}>
+                          <button
+                            type="button"
+                            onClick={() => txDetail.open(t)}
+                            className="flex w-full items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2 text-left hover:bg-white"
                           >
-                            <span className="truncate text-[11px] font-semibold text-[#2F240E]">
-                              {tx.title}
-                            </span>
-                            <span className="shrink-0 text-[11px] font-bold text-[#277449]">
-                              +{formatRupiahShort(tx.amount)}
-                            </span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="rounded-xl bg-white/70 px-3 py-2 text-[11px] font-semibold text-[#736B60]">
-                          Belum ada aktivitas nabung.
+                            <span className="truncate text-[11px] font-semibold text-[#2F240E]">{t.merchant}</span>
+                            <span className="shrink-0 text-[11px] font-bold tabular-nums text-[#2F240E]">−{formatRupiahShort(t.amount)}</span>
+                          </button>
                         </li>
-                      )}
+                      ))}
+                      <li>
+                        <Link href="/email" className="block py-1 text-center text-[11px] font-semibold text-[#76520E] underline underline-offset-2">
+                          Lihat semua transaksi
+                        </Link>
+                      </li>
                     </ul>
                   )}
                 </div>
-
-                {/* Slide 3: Kantong Budget */}
-                <Link
-                  href="/pockets"
-                  className="flex w-full shrink-0 snap-center flex-col justify-between rounded-[22px] border border-[#E9E5DD] bg-white p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-[13px] bg-[#FFF0BD] flex items-center justify-center text-[#6D4C00] shrink-0">
-                        <Layers size={18} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#2F240E] leading-tight">
-                          Kantong Budget
-                        </p>
-                        <span className="text-[10px] text-[#736B60] block mt-0.5">
-                          {budgetPockets.length} kantong aktif
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-lg font-bold text-[#2F240E] shrink-0">
-                      {formatRupiahShort(budgetPockets.reduce((sum, p) => sum + p.balance, 0))}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-[#FFF8E6] px-4 py-2.5 text-xs font-bold text-[#76520E] transition-colors hover:bg-[#FFF3D6]">
-                    Kelola Kantong
-                    <ChevronRight size={14} />
-                  </div>
-                </Link>
               </div>
 
               {/* Dots */}
@@ -878,6 +918,31 @@ export default function HomePage() {
       </main>
 
       {txDetail.sheet}
+
+      {/* the "email_planning" consent, asked where it is used */}
+      <Modal isOpen={isPlanningConsentOpen} onClose={() => setIsPlanningConsentOpen(false)} title="Estimasi dari struk email">
+        <EmailPlanningConsent
+          consent={{ version: "", emailImport: true, aiProcessing: false, emailPlanning: planningConsent }}
+          busy={false}
+          onChange={async (kind, granted) => {
+            try {
+              await emailApi.setConsent(kind, granted);
+              await useEmailSpendingStore.getState().load(true);
+              setIsPlanningConsentOpen(false);
+              triggerToast(granted ? "Estimasi sekarang memakai pengeluaran nyatamu" : "Estimasi kembali memakai data BNI");
+            } catch (e) {
+              triggerToast((e as Error).message);
+            }
+          }}
+        />
+        <p className="mt-3 text-[11px] text-[#736B60]">
+          Detail ada di{" "}
+          <Link href="/privacy" className="font-semibold text-[#76520E] underline underline-offset-2">
+            Kebijakan Privasi
+          </Link>
+          . Bisa diubah kapan saja di halaman Impor dari Email.
+        </p>
+      </Modal>
 
       {/* TOAST NOTIFICATION */}
       {isSuccessToastOpen && (
