@@ -97,6 +97,8 @@ emailRouter.get("/status", async (req, res) => {
         aiProcessing: current("ai_processing"),
         emailPlanning: current("email_import") && current("email_planning"),
         emailImportAt: consents.email_import?.at,
+        // agreed to an earlier wording and never withdrew: asked to agree again, sync paused until then
+        emailImportOutdated: Boolean(consents.email_import?.granted && consents.email_import.version !== CONSENT_VERSION),
         aiProcessingAt: consents.ai_processing?.at,
         emailPlanningAt: consents.email_planning?.at,
       },

@@ -71,6 +71,8 @@ export type EmailStatus = {
     /** receipts may feed the Beranda estimate */
     emailPlanning: boolean;
     emailImportAt?: string;
+    /** agreed to an earlier wording; syncing waits for a new agreement */
+    emailImportOutdated?: boolean;
     aiProcessingAt?: string;
     emailPlanningAt?: string;
   };

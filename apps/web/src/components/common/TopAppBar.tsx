@@ -2,10 +2,11 @@
 
 import React, { useContext } from "react";
 import Image from "next/image";
-import { Bell, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DemoControlPanel } from "./DemoControlPanel";
 import { FullscreenButton } from "./FullscreenButton";
+import { NotificationBell } from "./NotificationBell";
 import { MobileFrameContext } from "./MobileFrame";
 
 export interface TopAppBarProps {
@@ -51,14 +52,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({ title, showBack = false })
 
         {/* Right: Notification Bell */}
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-          {/* Notification Bell */}
-          <button
-            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[#2F240E] bg-[#F5F5F5] hover:bg-[#FFF3D6] transition-colors"
-            aria-label="Notifikasi"
-          >
-            <Bell size={22} className="text-[#2F240E]" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FFB900] ring-2 ring-white" />
-          </button>
+          <NotificationBell />
 
           {/* Demo-only: role switcher + persona scenario switcher (judge/demo aid) */}
           <DemoControlPanel />

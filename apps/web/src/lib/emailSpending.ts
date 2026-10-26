@@ -18,6 +18,8 @@ type State = {
   aiConsent: boolean;
   /** receipts may feed the Beranda estimate (consent "email_planning") */
   planningConsent: boolean;
+  /** agreed to email import before, but not to the current wording: syncing is paused */
+  consentOutdated: boolean;
   loadedAt: number;
   load: (force?: boolean) => Promise<void>;
 };
@@ -29,6 +31,7 @@ export const useEmailSpendingStore = create<State>((set, get) => ({
   transactions: [],
   aiConsent: false,
   planningConsent: false,
+  consentOutdated: false,
   loadedAt: 0,
   load: async (force = false) => {
     const { status, loadedAt } = get();
@@ -41,6 +44,7 @@ export const useEmailSpendingStore = create<State>((set, get) => ({
         transactions,
         aiConsent: status.consent.aiProcessing,
         planningConsent: status.consent.emailPlanning,
+        consentOutdated: Boolean(status.consent.emailImportOutdated),
         loadedAt: Date.now(),
       });
     } catch (e) {
