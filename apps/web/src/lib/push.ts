@@ -52,7 +52,15 @@ export async function enablePush(showAmounts: boolean) {
   const reg = await registration();
   const sub =
     (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(cfg.publicKey) }));
+    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(cfg.publicKey) }).catch((e: Error) => {
+      // "Registration failed - push service error": the browser couldn't reach its own push
+      // service (Google's for Chrome). A VPN, firewall or blocker, or a browser with push off.
+      if (/push service/i.test(e.message))
+        throw new Error(
+          "Browser ini belum bisa terhubung ke layanan notifikasi. Matikan VPN atau pemblokir iklan lalu coba lagi. Di Brave: Settings, Privacy, nyalakan \"Use Google services for push messaging\". Atau coba dari Chrome di HP.",
+        );
+      throw e;
+    }));
   const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
   await call<null>("/push/subscribe", { method: "POST", body: JSON.stringify({ subscription: json, showAmounts }) });
 }
