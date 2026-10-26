@@ -30,6 +30,11 @@ const sections: { title: string; body: React.ReactNode }[] = [
         <li>
           Saldo yang kamu isi sendiri (Aset Saya) dan kantong tersimpan di perangkatmu. Data BNI lain di aplikasi masih data demo.
         </li>
+        <li>
+          Pengingat (hanya kalau kamu menyalakannya): alamat notifikasi browsermu, serta nama, target, saldo, tanggal dan
+          waktu isi terakhir dari kantong Rencana dadakan, supaya Nera bisa mengingatkan. Mematikan pengingat di semua
+          perangkat menghapus data ini dari server.
+        </li>
       </ul>
     ),
   },
@@ -96,6 +101,7 @@ const sections: { title: string; body: React.ReactNode }[] = [
         <li>Melihat semua transaksi yang diimpor di halaman Impor dari Email.</li>
         <li>Mencabut persetujuan kapan saja. Mencabut impor email memutus Gmail dan menghapus data dari email.</li>
         <li>Menghapus semua data email lewat tombol &quot;Putuskan &amp; hapus semua data email&quot;.</li>
+        <li>Mematikan pengingat kapan saja dari detail kantong Rencana dadakan.</li>
         <li>Mencabut akses Nera juga bisa dari pengaturan Akun Google kamu.</li>
       </ul>
     ),

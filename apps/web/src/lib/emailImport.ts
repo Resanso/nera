@@ -83,7 +83,7 @@ export type SyncSummary = { scanned: number; imported: number; duplicates: numbe
 /** Thrown when the session cookie is missing or expired. */
 export class NotSignedIn extends Error {}
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}/api${path}`, {
     ...init,
     // the session is an HttpOnly cookie set by the API

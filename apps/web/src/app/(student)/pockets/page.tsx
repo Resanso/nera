@@ -13,6 +13,8 @@ import { inPeriod, presetPeriod, type Period } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { PocketProfileSheet } from "../../../components/insights/PocketProfileSheet";
 import { dueLabel, perDayNow, type ProfilePlan } from "../../../lib/pocketProfile";
+import { usePushState, useReminderSync } from "../../../lib/push";
+import { ReminderToggle } from "../../../components/insights/ReminderToggle";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
   BudgetPocket,
@@ -566,6 +568,10 @@ export default function PocketsPage() {
   };
 
   const mainTone = POCKET_TONES[MAIN_TONE];
+
+  // reminders for Rencana dadakan pockets (Web Push); the server only gets what they need
+  const push = usePushState();
+  useReminderSync(budgetPockets, pocketActivity, push.state === "on");
 
   return (
     <div className="flex flex-col min-h-full bg-[#F1F2F4]">
@@ -1282,6 +1288,17 @@ export default function PocketsPage() {
                               ? "Uangnya sudah terkumpul. Saat bayar, pakai tab Pakai di bawah."
                               : "Hari-H sudah lewat. Sisa saldo bisa ditarik ke Kantong Utama."}
                           </p>
+                        )}
+                        {due.days >= 0 && selectedPocket.balance < selectedPocket.targetAmount && (
+                          <div className="mt-2.5">
+                            <ReminderToggle
+                              state={push.state}
+                              showAmounts={push.showAmounts}
+                              onShowAmounts={push.setShowAmounts}
+                              onChange={push.refresh}
+                              notify={triggerToast}
+                            />
+                          </div>
                         )}
                       </div>
                     );
