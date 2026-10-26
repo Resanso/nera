@@ -123,6 +123,28 @@ function findMerchant(text: string): string | undefined {
   return name && !/^(?:secara|akan|dapat|yang|untuk|dan|atau|di|ke|dari)\b/i.test(name) ? name : undefined;
 }
 
+/**
+ * Two-column receipts (wondr by BNI): a header row "Recipient  Source of funds" and the
+ * values on the next row. The payee is the first cell under the label.
+ */
+function merchantFromTable(text: string): string | undefined {
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  for (let i = 0; i < lines.length - 1; i++) {
+    const cells = lines[i].split(/\s{2,}/);
+    if (cells.length < 2 || !/^(?:recipient|penerima|merchant)$/i.test(cells[0])) continue;
+    const next = lines.slice(i + 1).find(Boolean)?.split(/\s{2,}/)[0];
+    if (next && !/^[\d\s*•.-]+$/.test(next)) return next;
+  }
+  return undefined;
+}
+
+/** blu: the payee is the line under the payer's "bluAccount". */
+function merchantAfterAccount(text: string): string | undefined {
+  const m = text.match(/(?:^|\n)[ \t]*bluAccount[ \t]*\n\s*([^\n]{2,60})/);
+  const name = m?.[1].trim();
+  return name && !/^[\d\s]+$/.test(name) ? name : undefined;
+}
+
 /** "Kamu telah membayar ke MyTelkomsel Apps💸" -> "MyTelkomsel Apps" (bank payment notifications). */
 function merchantFromSubject(subject: string): string | undefined {
   const m = subject.match(/(?:membayar ke|bayar ke|pembayaran ke|pembayaran di|transaksi di)\s+(.+)$/i);
@@ -141,14 +163,19 @@ function categorize(text: string, fallback: EmailCategory): EmailCategory {
 }
 
 /** Fast path: regex rules over the email text. Returns null when it is clearly not a receipt. */
-export function extractWithRules(email: ParsedEmail, provider: string, fallback: EmailCategory): Extraction | null {
+/**
+ * `bank`: bank notifications carry long footers (products, "tagihan", "internet banking"),
+ * so only the payee and the subject decide their category, never the body.
+ */
+export function extractWithRules(email: ParsedEmail, provider: string, fallback: EmailCategory, bank = false): Extraction | null {
   const haystack = `${email.subject}\n${email.text}`;
   const total = findTotal(haystack);
   if (!total || total.amount <= 0) return null;
   // promo blasts mention prices but have no "total" line
   if (!total.keyword && PROMO.test(haystack)) return null;
 
-  const merchant = merchantFromSubject(email.subject) ?? findMerchant(email.text);
+  const merchant =
+    merchantFromSubject(email.subject) ?? merchantFromTable(email.text) ?? findMerchant(email.text) ?? merchantAfterAccount(email.text);
   const externalRef = findRef(haystack);
   const confidence = 0.5 + (total.keyword ? 0.3 : 0) + (merchant ? 0.1 : 0) + (externalRef ? 0.1 : 0);
 
@@ -157,7 +184,7 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
     amount: total.amount,
     type: kind === "income" || INCOME_BODY.test(email.text) ? "income" : "expense",
     merchant: merchant ?? provider,
-    category: kind && kind !== "income" ? kind : ((merchant ? categorizeMerchant(merchant) : null) ?? categorize(haystack, fallback)),
+    category: kind && kind !== "income" ? kind : ((merchant ? categorizeMerchant(merchant) : null) ?? categorize(bank ? email.subject : haystack, fallback)),
     externalRef,
     confidence: Math.min(1, confidence),
     extractedBy: "rules",

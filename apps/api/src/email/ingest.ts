@@ -76,7 +76,7 @@ export async function ingestEmail(
   const messageHash = hash(email.messageId || `${email.from}|${email.subject}|${email.date.toISOString()}`);
   if (await emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
 
-  let x = extractWithRules(email, sender.provider, sender.defaultCategory);
+  let x = extractWithRules(email, sender.provider, sender.defaultCategory, Boolean(listed?.bank));
   // unlisted senders need an explicit "Total ..." line; a bare "Rp 50.000" in a chatty
   // email isn't a receipt. Without one, only the AI may still recognize it.
   if (x && !listed && x.confidence < 0.8) x = null;

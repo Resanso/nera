@@ -17,7 +17,7 @@ type Sender = {
  * real receipts before launch; providers change them.
  */
 export const ALLOWED_SENDERS: Sender[] = [
-  { provider: "Gojek", domains: ["gojek.com", "gopay.co.id"], defaultCategory: "transport", payeeNames: ["gojek", "gopay"] },
+  { provider: "Gojek", domains: ["gojek.com", "go-jek.com", "gopay.co.id"], defaultCategory: "transport", payeeNames: ["gojek", "gopay"] },
   { provider: "Grab", domains: ["grab.com"], defaultCategory: "transport", payeeNames: ["grab"] },
   { provider: "OVO", domains: ["ovo.id"], defaultCategory: "topup" },
   { provider: "DANA", domains: ["dana.id"], defaultCategory: "topup" },
@@ -32,6 +32,9 @@ export const ALLOWED_SENDERS: Sender[] = [
   // other banks' payment notifications: spending that never touches the BNI account
   { provider: "Livin' by Mandiri", domains: ["bankmandiri.co.id"], defaultCategory: "other", bank: true },
   { provider: "Bank Jago", domains: ["jago.com"], defaultCategory: "other", bank: true },
+  { provider: "blu", domains: ["blubybcadigital.id", "bcadigital.co.id"], defaultCategory: "other", bank: true },
+  // wondr receipts: real BNI spending; Nera's own BNI figures are still demo data
+  { provider: "BNI", domains: ["bni.co.id"], defaultCategory: "other", bank: true },
 ];
 
 /**

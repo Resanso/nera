@@ -1,0 +1,23 @@
+From: wondr by BNI <wondr@bni.co.id>
+To: budi.santoso@gmail.com
+Subject: QRIS Payment Successful
+Date: Mon, 28 Sep 2026 18:12:34 +0700
+Message-ID: <sample-wondr-016@bni.co.id>
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
+
+<html><body>
+<p>Hi, BUDI SANTOSO</p>
+<p>Thanks for choosing wondr by BNI for your transaction! You've just made a payment using QRIS, and here are the details:</p>
+<table>
+<tr><th>Recipient</th><th>Source of funds</th></tr>
+<tr><td>ALGO B485 AFM STT TELKOM</td><td>BUDI SANTOSO</td></tr>
+<tr><td>BANDUNG ID</td><td>TAPLUS MAHASISWA • *******257</td></tr>
+</table>
+<p>Date &amp; time of transaction</p>
+<table><tr><td>Date</td><td>28 Sep 2026</td></tr><tr><td>Time</td><td>18:12:34 WIB</td></tr></table>
+<p>Transaction details</p>
+<table><tr><td>Amount</td><td>Rp10.100</td></tr><tr><td>Total</td><td>Rp10.100</td></tr></table>
+<p>Merchant details</p>
+<table><tr><td>Merchant name</td><td>ALGO B485 AFM STT TELKOM</td></tr></table>
+</body></html>
