@@ -37,7 +37,9 @@ export function TransactionSheet({
   const [target, setTarget] = useState<Element | null>(null);
   const [category, setCategory] = useState<EmailCategory>(tx.category);
   const others = all.filter((t) => t.id !== tx.id && !t.dismissed && merchantKey(t.merchant) === merchantKey(tx.merchant)).length;
-  const [applyAll, setApplyAll] = useState(true);
+  // a payee from a bank notification ("WARTEG ARJUNA") is one kind of spending; a platform's
+  // own receipts ("Grab", "Shopee") mix food, rides and goods, so those start unticked
+  const [applyAll, setApplyAll] = useState(merchantKey(tx.merchant) !== merchantKey(tx.provider));
   const [confirmHide, setConfirmHide] = useState(false);
 
   useEffect(() => {
