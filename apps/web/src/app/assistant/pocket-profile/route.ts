@@ -134,8 +134,9 @@ export async function POST(req: NextRequest) {
     .then((r) => r ?? askGemini(messages, sys).catch(() => null));
   const ai = raw ? parseJson(raw) : null;
 
-  // the model's reading wins; the rules fill what it left out
-  const merged: Partial<ProfileDraft> = { ...rules, ...clean(ai?.draft, today) };
+  // the model's reading wins, except for the day: date arithmetic is where models slip
+  // ("minggu depan" became this Saturday), and the rules count it exactly
+  const merged: Partial<ProfileDraft> = { ...rules, ...clean(ai?.draft, today), ...(rules.dueDate && { dueDate: rules.dueDate }) };
   // an amount and a day are enough for a proposal; a follow-up question can sit beside the card
   const complete = merged.amount && merged.dueDate;
   const draft: ProfileDraft | null = complete
