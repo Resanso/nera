@@ -78,7 +78,11 @@ export type EmailSpending = {
   aiConsent: boolean;
   monthTotal: number;
   byCategory: SpendingTotals["byCategory"];
-  /** newest first, counted spending and income, for transaction lists */
+  /**
+   * newest first, counted spending only, for transaction lists. Income from email is left
+   * out for now: banks rarely email incoming transfers, so what arrives is mostly refunds
+   * and misreads. Income comes from BNI.
+   */
   recent: EmailTransaction[];
   spentForPocket: (icon: BudgetPocketIcon) => number;
   /** the same figures for any period (Kantong's period filter) */
@@ -103,7 +107,7 @@ export function useEmailSpending(): EmailSpending {
     aiConsent,
     monthTotal: month.total,
     byCategory: month.byCategory,
-    recent: transactions.filter((t) => isCountedSpend(t) || t.type === "income"),
+    recent: spends,
     spentForPocket: month.spentForPocket,
     inPeriod: (p) => summarize(spends.filter((t) => inPeriod(t.occurredAt, p))),
     spends,

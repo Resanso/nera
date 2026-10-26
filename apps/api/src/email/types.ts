@@ -8,7 +8,11 @@ export type EmailCategory =
   | "travel"
   | "topup"
   | "transfer"
+  | "investment"
   | "other";
+
+/** Money moved between the user's own accounts or into investments: not spending. */
+export const isOwnMoneyMove = (c: EmailCategory) => c === "topup" || c === "transfer" || c === "investment";
 
 /**
  * A transaction extracted from an email receipt.
@@ -37,7 +41,7 @@ export interface EmailTransaction {
   confidence: number;
   /** Low confidence or unlisted sender: shown as "perlu dicek" and kept out of totals until confirmed. */
   needsReview: boolean;
-  /** Top-ups and transfers from the user's own BNI account are not new spending. */
+  /** Top-ups, transfers and investments are not new spending. */
   countsTowardSpending: boolean;
   /** Same payment already counted from another email (e.g. a bank notification for a Traveloka receipt). */
   duplicateOf?: string;

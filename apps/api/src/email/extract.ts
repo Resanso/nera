@@ -163,7 +163,7 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
   };
 }
 
-const CATEGORIES = ["food", "transport", "shopping", "bills", "entertainment", "education", "travel", "topup", "transfer", "other"] as const;
+const CATEGORIES = ["food", "transport", "shopping", "bills", "entertainment", "education", "travel", "topup", "transfer", "investment", "other"] as const;
 
 // Models vary: null for missing fields, "49000" as a string, "Food" capitalized. Accept all of that.
 const AiResult = z.object({
@@ -177,7 +177,7 @@ const AiResult = z.object({
 
 const AI_SYSTEM = `Kamu mengekstrak transaksi dari email struk/notifikasi pembayaran berbahasa Indonesia atau Inggris.
 Balas HANYA JSON: {"isTransaction": boolean, "amount": number (rupiah, tanpa desimal), "type": "expense"|"income",
-"merchant": string, "category": "food"|"transport"|"shopping"|"bills"|"entertainment"|"education"|"travel"|"topup"|"transfer"|"other",
+"merchant": string, "category": "food"|"transport"|"shopping"|"bills"|"entertainment"|"education"|"travel"|"topup"|"transfer"|"investment"|"other",
 "externalRef": string opsional}. Email promo, newsletter, OTP, atau info akun bukan transaksi (isTransaction false).
 Ambil jumlah TOTAL yang dibayar, bukan harga item atau diskon.`;
 

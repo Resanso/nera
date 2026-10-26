@@ -24,6 +24,7 @@ import { moneyInsights } from "../email/insights";
 import { reconcile } from "../email/reconcile";
 import { CONSENT_VERSION, ConsentRequired, hasConsent, requireConsent } from "../email/consent";
 import { emailStore, type GmailBackfill } from "../email/store";
+import { isOwnMoneyMove } from "../email/types";
 
 export const emailRouter: Router = Router();
 
@@ -141,7 +142,7 @@ emailRouter.get("/transactions", async (req, res) => {
 });
 
 const ReviewBody = z.object({
-  category: z.enum(["food", "transport", "shopping", "bills", "entertainment", "education", "travel", "topup", "transfer", "other"]).optional(),
+  category: z.enum(["food", "transport", "shopping", "bills", "entertainment", "education", "travel", "topup", "transfer", "investment", "other"]).optional(),
   confirm: z.literal(true).optional(),
 });
 
@@ -151,7 +152,7 @@ emailRouter.patch("/transactions/:id", async (req, res) => {
   if (!body.success) return res.status(400).json({ success: false, error: "Body tidak valid" });
   const { category, confirm } = body.data;
   const tx = await emailStore.updateTransaction(userIdOf(req), req.params.id, {
-    ...(category && { category, countsTowardSpending: category !== "topup" && category !== "transfer" }),
+    ...(category && { category, countsTowardSpending: !isOwnMoneyMove(category) }),
     ...(confirm && { needsReview: false }),
   });
   if (!tx) return res.status(404).json({ success: false, error: "Transaksi tidak ditemukan" });

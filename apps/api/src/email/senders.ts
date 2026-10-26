@@ -34,6 +34,17 @@ export const ALLOWED_SENDERS: Sender[] = [
   { provider: "Bank Jago", domains: ["jago.com"], defaultCategory: "other", bank: true },
 ];
 
+/**
+ * Brokers and crypto exchanges. Not in the Gmail query (they arrive through the Purchases
+ * category); their buys, sells and asset values are investments, never pocket spending.
+ */
+const INVESTMENT_DOMAINS = ["pintu.co.id", "bibit.id", "stockbit.com", "ajaib.co.id", "bareksa.com", "indodax.com", "tokocrypto.com", "pluang.com"];
+
+export const isInvestmentDomain = (fromDomain: string) => {
+  const d = fromDomain.toLowerCase();
+  return INVESTMENT_DOMAINS.some((x) => d === x || d.endsWith(`.${x}`));
+};
+
 export function findSender(fromDomain: string): Sender | undefined {
   const d = fromDomain.toLowerCase();
   return ALLOWED_SENDERS.find((s) => s.domains.some((x) => d === x || d.endsWith(`.${x}`)));

@@ -13,6 +13,7 @@ export type EmailCategory =
   | "travel"
   | "topup"
   | "transfer"
+  | "investment"
   | "other";
 
 export type EmailTransaction = {
@@ -150,6 +151,7 @@ export const CATEGORY_LABEL: Record<EmailCategory, string> = {
   topup: "Top up",
   travel: "Perjalanan",
   transfer: "Transfer",
+  investment: "Investasi",
   other: "Lainnya",
 };
 

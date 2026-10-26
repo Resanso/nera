@@ -616,7 +616,7 @@ export default function EmailImportPage() {
                             {t.provider} · {CATEGORY_LABEL[t.category]} · {formatDate(t.occurredAt)} · {CHANNEL_LABEL[t.channel]}
                           </p>
                         </div>
-                        <p className={`shrink-0 text-sm font-bold tabular-nums ${t.type === "income" ? "text-[#2F6B1F]" : "text-[#2F240E]"}`}>
+                        <p className={`shrink-0 text-sm font-bold tabular-nums ${t.countsTowardSpending && !t.needsReview ? "text-[#2F240E]" : "text-[#736B60]"}`}>
                           {t.type === "income" ? "+" : "−"}
                           {formatRupiah(t.amount)}
                         </p>
@@ -639,10 +639,12 @@ export default function EmailImportPage() {
                               {t.duplicateOf
                                 ? `Tidak dihitung · sudah ada struk dari ${byId.get(t.duplicateOf)?.provider ?? "merchant"}`
                                 : t.type === "income"
-                                  ? "Pemasukan"
+                                  ? "Tidak dihitung · uang masuk"
                                   : t.category === "transfer"
                                     ? "Tidak dihitung · transfer"
-                                    : "Tidak dihitung · top up"}
+                                    : t.category === "investment"
+                                      ? "Tidak dihitung · investasi"
+                                      : "Tidak dihitung · top up"}
                             </span>
                           )}
                         </div>

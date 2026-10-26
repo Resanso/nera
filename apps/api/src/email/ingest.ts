@@ -1,9 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { simpleParser } from "mailparser";
 import { FAILED, SHIPPING, extractWithAI, extractWithRules } from "./extract";
-import { findSender, providerFromSender } from "./senders";
+import { findSender, isInvestmentDomain, providerFromSender } from "./senders";
 import { emailStore } from "./store";
-import type { EmailTransaction, IngestResult, ParsedEmail } from "./types";
+import { isOwnMoneyMove, type EmailTransaction, type IngestResult, type ParsedEmail } from "./types";
+
+/** Receipts at or above this wait for the user to confirm before they count. */
+const REVIEW_ABOVE = 25_000_000;
 
 /**
  * Receipts are mostly HTML tables. mailparser's own conversion joins table rows into
@@ -80,7 +83,7 @@ export async function ingestEmail(
   if (opts.allowAI && (!x || x.confidence < 0.7)) x = (await extractWithAI(email, sender.provider)) ?? x;
   if (!x) return { status: "ignored", reason: "not_a_transaction" };
 
-  const isOwnMoneyMove = x.category === "topup" || x.category === "transfer";
+  if (isInvestmentDomain(email.fromDomain)) x = { ...x, category: "investment" };
   const transaction: EmailTransaction = {
     id: randomUUID(),
     userId: opts.userId,
@@ -98,9 +101,10 @@ export async function ingestEmail(
     messageHash,
     confidence: x.confidence,
     // unlisted senders: our rules weren't written for their receipts, so the user confirms first
-    needsReview: x.confidence < 0.7 || !listed,
+    // and a figure far beyond a student's spending is usually a misread (a promo prize, an asset value)
+    needsReview: x.confidence < 0.7 || !listed || x.amount >= REVIEW_ABOVE,
     // a GoPay/OVO top-up is usually already a BNI debit; counting it again would double the spend
-    countsTowardSpending: x.type === "expense" && !isOwnMoneyMove,
+    countsTowardSpending: x.type === "expense" && !isOwnMoneyMove(x.category),
     extractedBy: x.extractedBy,
     createdAt: new Date().toISOString(),
   };
