@@ -68,7 +68,7 @@ export function PocketProfileSheet({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/pocket-profile", {
+      const res = await fetch("/assistant/pocket-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next.map(({ role, content }) => ({ role, content })) }),

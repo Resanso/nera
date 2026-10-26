@@ -10,6 +10,7 @@ export const runtime = "nodejs";
  * Nera works out what it is, how much and by when. The model only understands the request
  * and talks; the pocket and the daily set-aside are computed by the app (planProfile), so
  * the numbers always add up. Only the chat itself is sent: no balances, no email data.
+ * Lives outside /api/ because nginx sends /api/* (except /api/chat) to the Express API.
  */
 
 const ICONS: BudgetPocketIcon[] = ["food", "fun", "gift", "travel", "shopping", "education", "transport", "health", "gadget", "home", "utility"];
