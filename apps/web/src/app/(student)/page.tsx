@@ -429,7 +429,11 @@ export default function HomePage() {
               >
                 {/* Slide 1: Daily Pocket */}
                 <div className="w-full shrink-0 snap-center rounded-[22px] bg-[#F7F5F0] p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <Link
+                    href="/pockets"
+                    aria-label="Buka Kantong"
+                    className="-m-2 flex items-center justify-between gap-3 rounded-[16px] p-2 transition-[background-color,scale] hover:bg-white/60 active:scale-[0.96]"
+                  >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <div className="w-10 h-10 rounded-[13px] bg-white shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
                         <Wallet size={18} />
@@ -445,7 +449,7 @@ export default function HomePage() {
                     >
                       {formatRupiahShort(assetsSet ? dailyPocket : 0)}
                     </p>
-                  </div>
+                  </Link>
 
                   <button
                     type="button"
@@ -488,7 +492,11 @@ export default function HomePage() {
 
                 {/* Slide 2: Pengeluaran (receipts from email) */}
                 <div className="w-full shrink-0 snap-center rounded-[22px] bg-[#FFF3D6] p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <Link
+                    href="/email"
+                    aria-label="Buka transaksi email"
+                    className="-m-2 flex items-center justify-between gap-3 rounded-[16px] p-2 transition-[background-color,scale] hover:bg-white/50 active:scale-[0.96]"
+                  >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <div className="w-10 h-10 rounded-[13px] bg-white/75 shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
                         <ReceiptText size={18} />
@@ -503,7 +511,7 @@ export default function HomePage() {
                     <p className="text-lg font-bold text-[#2F240E] shrink-0 tabular-nums" title={formatRupiah(emailSpending.monthTotal)}>
                       {formatRupiahShort(emailSpending.monthTotal)}
                     </p>
-                  </div>
+                  </Link>
 
                   {hasEmailData ? (
                     <button
