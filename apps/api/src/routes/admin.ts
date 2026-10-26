@@ -27,7 +27,8 @@ adminRouter.use(requireSession, requireAdmin);
 adminRouter.get("/overview", async (_req, res) => {
   const [known, links, withData] = await Promise.all([emailStore.listUsers(), emailStore.listGmail(), emailStore.listUserIdsWithData()]);
   const byId = new Map(known.map((u) => [u.id, u]));
-  const users = [...new Set([...known.map((u) => u.id), ...withData])].map((id) => {
+  // "<user>~reimport" holds a Gmail re-import while it runs; it is not a user
+  const users = [...new Set([...known.map((u) => u.id), ...withData])].filter((id) => !id.includes("~")).map((id) => {
     // signed in before user tracking existed: show the Gmail address until they come back
     const fallback = links.find((l) => l.userId === id)?.googleEmail ?? id;
     return byId.get(id) ?? { id, email: fallback, createdAt: undefined, lastSeenAt: undefined, unverified: true };
