@@ -6,6 +6,7 @@ import { TopAppBar } from "../../components/common/TopAppBar";
 import { useFinancialStore } from "../../context/FinancialStore";
 import { useEmailSpending, useEmailSpendingStore, weeklyJump } from "../../lib/emailSpending";
 import { EmailPlanningConsent } from "../../components/consent/ConsentCard";
+import { useEmailBalanceSync } from "../../lib/emailBalance";
 import { emailApi } from "../../lib/emailImport";
 import { NeraOrb } from "../../components/mascot/NeraOrb";
 import type { NeraMood } from "../../components/mascot/moods";
@@ -134,6 +135,8 @@ export default function HomePage() {
   // "Transaksi Terakhir": BNI transactions plus receipts imported from email, newest first.
   // Kept separate from recentTransactions, which lists Daily Pocket (BNI) activity only.
   const emailSpending = useEmailSpending();
+  // the balance the user entered follows their receipts (with "email_planning")
+  useEmailBalanceSync();
   // email-based nudges; the email data only exists for users who agreed to email import,
   // and it never feeds the score or the runway (those stay on BNI data)
   const jump = useMemo(() => (emailSpending.ready ? weeklyJump(emailSpending.spends) : null), [emailSpending.ready, emailSpending.spends]);

@@ -60,6 +60,10 @@ export interface FinancialStoreState extends FinancialStateData {
   pocketActivity: PocketActivity[];
   /** the user entered their own total balance; until then "Aset Saya" shows Rp0 */
   assetsSet: boolean;
+  /** when the user last entered or confirmed their total; email receipts after it lower Kantong Utama */
+  balanceAnchorAt: string | null;
+  /** receipts taken off Kantong Utama since the anchor: id → amount */
+  emailDeductions: Record<string, number>;
 
   // Actions
   recalculateState: () => void;
@@ -97,6 +101,13 @@ export interface FinancialStoreState extends FinancialStateData {
   setBudgetPocketTarget: (pocketId: string, targetAmount: number) => void;
   /** Kantong Utama becomes the total minus what sits in pockets; false when the total is smaller */
   setTotalAssets: (total: number) => boolean;
+  /**
+   * Keeps Kantong Utama in step with counted email spending since the anchor: new receipts
+   * are taken off, receipts since hidden or recategorized give their amount back.
+   */
+  applyEmailSpending: (spends: { id: string; amount: number; occurredAt: string }[]) => void;
+  /** the user says the balance Nera shows is right: it becomes the new anchor */
+  confirmBalance: () => void;
 }
 
 const POCKET_TX_CATEGORY: Record<BudgetPocket["icon"], Transaction["category"]> = {
@@ -248,6 +259,8 @@ export const useFinancialStore = create<FinancialStoreState>()(
       emergencyTopUpRequests: INITIAL_EMERGENCY_TOPUP_REQUESTS,
       pocketActivity: [],
       assetsSet: false,
+      balanceAnchorAt: null,
+      emailDeductions: {},
       budgetPockets: INITIAL_BUDGET_POCKETS,
 
       recalculateState: () => {
@@ -629,16 +642,43 @@ export const useFinancialStore = create<FinancialStoreState>()(
       setTotalAssets: (total: number) => {
         const s = get();
         // the first time, the seeded pocket balances were demo money: start them at 0
+        // the total already reflects everything spent so far: receipts count from here on
+        const anchor = { balanceAnchorAt: new Date().toISOString(), emailDeductions: {} };
         if (!s.assetsSet) {
-          set({ dailyPocket: total, budgetPockets: s.budgetPockets.map((p) => ({ ...p, balance: 0 })), assetsSet: true });
+          set({ dailyPocket: total, budgetPockets: s.budgetPockets.map((p) => ({ ...p, balance: 0 })), assetsSet: true, ...anchor });
           get().recalculateState();
           return true;
         }
         const inPockets = s.budgetPockets.reduce((sum, p) => sum + p.balance, 0);
         if (total < inPockets) return false;
-        set({ dailyPocket: total - inPockets });
+        set({ dailyPocket: total - inPockets, ...anchor });
         get().recalculateState();
         return true;
+      },
+
+      applyEmailSpending: (spends) => {
+        const s = get();
+        if (!s.assetsSet) return;
+        // set before balances followed receipts: count from now, never retroactively
+        if (!s.balanceAnchorAt) {
+          set({ balanceAnchorAt: new Date().toISOString(), emailDeductions: {} });
+          return;
+        }
+        const since = Date.parse(s.balanceAnchorAt);
+        const next: Record<string, number> = {};
+        for (const t of spends) if (Date.parse(t.occurredAt) > since) next[t.id] = t.amount;
+        const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
+        const prevIds = Object.keys(s.emailDeductions);
+        const delta = sum(s.emailDeductions) - sum(next);
+        if (delta === 0 && prevIds.length === Object.keys(next).length && prevIds.every((id) => id in next)) return;
+        // not clamped at 0: a negative Kantong Utama means money came in that Nera can't see,
+        // and the page asks the user for their balance
+        set({ dailyPocket: s.dailyPocket + delta, emailDeductions: next });
+        get().recalculateState();
+      },
+
+      confirmBalance: () => {
+        set({ balanceAnchorAt: new Date().toISOString(), emailDeductions: {} });
       },
 
       // only the budget/target changes; no money moves
@@ -664,6 +704,8 @@ export const useFinancialStore = create<FinancialStoreState>()(
           budgetPockets: INITIAL_BUDGET_POCKETS,
           pocketActivity: [],
           assetsSet: false,
+          balanceAnchorAt: null,
+          emailDeductions: {},
         });
       },
     }),

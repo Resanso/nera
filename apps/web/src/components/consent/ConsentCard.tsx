@@ -112,7 +112,7 @@ export function ConsentCard({ consent, busy, onChange }: Props) {
   );
 }
 
-/** Lets receipts feed "Uangmu bertahan" and the daily budget on Beranda. Also shown there. */
+/** Lets receipts feed "Uangmu bertahan", the daily budget and the Aset Saya balance. Also shown where they are used. */
 export function EmailPlanningConsent({ consent, busy, onChange }: Props) {
   return (
     <div className="mt-3 rounded-[16px] border border-[#F0E6D2] p-3.5">
@@ -135,6 +135,7 @@ export function EmailPlanningConsent({ consent, busy, onChange }: Props) {
       </div>
       <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] leading-relaxed text-[#736B60]">
         <li>Pengeluaran dari struk email ikut menghitung &quot;Uangmu bertahan&quot; dan rekomendasi budget harian di Beranda.</li>
+        <li>Saldo yang kamu isi di Aset Saya berkurang sendiri sesuai struk email, di perangkatmu. Seminggu sekali Nera memintamu mengecek.</li>
         <li>Hanya kamu yang melihat hasilnya. Skor kondisi keuangan dan penawaran produk tetap memakai data BNI saja.</li>
         <li>Bisa dimatikan kapan saja; estimasi kembali memakai data BNI.</li>
       </ul>

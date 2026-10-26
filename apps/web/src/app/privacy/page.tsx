@@ -28,7 +28,9 @@ const sections: { title: string; body: React.ReactNode }[] = [
         </li>
         <li>Alamat penerusan: email yang kamu teruskan ke alamat Nera milikmu diproses dengan cara yang sama.</li>
         <li>
-          Saldo yang kamu isi sendiri (Aset Saya) dan kantong tersimpan di perangkatmu. Data BNI lain di aplikasi masih data demo.
+          Saldo yang kamu isi sendiri (Aset Saya) dan kantong tersimpan di perangkatmu. Dengan &quot;Estimasi dari struk
+          email&quot;, saldo itu berkurang sesuai struk email di perangkatmu juga; daftar struk yang sudah dikurangi ikut
+          tersimpan di sana. Data BNI lain di aplikasi masih data demo.
         </li>
         <li>
           Pengingat (hanya kalau kamu menyalakannya): alamat notifikasi browsermu, serta nama, target, saldo, tanggal dan
@@ -49,7 +51,8 @@ const sections: { title: string; body: React.ReactNode }[] = [
         <p>
           Estimasi &quot;uangmu bertahan&quot; dan rekomendasi budget harian di Beranda memakai struk email{" "}
           <strong>hanya jika</strong> kamu menyalakan &quot;Estimasi dari struk email&quot;; tanpa itu, keduanya memakai data
-          BNI. Skor kondisi keuangan selalu dihitung dari data BNI saja.
+          BNI. Pengaturan yang sama membuat saldo Aset Saya berkurang sendiri sesuai struk email. Skor kondisi keuangan selalu
+          dihitung dari data BNI saja.
         </p>
         <p>
           Data dari email <strong>tidak</strong> dipakai untuk penilaian kredit, keputusan pinjaman, penawaran produk

@@ -15,6 +15,8 @@ import { PocketProfileSheet } from "../../../components/insights/PocketProfileSh
 import { dueLabel, perDayNow, type ProfilePlan } from "../../../lib/pocketProfile";
 import { usePushState, useReminderSync } from "../../../lib/push";
 import { ReminderToggle } from "../../../components/insights/ReminderToggle";
+import { EmailPlanningConsent } from "../../../components/consent/ConsentCard";
+import { useEmailBalance, useEmailBalanceSync } from "../../../lib/emailBalance";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
   BudgetPocket,
@@ -239,6 +241,9 @@ const formatRupiahShort = (val: number) => {
   return `Rp${val}`;
 };
 
+const shortDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "";
+
 const parseAmount = (raw: string) => Number(raw.replace(/\D/g, "")) || 0;
 const formatAmountInput = (raw: string) => {
   const n = parseAmount(raw);
@@ -283,7 +288,12 @@ export default function PocketsPage() {
     dailyBudgetSafe,
     assetsSet,
     setTotalAssets,
+    confirmBalance,
   } = useFinancialStore();
+  // Kantong Utama follows the receipts from email once the user entered their total
+  useEmailBalanceSync();
+  const emailBalance = useEmailBalance();
+  const planningConsent = useEmailSpendingStore((s) => s.planningConsent);
   // the seeded balances are demo money, not the user's: until they enter their own
   // total, every balance on this page reads Rp0 (budgets and spending still show)
   const dailyPocket = assetsSet ? storedMain : 0;
@@ -673,6 +683,41 @@ export default function PocketsPage() {
           </div>
         </section>
 
+        {/* BALANCE CHECK: the balance has run on receipts for a while, or went below 0 */}
+        {emailBalance.needsCheck && (
+          <section className="flex items-center gap-3 rounded-[20px] bg-[#FFF0BD] px-4 py-3.5">
+            <NeraOrb mood={dailyPocket < 0 ? "alert" : "happy"} size={40} still trackPointer={false} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-[#2F240E]">
+                {dailyPocket < 0 ? "Saldomu perlu dicek" : <>Saldomu sekarang <span className="tabular-nums">{formatRupiah(totals.all)}</span>?</>}
+              </p>
+              <p className="text-[11px] leading-snug text-[#5C4A1E]">
+                {dailyPocket < 0
+                  ? "Pengeluaran dari struk email melebihi saldo yang tercatat. Mungkin ada uang masuk."
+                  : `Nera mengurangi ${formatRupiah(emailBalance.deducted)} dari ${emailBalance.receipts} struk email sejak ${shortDate(emailBalance.since)}.`}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-1.5">
+              {dailyPocket >= 0 && (
+                <button
+                  type="button"
+                  onClick={() => (confirmBalance(), triggerToast("Saldo dikonfirmasi"))}
+                  className="h-9 rounded-full bg-[#2F240E] px-3.5 text-[12px] font-semibold text-white hover:bg-[#46371A]"
+                >
+                  Benar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => (setAssetInput(""), setAssetError(null), setIsInfoOpen(true))}
+                className="h-9 rounded-full bg-white px-3.5 text-[12px] font-semibold text-[#2F240E] hover:bg-[#FFF8E1]"
+              >
+                Ubah
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* AUTO BUDGET: the whole budget from the user's own receipts */}
         {plan && activeFilter !== "investment" && planAppliedMonth !== monthKey && (
           <section className="flex items-center gap-3 rounded-[20px] bg-[#FFF0BD] px-4 py-3.5">
@@ -1022,6 +1067,8 @@ export default function PocketsPage() {
           <p className="text-xs leading-relaxed text-[#736B60]">
             Aset Saya adalah total saldo Kantong Utama ditambah seluruh kantong yang kamu buat.
             {!assetsSet && " Belum diatur, jadi masih Rp0. Isi total saldo rekeningmu sekarang."}
+            {emailBalance.active &&
+              ` Setelah kamu isi, Nera mengurangi Kantong Utama sendiri dari struk email${emailBalance.receipts > 0 ? `: ${formatRupiah(emailBalance.deducted)} dari ${emailBalance.receipts} struk sejak ${shortDate(emailBalance.since)}` : ""}.`}
           </p>
           <form
             onSubmit={(e) => {
@@ -1091,6 +1138,22 @@ export default function PocketsPage() {
               <span className="font-bold tabular-nums text-[#2F240E]">{formatRupiah(totals.all)}</span>
             </div>
           </div>
+          )}
+          {/* the "email_planning" consent, asked where the balance uses it */}
+          {emailSpending.ready && !planningConsent && (
+          <EmailPlanningConsent
+            consent={{ version: "", emailImport: true, aiProcessing: false, emailPlanning: false }}
+            busy={false}
+            onChange={async (kind, granted) => {
+              try {
+                await emailApi.setConsent(kind, granted);
+                await useEmailSpendingStore.getState().load(true);
+                triggerToast("Saldo sekarang mengikuti struk emailmu");
+              } catch (e) {
+                triggerToast((e as Error).message);
+              }
+            }}
+          />
           )}
         </div>
       </Modal>
