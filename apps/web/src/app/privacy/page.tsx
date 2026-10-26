@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = { title: "Kebijakan Privasi | Nera" };
 
 // Keep in sync with CONSENT_VERSION in apps/api/src/email/consent.ts
-const VERSION = "26 Oktober 2026";
+const VERSION = "27 Oktober 2026";
 
 const sections: { title: string; body: React.ReactNode }[] = [
   {

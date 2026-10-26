@@ -4,7 +4,7 @@ import { emailStore, type ConsentKind } from "./store";
  * Version of the consent texts shown in the app (and /privacy). Bump it when what we
  * do with the data changes; an older grant then no longer counts and users are asked again.
  */
-export const CONSENT_VERSION = "2026-10-26";
+export const CONSENT_VERSION = "2026-10-27";
 
 export class ConsentRequired extends Error {
   constructor(public kind: ConsentKind) {
