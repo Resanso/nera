@@ -45,6 +45,15 @@ export const isInvestmentDomain = (fromDomain: string) => {
   return INVESTMENT_DOMAINS.some((x) => d === x || d.endsWith(`.${x}`));
 };
 
+/**
+ * Travel agents sell flights, trains, hotels and attractions; every one of those is a trip,
+ * whatever words ("kereta", "tiket masuk") the receipt uses. Their receipts keep the sender's category.
+ */
+export function fixedCategory(provider: string): EmailCategory | undefined {
+  const s = ALLOWED_SENDERS.find((x) => x.provider === provider);
+  return s?.defaultCategory === "travel" ? "travel" : undefined;
+}
+
 export function findSender(fromDomain: string): Sender | undefined {
   const d = fromDomain.toLowerCase();
   return ALLOWED_SENDERS.find((s) => s.domains.some((x) => d === x || d.endsWith(`.${x}`)));

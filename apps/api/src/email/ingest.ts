@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { simpleParser } from "mailparser";
 import { FAILED, SHIPPING, extractWithAI, extractWithRules } from "./extract";
-import { findSender, isInvestmentDomain, providerFromSender } from "./senders";
+import { findSender, fixedCategory, isInvestmentDomain, providerFromSender } from "./senders";
 import { emailStore } from "./store";
 import { isOwnMoneyMove, merchantKey, type EmailTransaction, type IngestResult, type ParsedEmail } from "./types";
 
@@ -84,6 +84,8 @@ export async function ingestEmail(
   if (!x) return { status: "ignored", reason: "not_a_transaction" };
 
   if (isInvestmentDomain(email.fromDomain)) x = { ...x, category: "investment" };
+  const fixed = fixedCategory(sender.provider);
+  if (fixed && x.type === "expense") x = { ...x, category: fixed };
   // the user's own choice for this merchant beats our guess
   const merchant = decodeEntities(x.merchant);
   const ruled = (await emailStore.merchantRules(opts.userId)).get(merchantKey(merchant));
