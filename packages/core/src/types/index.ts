@@ -303,6 +303,17 @@ export interface BudgetPocket {
   // Hanya untuk kantong belanja: total yang sudah dipakai bulan ini
   spentThisMonth: number;
   createdAt: string;
+  // Kantong yang disusun Nera untuk satu acara (AYCE, konser, kado): target sampai tanggal tertentu
+  profile?: PocketProfile;
+}
+
+export interface PocketProfile {
+  /** acaranya, dengan kata-kata user ("AYCE bareng teman") */
+  occasion: string;
+  /** YYYY-MM-DD, hari uangnya dibutuhkan */
+  dueDate: string;
+  /** saran singkat Nera saat kantong dibuat */
+  note?: string;
 }
 
 // Zod Schemas for validation

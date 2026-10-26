@@ -11,6 +11,8 @@ import { TransactionSheet, type TransactionEdit } from "../../../components/insi
 import { PeriodFilter, periodRange } from "../../../components/insights/PeriodFilter";
 import { inPeriod, presetPeriod, type Period } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
+import { PocketProfileSheet } from "../../../components/insights/PocketProfileSheet";
+import { dueLabel, perDayNow, type ProfilePlan } from "../../../lib/pocketProfile";
 import { Modal, Button, cn } from "@nera/ui";
 import type {
   BudgetPocket,
@@ -47,6 +49,8 @@ import {
   PiggyBank,
   ArrowRight,
   Zap,
+  CalendarDays,
+  Sparkles,
 } from "lucide-react";
 
 const POCKET_ICONS: Record<BudgetPocketIcon, React.ElementType> = {
@@ -253,14 +257,20 @@ const spendingStatus = (pct: number) => {
 
 const PLAN_APPLIED_KEY = "nera-budget-plan-applied";
 
-const pocketSubtitle = (pocket: BudgetPocket) =>
-  pocket.kind === "saving" ? "Kantong Tabungan" : "Kantong Belanja";
+const pocketSubtitle = (pocket: BudgetPocket) => {
+  if (pocket.profile) {
+    const due = dueLabel(pocket.profile.dueDate);
+    return `${due.date} · ${due.relative}`;
+  }
+  return pocket.kind === "saving" ? "Kantong Tabungan" : "Kantong Belanja";
+};
 
 export default function PocketsPage() {
   const {
     dailyPocket: storedMain,
     budgetPockets: storedPockets,
     createBudgetPocket,
+    createProfilePocket,
     moveToBudgetPocket,
     withdrawFromBudgetPocket,
     spendFromBudgetPocket,
@@ -268,6 +278,7 @@ export default function PocketsPage() {
     setBudgetPocketTarget,
     pocketActivity,
     monthlyAllowance,
+    dailyBudgetSafe,
     assetsSet,
     setTotalAssets,
   } = useFinancialStore();
@@ -377,6 +388,7 @@ export default function PocketsPage() {
     [emailSpending.ready, emailSpending.spends, budgetPockets],
   );
   const [isPlanOpen, setIsPlanOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const monthKey = new Date().toISOString().slice(0, 7);
   const [planAppliedMonth, setPlanAppliedMonth] = useState<string | null>(null);
   useEffect(() => {
@@ -398,6 +410,22 @@ export default function PocketsPage() {
     triggerToast(
       `Budget ${formatRupiah(lines.reduce((s, l) => s + l.budget, 0))}/bulan dipakai${created ? ` · ${created} kantong baru` : ""}`,
     );
+  };
+  const createFromProfile = (plan: ProfilePlan) => {
+    const id = createProfilePocket(
+      {
+        name: plan.draft.name,
+        icon: plan.draft.icon,
+        tone: plan.tone,
+        targetAmount: plan.draft.amount,
+        profile: { occasion: plan.draft.occasion, dueDate: plan.draft.dueDate },
+      },
+      plan.fromPockets.map((s) => ({ pocketId: s.pocket.id, amount: s.amount })),
+      plan.fromMainNow,
+    );
+    setIsProfileOpen(false);
+    openDetail(id, "topup");
+    triggerToast(`Kantong ${plan.draft.name} siap. ${plan.perDay > 0 ? `Sisihkan ${formatRupiah(plan.perDay)} tiap hari` : "Uangnya sudah terkumpul"}`);
   };
   const savingPockets = budgetPockets.filter((p) => p.kind === "saving");
   const selectedPocket = budgetPockets.find((p) => p.id === selectedId) ?? null;
@@ -659,6 +687,24 @@ export default function PocketsPage() {
               Lihat usulan
             </button>
           </section>
+        )}
+
+        {/* RENCANA DADAKAN: Nera plans a pocket for something coming up */}
+        {activeFilter !== "investment" && (
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+            className="flex w-full items-center gap-3 rounded-[20px] bg-white px-4 py-3.5 text-left transition-transform duration-150 hover:bg-[#FFFBF0] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA8500]"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#FFF0BD] text-[#76520E]">
+              <Sparkles size={19} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-bold text-[#2F240E]">Ada rencana dadakan?</span>
+              <span className="block text-[11px] leading-snug text-[#736B60]">Diajak AYCE atau nonton? Nera siapkan kantongnya</span>
+            </span>
+            <ArrowRight size={17} className="shrink-0 text-[#76520E]" />
+          </button>
         )}
 
         {/* BUDGET SUMMARY */}
@@ -1148,7 +1194,7 @@ export default function PocketsPage() {
             const modes: { id: DetailMode; label: string; icon: React.ElementType }[] = [
               { id: "history", label: "Riwayat", icon: History },
               { id: "topup", label: "Isi", icon: ArrowDownToLine },
-              ...(isSpending ? [{ id: "spend" as const, label: "Pakai", icon: ReceiptText }] : []),
+              ...(isSpending || selectedPocket.profile ? [{ id: "spend" as const, label: "Pakai", icon: ReceiptText }] : []),
               { id: "withdraw", label: "Tarik", icon: ArrowUpFromLine },
             ];
 
@@ -1192,6 +1238,54 @@ export default function PocketsPage() {
                     </p>
                   )}
                 </div>
+
+                {selectedPocket.profile &&
+                  (() => {
+                    const due = dueLabel(selectedPocket.profile.dueDate);
+                    const today = perDayNow(selectedPocket);
+                    const canSetAside = today > 0 && today <= dailyPocket && due.days >= 0;
+                    return (
+                      <div className="rounded-[18px] border border-[#F1EEE8] px-3.5 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#76520E]">Disusun Nera</p>
+                        <p className="mt-0.5 text-[14px] font-bold text-[#2F240E]">{selectedPocket.profile.occasion}</p>
+                        <p className="flex items-center gap-1 text-[12px] text-[#736B60]">
+                          <CalendarDays size={13} />
+                          {due.date} · {due.relative}
+                        </p>
+                        {today > 0 && due.days >= 0 ? (
+                          <>
+                            <p className="mt-2 text-[12px] text-[#5C4A1E]">
+                              {due.days === 0 ? "Kurang hari ini" : "Sisihkan hari ini"}{" "}
+                              <b className="tabular-nums">{formatRupiah(today)}</b>
+                              {due.days > 1 && " supaya terkumpul tepat waktu"}
+                            </p>
+                            <button
+                              type="button"
+                              disabled={!canSetAside}
+                              onClick={() => {
+                                moveToBudgetPocket(selectedPocket.id, today);
+                                triggerToast(`${formatRupiah(today)} disisihkan ke ${selectedPocket.name}`);
+                              }}
+                              className="mt-2 h-10 w-full rounded-[12px] bg-[#FFB900] text-[13px] font-bold text-[#352500] transition-transform duration-150 hover:bg-[#E6A700] active:scale-[0.96] disabled:opacity-40"
+                            >
+                              Sisihkan {formatRupiah(today)} dari Kantong Utama
+                            </button>
+                            {!canSetAside && today > dailyPocket && (
+                              <p className="mt-1 text-[11px] text-[#A92F2F]">
+                                {assetsSet ? `Kantong Utama tinggal ${formatRupiah(dailyPocket)}.` : "Atur Aset Saya dulu supaya bisa menyisihkan."}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="mt-2 text-[12px] text-[#277449]">
+                            {selectedPocket.balance >= selectedPocket.targetAmount
+                              ? "Uangnya sudah terkumpul. Saat bayar, pakai tab Pakai di bawah."
+                              : "Hari-H sudah lewat. Sisa saldo bisa ditarik ke Kantong Utama."}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                 {/* Segmented action switcher */}
                 <div
@@ -1342,6 +1436,16 @@ export default function PocketsPage() {
             );
           })()}
       </Modal>
+
+      {isProfileOpen && (
+        <PocketProfileSheet
+          money={{ main: dailyPocket, pockets: budgetPockets, dailyBudgetSafe, monthlyAllowance, balancesKnown: assetsSet }}
+          icons={POCKET_ICONS}
+          tones={POCKET_TONES}
+          onCreate={createFromProfile}
+          onClose={() => setIsProfileOpen(false)}
+        />
+      )}
 
       {isPlanOpen && plan && (
         <BudgetPlanSheet plan={plan} income={monthlyAllowance} onApply={applyPlan} onClose={() => setIsPlanOpen(false)} />

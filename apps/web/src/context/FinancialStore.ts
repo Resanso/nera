@@ -13,6 +13,7 @@ import {
   PersonaId,
   EmergencyTopUpRequest,
   BudgetPocket,
+  PocketProfile,
   DEFAULT_MOCK_STATE,
   INITIAL_BUDGET_POCKETS,
   INITIAL_WEALTH_TIERS,
@@ -83,6 +84,12 @@ export interface FinancialStoreState extends FinancialStateData {
     pocket: Omit<BudgetPocket, "id" | "balance" | "spentThisMonth" | "createdAt">,
     initialAmount?: number
   ) => void;
+  /** A pocket Nera planned for one occasion; its first money moves in from the pockets named. Returns its id. */
+  createProfilePocket: (
+    pocket: Pick<BudgetPocket, "name" | "icon" | "tone" | "targetAmount"> & { profile: PocketProfile },
+    from: { pocketId: string; amount: number }[],
+    fromMain: number
+  ) => string;
   moveToBudgetPocket: (pocketId: string, amount: number) => void;
   withdrawFromBudgetPocket: (pocketId: string, amount: number) => void;
   spendFromBudgetPocket: (pocketId: string, amount: number, title: string) => void;
@@ -517,6 +524,36 @@ export const useFinancialStore = create<FinancialStoreState>()(
         if (amount > 0) get().recalculateState();
       },
 
+      createProfilePocket: (pocket, from, fromMain) => {
+        const s = get();
+        const id = `pocket_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        // never more than a source holds, so a stale plan can't push a balance below zero
+        const moves = from
+          .map((f) => ({ ...f, amount: Math.min(f.amount, s.budgetPockets.find((p) => p.id === f.pocketId)?.balance ?? 0) }))
+          .filter((f) => f.amount > 0);
+        const main = Math.min(Math.max(0, fromMain), s.dailyPocket);
+        const balance = moves.reduce((sum, f) => sum + f.amount, 0) + main;
+
+        set({
+          budgetPockets: [
+            ...s.budgetPockets.map((p) => {
+              const out = moves.find((f) => f.pocketId === p.id);
+              return out ? { ...p, balance: p.balance - out.amount } : p;
+            }),
+            { ...pocket, id, kind: "saving", balance, spentThisMonth: 0, createdAt: new Date().toISOString() },
+          ],
+          dailyPocket: s.dailyPocket - main,
+          pocketActivity: [
+            ...(balance > 0 ? [activity(id, "topup", balance)] : []),
+            ...moves.map((f) => activity(f.pocketId, "withdraw", f.amount, `Ke kantong ${pocket.name}`)),
+            ...s.pocketActivity,
+          ],
+        });
+
+        if (main > 0) get().recalculateState();
+        return id;
+      },
+
       moveToBudgetPocket: (pocketId: string, amount: number) => {
         const s = get();
         if (amount <= 0 || amount > s.dailyPocket) return;
@@ -552,7 +589,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
       spendFromBudgetPocket: (pocketId: string, amount: number, title: string) => {
         const s = get();
         const pocket = s.budgetPockets.find((p) => p.id === pocketId);
-        if (!pocket || pocket.kind !== "spending" || amount <= 0 || amount > pocket.balance) return;
+        if (!pocket || (pocket.kind !== "spending" && !pocket.profile) || amount <= 0 || amount > pocket.balance) return;
 
         set({
           budgetPockets: s.budgetPockets.map((p) =>
