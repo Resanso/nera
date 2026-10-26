@@ -1,10 +1,10 @@
 import { decrypt, encrypt, signState } from "./crypto";
-import { ingestEmail, summarize } from "./ingest";
+import { hash, ingestEmail, parseRaw, summarize } from "./ingest";
 import { reconcile } from "./reconcile";
 import { ConsentRequired, hasConsent, requireConsent } from "./consent";
 import { gmailSenderQuery } from "./senders";
 import { emailStore, type GmailConnection } from "./store";
-import type { IngestResult } from "./types";
+import type { EmailTransaction, IngestResult, ParsedEmail } from "./types";
 
 const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -240,6 +240,7 @@ async function syncMailbox(
           userId: o.into ?? conn.userId,
           channel: "gmail",
           account: conn.account,
+          gmailId: id,
           allowAI: o.allowAI,
         }),
       );
@@ -303,6 +304,40 @@ export async function reimportGmail(
 // ---- "Ambil riwayat lebih lama": backfill beyond the regular 90-day window ----
 
 /** Ask the worker to pull older receipts. Progress is stored, so it survives restarts. */
+/**
+ * The original email behind a Gmail transaction, read live for its owner and never stored.
+ * Older rows only keep a hash of the Message-ID, so they are found by searching the hour
+ * around the receipt and matching that hash; the Gmail id is kept for the next time.
+ */
+export async function transactionEmail(tx: EmailTransaction): Promise<ParsedEmail | null> {
+  const conns = (await emailStore.listGmailFor(tx.userId)).filter((c) => !tx.account || c.account === tx.account);
+  for (const conn of conns) {
+    const token = await accessToken(conn);
+    let id = tx.gmailId;
+    if (!id) {
+      const t = Math.floor(Date.parse(tx.occurredAt) / 1000);
+      const q = encodeURIComponent(`after:${t - 3600} before:${t + 3600}`);
+      const page = await gmailGet<{ messages?: { id: string }[] }>(token, `/messages?maxResults=100&q=${q}`);
+      for (const m of page.messages ?? []) {
+        const meta = await gmailGet<{ payload?: { headers?: { name: string; value: string }[] } }>(
+          token,
+          `/messages/${m.id}?format=metadata&metadataHeaders=Message-ID`,
+        );
+        const messageId = meta.payload?.headers?.find((h) => h.name.toLowerCase() === "message-id")?.value.trim();
+        if (messageId && hash(messageId) === tx.messageHash) {
+          id = m.id;
+          await emailStore.updateTransaction(tx.userId, tx.id, { gmailId: id });
+          break;
+        }
+      }
+    }
+    if (!id) continue;
+    const m = await gmailGet<{ raw: string }>(token, `/messages/${id}?format=raw`);
+    return parseRaw(Buffer.from(m.raw, "base64url"));
+  }
+  return null;
+}
+
 export async function requestBackfill(userId: string, days: number) {
   await requireConsent(userId, "email_import");
   const conns = await emailStore.listGmailFor(userId);

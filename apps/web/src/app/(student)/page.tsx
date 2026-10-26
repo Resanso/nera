@@ -7,7 +7,8 @@ import { useFinancialStore } from "../../context/FinancialStore";
 import { useEmailSpending, weeklyJump } from "../../lib/emailSpending";
 import { NeraOrb } from "../../components/mascot/NeraOrb";
 import type { NeraMood } from "../../components/mascot/moods";
-import type { EmailCategory } from "../../lib/emailImport";
+import type { EmailCategory, EmailTransaction } from "../../lib/emailImport";
+import { useTransactionDetail } from "../../components/insights/TransactionSheet";
 import { GOAL_META, useOnboardingHydrated, useOnboardingStore } from "../../context/OnboardingStore";
 import { Modal, Button } from "@nera/ui";
 import { classifyPersonas } from "@nera/core";
@@ -152,9 +153,10 @@ export default function HomePage() {
   const combinedRecent = useMemo(
     () =>
       [
-        ...transactions.map((tx) => ({ ...tx, source: undefined as string | undefined })),
+        ...transactions.map((tx) => ({ ...tx, source: undefined as string | undefined, emailTx: undefined as EmailTransaction | undefined })),
         ...emailSpending.recent.slice(0, 10).map((tx) => ({
           id: `email-${tx.id}`,
+          emailTx: tx,
           title: tx.merchant,
           category: EMAIL_TO_HOME_CATEGORY[tx.category] ?? "other",
           amount: tx.amount,
@@ -212,6 +214,8 @@ export default function HomePage() {
     setIsSuccessToastOpen(true);
     setTimeout(() => setIsSuccessToastOpen(false), 3000);
   };
+  // email transactions in Recent Activity open their detail and original email
+  const txDetail = useTransactionDetail(triggerToast);
 
   const handlePayKos = () => {
     const kosAmount = 500000;
@@ -839,10 +843,13 @@ export default function HomePage() {
                 month: "short",
               });
 
+              const Row = tx.emailTx ? "button" : "div";
+              const emailTx = tx.emailTx;
               return (
-                <div
+                <Row
                   key={tx.id}
-                  className={`flex items-center gap-3 px-4 py-3.5 ${!isLast ? "border-b border-[#F0EEE9]" : ""}`}
+                  {...(emailTx && { type: "button" as const, onClick: () => txDetail.open(emailTx), "aria-label": `Detail ${tx.title}` })}
+                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${!isLast ? "border-b border-[#F0EEE9]" : ""} ${emailTx ? "hover:bg-[#FFF8E6]" : ""}`}
                 >
                   <div
                     className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
@@ -862,12 +869,15 @@ export default function HomePage() {
                   >
                     {isIncome ? "+" : "-"}{formatRupiah(tx.amount)}
                   </span>
-                </div>
+                  {emailTx && <ChevronRight size={16} className="-mr-1 shrink-0 text-[#A89F90]" />}
+                </Row>
               );
             })}
           </div>
         </section>
       </main>
+
+      {txDetail.sheet}
 
       {/* TOAST NOTIFICATION */}
       {isSuccessToastOpen && (

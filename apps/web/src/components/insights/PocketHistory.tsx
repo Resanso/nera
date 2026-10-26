@@ -59,7 +59,7 @@ export function PocketHistory({
       {fromEmail > 0 && (
         <p className="text-[11px] leading-relaxed text-[#736B60]">
           Terpakai {rp(fromEmail + logged + earlier)}: {rp(fromEmail)} dari struk email
-          {logged + earlier > 0 && `, ${rp(logged + earlier)} dari kantong BNI`}. Ketuk struk email untuk memindahkannya ke kategori lain.
+          {logged + earlier > 0 && `, ${rp(logged + earlier)} dari kantong BNI`}. Ketuk struk email untuk melihat email aslinya atau memindahkannya.
         </p>
       )}
 

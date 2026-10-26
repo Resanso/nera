@@ -1347,7 +1347,7 @@ export default function PocketsPage() {
       )}
 
       {editingTx && (
-        <TransactionSheet tx={editingTx} all={allEmailTxs} onClose={() => setEditingTx(null)} onSave={(edit) => saveTxEdit(editingTx, edit)} />
+        <TransactionSheet key={editingTx.id} tx={editingTx} all={allEmailTxs} onClose={() => setEditingTx(null)} onSave={(edit) => saveTxEdit(editingTx, edit)} />
       )}
 
       {/* MODAL: BUAT KANTONG */}

@@ -31,6 +31,7 @@ export type EmailTransaction = {
   countsTowardSpending: boolean;
   /** id of the receipt that already counts this payment */
   duplicateOf?: string;
+  account?: string;
   /** hidden by the user: Nera misread the email */
   dismissed?: boolean;
   userEdited?: boolean;
@@ -38,6 +39,8 @@ export type EmailTransaction = {
 };
 
 export type TransactionUpdate = { transaction: EmailTransaction; alsoChanged: number };
+
+export type OriginalEmail = { subject: string; from: string; date: string; text: string };
 
 export type GmailBackfill = {
   days: number;
@@ -141,6 +144,8 @@ export const emailApi = {
   createAlias: () => call<NonNullable<EmailStatus["forward"]>>("/email/forward/alias", { method: "POST" }),
   removeAlias: () => call<void>("/email/forward", { method: "DELETE" }),
   confirm: (id: string) => call<TransactionUpdate>(`/email/transactions/${id}`, { method: "PATCH", body: JSON.stringify({ confirm: true }) }),
+  /** the email a transaction came from, read live from Gmail */
+  originalEmail: (id: string) => call<OriginalEmail>(`/email/transactions/${id}/email`),
   /** recategorize (optionally every receipt from the merchant, remembered) or hide/unhide */
   editTransaction: (
     id: string,

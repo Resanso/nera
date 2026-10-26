@@ -17,6 +17,7 @@ import {
   isGmailConfigured,
   requestBackfill,
   syncGmail,
+  transactionEmail,
 } from "../email/gmail";
 import { ingestEmail, summarize } from "../email/ingest";
 import { ALLOWED_SENDERS } from "../email/senders";
@@ -266,6 +267,29 @@ emailRouter.post("/gmail/backfill", async (req, res) => {
   if (!body.success) return res.status(400).json({ success: false, error: "Pilih 180, 365 atau 3650 hari" });
   await requestBackfill(userIdOf(req), body.data.days);
   res.json({ success: true });
+});
+
+// the original email of one transaction, read live from Gmail for its owner; never stored
+emailRouter.get("/transactions/:id/email", async (req, res) => {
+  const userId = userIdOf(req);
+  await requireConsent(userId, "email_import");
+  const tx = (await emailStore.listTransactions(userId)).find((t) => t.id === req.params.id);
+  if (!tx) return res.status(404).json({ success: false, error: "Transaksi tidak ditemukan" });
+  if (tx.channel !== "gmail")
+    return res.status(404).json({
+      success: false,
+      error: tx.channel === "demo" ? "Ini struk contoh, bukan email asli." : "Email yang diteruskan tidak disimpan Nera, jadi isinya tidak bisa ditampilkan lagi.",
+    });
+  try {
+    const email = await transactionEmail(tx);
+    if (!email) return res.status(404).json({ success: false, error: "Email aslinya tidak ditemukan lagi di Gmail. Mungkin sudah dihapus." });
+    res.json({
+      success: true,
+      data: { subject: email.subject, from: email.from, date: email.date.toISOString(), text: email.text.slice(0, 20_000) },
+    });
+  } catch (e) {
+    res.status(502).json({ success: false, error: `Gagal membuka email dari Gmail: ${(e as Error).message}` });
+  }
 });
 
 // ?account=<address> disconnects one mailbox; without it, all of them

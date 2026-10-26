@@ -43,7 +43,7 @@ export type ConsentKind = "email_import" | "ai_processing";
 export type ConsentState = { granted: boolean; version: string; at: string };
 
 export type TransactionPatch = Partial<
-  Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending" | "duplicateOf" | "dismissed" | "userEdited">
+  Pick<EmailTransaction, "category" | "needsReview" | "countsTowardSpending" | "duplicateOf" | "dismissed" | "userEdited" | "gmailId">
 >;
 
 export interface EmailStore {

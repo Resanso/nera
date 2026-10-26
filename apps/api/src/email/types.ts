@@ -55,6 +55,8 @@ export interface EmailTransaction {
   dismissed?: boolean;
   /** The user set the category or dismissed it; a re-import keeps that decision. */
   userEdited?: boolean;
+  /** Gmail only: the message id, to show the user the original email on request. */
+  gmailId?: string;
   /** Gmail only: the linked mailbox it came from (a user can link several). */
   account?: string;
   extractedBy: "rules" | "ai";

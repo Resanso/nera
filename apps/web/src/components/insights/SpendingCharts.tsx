@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import type { EmailTransaction } from "../../lib/emailImport";
+import { TxListSheet } from "./TxListSheet";
 import type { Period } from "../../lib/period";
 
 /**
@@ -21,7 +23,7 @@ const rpShort = (n: number) =>
 const DAY = 86_400_000;
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-type Bucket = { start: Date; label: string; tick: string; total: number; count: number };
+type Bucket = { start: Date; label: string; tick: string; total: number; count: number; txs: EmailTransaction[] };
 type Unit = "day" | "week" | "month";
 
 /** Day buckets up to a month, weeks up to ~4 months, months beyond. */
@@ -63,13 +65,14 @@ function buckets(txs: EmailTransaction[], period: Period): { unit: Unit; items: 
       tick: unit === "month" ? fmt({ month: "short" }).format(d) : fmt({ day: "numeric", month: "short" }).format(d),
       total: 0,
       count: 0,
+      txs: [],
     };
     items.push(b);
     index.set(d.getTime(), b);
   }
   for (const t of txs) {
     const b = index.get(keyOf(new Date(t.occurredAt)).getTime());
-    if (b) (b.total += t.amount), b.count++;
+    if (b) (b.total += t.amount), b.count++, b.txs.push(t);
   }
   return { unit, items };
 }
@@ -86,7 +89,7 @@ function Card({ title, sub, children }: { title: string; sub?: string; children:
   );
 }
 
-function TrendChart({ txs, period }: { txs: EmailTransaction[]; period: Period }) {
+function TrendChart({ txs, period, onList }: { txs: EmailTransaction[]; period: Period; onList: (title: string, txs: EmailTransaction[]) => void }) {
   const { unit, items } = useMemo(() => buckets(txs, period), [txs, period]);
   const [active, setActive] = useState<number | null>(null);
   const max = Math.max(1, ...items.map((b) => b.total));
@@ -108,7 +111,17 @@ function TrendChart({ txs, period }: { txs: EmailTransaction[]; period: Period }
         </span>
         <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#2F240E]">
           {rp(shown?.total ?? 0)}
-          <span className="ml-1 text-[11px] font-medium text-[#736B60]">· {shown?.count ?? 0} trx</span>
+          {shown && shown.count > 0 ? (
+            <button
+              type="button"
+              onClick={() => onList(shown.label, shown.txs)}
+              className="ml-1.5 text-[11px] font-semibold text-[#76520E] underline underline-offset-2"
+            >
+              {shown.count} trx
+            </button>
+          ) : (
+            <span className="ml-1 text-[11px] font-medium text-[#736B60]">· 0 trx</span>
+          )}
         </span>
       </div>
       <div className="relative h-32" onMouseLeave={() => setActive(null)}>
@@ -154,14 +167,15 @@ function TrendChart({ txs, period }: { txs: EmailTransaction[]; period: Period }
   );
 }
 
-function MerchantList({ txs }: { txs: EmailTransaction[] }) {
+function MerchantList({ txs, onList }: { txs: EmailTransaction[]; onList: (title: string, txs: EmailTransaction[]) => void }) {
   const rows = useMemo(() => {
-    const totals = new Map<string, { name: string; amount: number; count: number }>();
+    const totals = new Map<string, { name: string; amount: number; count: number; txs: EmailTransaction[] }>();
     for (const t of txs) {
       const key = t.merchant.trim().toLowerCase();
-      const r = totals.get(key) ?? { name: t.merchant, amount: 0, count: 0 };
+      const r = totals.get(key) ?? { name: t.merchant, amount: 0, count: 0, txs: [] };
       r.amount += t.amount;
       r.count++;
+      r.txs.push(t);
       totals.set(key, r);
     }
     return [...totals.values()].sort((a, b) => b.amount - a.amount).slice(0, 5);
@@ -171,7 +185,12 @@ function MerchantList({ txs }: { txs: EmailTransaction[] }) {
     <Card title="Merchant teratas" sub="5 tempat dengan pengeluaran terbesar">
       <ol className="divide-y divide-[#F1EEE8]">
         {rows.map((r, i) => (
-          <li key={r.name} className="flex items-center gap-3 py-2">
+          <li key={r.name}>
+            <button
+              type="button"
+              onClick={() => onList(r.name, r.txs)}
+              className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-[#FFF8E6]"
+            >
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FFF0BD] text-[11px] font-bold text-[#6D4C00]">
               {i + 1}
             </span>
@@ -180,6 +199,8 @@ function MerchantList({ txs }: { txs: EmailTransaction[] }) {
               <span className="block text-[11px] text-[#736B60]">{r.count}× transaksi</span>
             </span>
             <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#2F240E]">{rpShort(r.amount)}</span>
+            <ChevronRight size={16} className="shrink-0 text-[#A89F90]" />
+            </button>
           </li>
         ))}
       </ol>
@@ -224,8 +245,18 @@ function WeekdayChart({ txs }: { txs: EmailTransaction[] }) {
   );
 }
 
-/** `txs`: counted spending inside the period. */
-export function SpendingCharts({ txs, period }: { txs: EmailTransaction[]; period: Period }) {
+/** `txs`: counted spending inside the period. `onOpenTx` opens one transaction's detail. */
+export function SpendingCharts({
+  txs,
+  period,
+  onOpenTx,
+}: {
+  txs: EmailTransaction[];
+  period: Period;
+  onOpenTx: (tx: EmailTransaction) => void;
+}) {
+  const [list, setList] = useState<{ title: string; txs: EmailTransaction[] } | null>(null);
+  const onList = (title: string, items: EmailTransaction[]) => setList({ title, txs: items });
   if (txs.length === 0)
     return (
       <p className="rounded-[20px] bg-white px-4 py-6 text-center text-xs text-[#736B60]">
@@ -234,9 +265,10 @@ export function SpendingCharts({ txs, period }: { txs: EmailTransaction[]; perio
     );
   return (
     <>
-      <TrendChart txs={txs} period={period} />
-      <MerchantList txs={txs} />
+      <TrendChart txs={txs} period={period} onList={onList} />
+      <MerchantList txs={txs} onList={onList} />
       <WeekdayChart txs={txs} />
+      {list && <TxListSheet title={list.title} txs={list.txs} onPick={onOpenTx} onClose={() => setList(null)} />}
     </>
   );
 }

@@ -169,6 +169,8 @@ export default function EmailImportPage() {
   const hiddenTxs = useMemo(() => txs.filter((t) => t.dismissed && inPeriod(t.occurredAt, period)), [txs, period]);
   const [showHidden, setShowHidden] = useState(false);
   const [editing, setEditing] = useState<EmailTransaction | null>(null);
+  const [editView, setEditView] = useState<"detail" | "edit">("detail");
+  const openTx = (t: EmailTransaction, view: "detail" | "edit" = "detail") => (setEditView(view), setEditing(t));
 
   const saveEdit = (t: EmailTransaction, edit: TransactionEdit) => {
     setEditing(null);
@@ -291,7 +293,7 @@ export default function EmailImportPage() {
             {tab === "insight" && (
               <>
                 <MoneyInsightsCard refreshKey={txs.length} period={period} />
-                <SpendingCharts txs={periodSpends} period={period} />
+                <SpendingCharts txs={periodSpends} period={period} onOpenTx={openTx} />
               </>
             )}
 
@@ -629,15 +631,15 @@ export default function EmailImportPage() {
                 <h3 className="text-[15px] font-bold text-[#2F240E]">
                   Transaksi dari email <span className="font-medium text-[#736B60]">· {period.label.toLowerCase()} ({periodTxs.length})</span>
                 </h3>
-                {periodTxs.length > 0 && <p className="text-[11px] text-[#736B60]">Ketuk transaksi untuk mengubah kategori atau menyembunyikannya.</p>}
+                {periodTxs.length > 0 && <p className="text-[11px] text-[#736B60]">Ketuk transaksi untuk melihat email aslinya, mengubah kategori, atau menyembunyikannya.</p>}
                 {periodTxs.length === 0 && <p className="rounded-[20px] bg-white px-4 py-6 text-center text-xs text-[#736B60]">Tidak ada transaksi di periode ini.</p>}
                 <ul className="divide-y divide-[#F1EEE8] rounded-[24px] bg-white px-4">
                   {periodTxs.slice(0, shown).map((t) => (
                     <li key={t.id} className="py-3.5">
                       <button
                         type="button"
-                        onClick={() => setEditing(t)}
-                        aria-label={`Ubah ${t.merchant}`}
+                        onClick={() => openTx(t)}
+                        aria-label={`Detail ${t.merchant}`}
                         className="-mx-2 flex w-[calc(100%+1rem)] items-start justify-between gap-3 rounded-xl px-2 py-1 text-left hover:bg-[#FFF8E6]"
                       >
                         <div className="min-w-0">
@@ -672,7 +674,7 @@ export default function EmailImportPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setEditing(t)}
+                                onClick={() => openTx(t, "edit")}
                                 className="text-[11px] font-bold text-[#76520E] underline underline-offset-2"
                               >
                                 Ubah
@@ -757,7 +759,14 @@ export default function EmailImportPage() {
           </>
         )}
       </main>
-      {editing && <TransactionSheet tx={editing} all={txs} onClose={() => setEditing(null)} onSave={(edit) => saveEdit(editing, edit)} />}
+      {editing && <TransactionSheet
+          key={editing.id}
+          tx={editing}
+          all={txs}
+          initialView={editView}
+          onClose={() => setEditing(null)}
+          onSave={(edit) => saveEdit(editing, edit)}
+        />}
     </div>
   );
 }

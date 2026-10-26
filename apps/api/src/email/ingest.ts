@@ -51,7 +51,7 @@ function decodeEntities(text: string): string {
     .replace(/&apos;/g, "'");
 }
 
-const hash = (s: string) => createHash("sha256").update(s).digest("hex");
+export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 
 /**
  * Raw MIME in, at most one transaction out. Only the extracted fields are kept;
@@ -60,7 +60,7 @@ const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export async function ingestEmail(
   raw: Buffer | string,
   // allowAI: the user granted "ai_processing"; without it only the rules read receipts
-  opts: { userId: string; channel: EmailTransaction["channel"]; account?: string; allowAI?: boolean },
+  opts: { userId: string; channel: EmailTransaction["channel"]; account?: string; gmailId?: string; allowAI?: boolean },
 ): Promise<IngestResult> {
   const email = await parseRaw(raw);
   const listed = findSender(email.fromDomain);
@@ -96,6 +96,7 @@ export async function ingestEmail(
     origin: "EMAIL",
     channel: opts.channel,
     ...(opts.account && { account: opts.account }),
+    ...(opts.gmailId && { gmailId: opts.gmailId }),
     provider: sender.provider,
     merchant,
     amount: x.amount,
