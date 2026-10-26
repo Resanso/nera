@@ -71,6 +71,8 @@ const INCOME_BODY = /dana masuk|uang masuk|transfer masuk|dana (?:telah|sudah) (
 /** Follow-ups to an order that was already paid (shipping, "did you receive it?", returns, refund notices); never a new payment. */
 export const SHIPPING = /telah dikirim|sedang dikirim|telah tiba|sudah tiba|dalam perjalanan|siap diambil|has shipped|\bshipped\b|\bdelivered\b|out for delivery|pesanan selesai|sudahkah kamu menerima|sudah menerima pesanan|permintaan pengembalian|informasi terkait refund/i;
 /** Failed or cancelled payments: the money never moved. */
+/** Invoices waiting to be paid: the payment, if it happens, sends its own receipt. */
+export const UNPAID = /menunggu pembayaran|segera (?:selesaikan )?pembayaran|batas (?:waktu )?pembayaran|belum dibayar|waiting for payment|awaiting payment/i;
 export const FAILED = /tidak berhasil|\bgagal\b|dibatalkan|ditolak|\bfailed\b|unsuccessful|declined/i;
 /** Money sent to a person or account: not a purchase, kept out of spending totals. */
 const TRANSFER = /\btransfer\b|kirim uang|mengirim(?:kan)? uang ke|send money/i;
@@ -116,7 +118,7 @@ function findMerchant(text: string): string | undefined {
   // a label: at the start of a line, or followed by ":"/"-". Prose like "dana diteruskan ke
   // Penjual secara otomatis" or "penjual dapat menagih pajak" is not a merchant field.
   const m = text.match(
-    /(?:^|\n)[ \t]*(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)\b[ \t]*[:-]?\s*([^\n]{2,60})|\b(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)[ \t]*[:-][ \t]*([^\n]{2,60})/i,
+    /(?:^|\n)[ \t]*(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke|toko(?=[ \t]*:))\b[ \t]*[:-]?\s*([^\n]{2,60})|\b(?:merchant|restoran|penjual|penerima|dibayar ke|pembayaran ke)[ \t]*[:-][ \t]*([^\n]{2,60})/i,
   );
   // stop at the next label or column gap ("Ayam Geprek  Order ID: ...")
   const name = (m?.[1] ?? m?.[2])?.split(/\s{2,}|\b(?:order id|no\.|invoice|booking)\b/i)[0].trim();
@@ -164,10 +166,11 @@ function categorize(text: string, fallback: EmailCategory): EmailCategory {
 
 /** Fast path: regex rules over the email text. Returns null when it is clearly not a receipt. */
 /**
- * `bank`: bank notifications carry long footers (products, "tagihan", "internet banking"),
- * so only the payee and the subject decide their category, never the body.
+ * `subjectOnly`: bank notifications carry long footers (products, "tagihan", "internet
+ * banking") and marketplace receipts list "Total Tagihan" and product names, so only the
+ * payee and the subject decide their category, never the body.
  */
-export function extractWithRules(email: ParsedEmail, provider: string, fallback: EmailCategory, bank = false): Extraction | null {
+export function extractWithRules(email: ParsedEmail, provider: string, fallback: EmailCategory, subjectOnly = false): Extraction | null {
   const haystack = `${email.subject}\n${email.text}`;
   const total = findTotal(haystack);
   if (!total || total.amount <= 0) return null;
@@ -184,7 +187,7 @@ export function extractWithRules(email: ParsedEmail, provider: string, fallback:
     amount: total.amount,
     type: kind === "income" || INCOME_BODY.test(email.text) ? "income" : "expense",
     merchant: merchant ?? provider,
-    category: kind && kind !== "income" ? kind : ((merchant ? categorizeMerchant(merchant) : null) ?? categorize(bank ? email.subject : haystack, fallback)),
+    category: kind && kind !== "income" ? kind : ((merchant ? categorizeMerchant(merchant) : null) ?? categorize(subjectOnly ? email.subject : haystack, fallback)),
     externalRef,
     confidence: Math.min(1, confidence),
     extractedBy: "rules",

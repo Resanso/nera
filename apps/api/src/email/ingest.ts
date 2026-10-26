@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { simpleParser } from "mailparser";
-import { FAILED, SHIPPING, extractWithAI, extractWithRules } from "./extract";
-import { findSender, fixedCategory, isInvestmentDomain, providerFromSender } from "./senders";
+import { FAILED, SHIPPING, UNPAID, extractWithAI, extractWithRules } from "./extract";
+import { findSender, fixedCategory, isInvestmentDomain, isTrustedReceiptDomain, providerFromSender } from "./senders";
 import { emailStore } from "./store";
 import { isOwnMoneyMove, merchantKey, type EmailTransaction, type IngestResult, type ParsedEmail } from "./types";
 
@@ -70,13 +70,13 @@ export async function ingestEmail(
   const sender = listed ?? { provider: providerFromSender(email.fromName, email.fromDomain), defaultCategory: "other" as const };
 
   // "Pembayaran Tidak Berhasil" still shows an amount; nothing was paid.
-  // Shipping updates repeat an order that was already paid.
-  if (FAILED.test(email.subject) || SHIPPING.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
+  // Shipping updates repeat an order that was already paid; an unpaid invoice may never be.
+  if (FAILED.test(email.subject) || SHIPPING.test(email.subject) || UNPAID.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
 
   const messageHash = hash(email.messageId || `${email.from}|${email.subject}|${email.date.toISOString()}`);
   if (await emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
 
-  let x = extractWithRules(email, sender.provider, sender.defaultCategory, Boolean(listed?.bank));
+  let x = extractWithRules(email, sender.provider, sender.defaultCategory, Boolean(listed?.bank) || listed?.defaultCategory === "shopping");
   // unlisted senders need an explicit "Total ..." line; a bare "Rp 50.000" in a chatty
   // email isn't a receipt. Without one, only the AI may still recognize it.
   if (x && !listed && x.confidence < 0.8) x = null;
@@ -109,7 +109,7 @@ export async function ingestEmail(
     confidence: x.confidence,
     // unlisted senders: our rules weren't written for their receipts, so the user confirms first
     // and a figure far beyond a student's spending is usually a misread (a promo prize, an asset value)
-    needsReview: x.confidence < 0.7 || !listed || x.amount >= REVIEW_ABOVE,
+    needsReview: x.confidence < 0.7 || !(listed || isTrustedReceiptDomain(email.fromDomain)) || x.amount >= REVIEW_ABOVE,
     // a GoPay/OVO top-up is usually already a BNI debit; counting it again would double the spend
     countsTowardSpending: x.type === "expense" && !isOwnMoneyMove(x.category),
     extractedBy: x.extractedBy,

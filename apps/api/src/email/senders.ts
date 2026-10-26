@@ -41,6 +41,18 @@ export const ALLOWED_SENDERS: Sender[] = [
  * Brokers and crypto exchanges. Not in the Gmail query (they arrive through the Purchases
  * category); their buys, sells and asset values are investments, never pocket spending.
  */
+/**
+ * Stores whose receipts arrive through Gmail's Purchases category and read reliably, so
+ * they don't wait for review like other unlisted senders. Not added to the Gmail query:
+ * google.com and apple.com send far more than receipts.
+ */
+const TRUSTED_RECEIPT_DOMAINS = ["apple.com", "google.com", "steampowered.com", "alfagift.id"];
+
+export const isTrustedReceiptDomain = (fromDomain: string) => {
+  const d = fromDomain.toLowerCase();
+  return TRUSTED_RECEIPT_DOMAINS.some((x) => d === x || d.endsWith(`.${x}`));
+};
+
 const INVESTMENT_DOMAINS = ["pintu.co.id", "bibit.id", "stockbit.com", "ajaib.co.id", "bareksa.com", "indodax.com", "tokocrypto.com", "pluang.com"];
 
 export const isInvestmentDomain = (fromDomain: string) => {
