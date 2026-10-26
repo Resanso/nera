@@ -57,6 +57,8 @@ export interface FinancialStoreState extends FinancialStateData {
   budgetPockets: BudgetPocket[];
   /** newest first; kept on this device like the pockets themselves */
   pocketActivity: PocketActivity[];
+  /** the user entered their own total balance; until then "Aset Saya" shows Rp0 */
+  assetsSet: boolean;
 
   // Actions
   recalculateState: () => void;
@@ -86,6 +88,8 @@ export interface FinancialStoreState extends FinancialStateData {
   spendFromBudgetPocket: (pocketId: string, amount: number, title: string) => void;
   deleteBudgetPocket: (pocketId: string) => void;
   setBudgetPocketTarget: (pocketId: string, targetAmount: number) => void;
+  /** Kantong Utama becomes the total minus what sits in pockets; false when the total is smaller */
+  setTotalAssets: (total: number) => boolean;
 }
 
 const POCKET_TX_CATEGORY: Record<BudgetPocket["icon"], Transaction["category"]> = {
@@ -236,6 +240,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
       isParentPaired: false,
       emergencyTopUpRequests: INITIAL_EMERGENCY_TOPUP_REQUESTS,
       pocketActivity: [],
+      assetsSet: false,
       budgetPockets: INITIAL_BUDGET_POCKETS,
 
       recalculateState: () => {
@@ -584,6 +589,14 @@ export const useFinancialStore = create<FinancialStoreState>()(
         if (pocket.balance > 0) get().recalculateState();
       },
 
+      setTotalAssets: (total: number) => {
+        const inPockets = get().budgetPockets.reduce((sum, p) => sum + p.balance, 0);
+        if (total < inPockets) return false;
+        set({ dailyPocket: total - inPockets, assetsSet: true });
+        get().recalculateState();
+        return true;
+      },
+
       // only the budget/target changes; no money moves
       setBudgetPocketTarget: (pocketId: string, targetAmount: number) => {
         set((s) => ({
@@ -606,6 +619,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           emergencyTopUpRequests: INITIAL_EMERGENCY_TOPUP_REQUESTS,
           budgetPockets: INITIAL_BUDGET_POCKETS,
           pocketActivity: [],
+          assetsSet: false,
         });
       },
     }),

@@ -268,7 +268,11 @@ export default function PocketsPage() {
     setBudgetPocketTarget,
     pocketActivity,
     monthlyAllowance,
+    assetsSet,
+    setTotalAssets,
   } = useFinancialStore();
+  const [assetInput, setAssetInput] = useState("");
+  const [assetError, setAssetError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<DetailMode>("topup");
@@ -605,8 +609,17 @@ export default function PocketsPage() {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[15px] font-bold tabular-nums text-[#2F240E]">
-              {money(totals.all)}
+              {money(assetsSet ? totals.all : 0)}
             </span>
+            {!assetsSet && (
+              <button
+                type="button"
+                onClick={() => (setAssetInput(""), setAssetError(null), setIsInfoOpen(true))}
+                className="h-7 rounded-full bg-[#FFB900] px-2.5 text-[11px] font-bold text-[#352500] hover:bg-[#E6A700]"
+              >
+                Atur
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowBalances((prev) => !prev)}
@@ -912,7 +925,52 @@ export default function PocketsPage() {
         <div className="space-y-4">
           <p className="text-xs leading-relaxed text-[#736B60]">
             Aset Saya adalah total saldo Kantong Utama ditambah seluruh kantong yang kamu buat.
+            {!assetsSet && " Belum diatur, jadi masih Rp0. Isi total saldo rekeningmu sekarang."}
           </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const total = parseAmount(assetInput);
+              if (!setTotalAssets(total)) {
+                setAssetError(`Minimal ${formatRupiah(totals.inPockets)}, karena sebanyak itu sudah ada di kantong-kantongmu.`);
+                return;
+              }
+              setAssetError(null);
+              setAssetInput("");
+              setIsInfoOpen(false);
+              triggerToast(`Aset Saya diatur ke ${formatRupiah(total)}`);
+            }}
+            className="space-y-2"
+          >
+            <label htmlFor="total-assets" className="block text-xs font-semibold text-[#2F240E]">
+              {assetsSet ? "Ubah total saldo" : "Total saldo kamu"}
+            </label>
+            <div className="flex gap-2">
+              <div className="flex flex-1 items-center rounded-xl border border-[#E9E5DD] px-3 focus-within:border-[#76520E]">
+                <span className="text-sm font-semibold text-[#736B60]">Rp</span>
+                <input
+                  id="total-assets"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder={assetsSet ? totals.all.toLocaleString("id-ID") : "0"}
+                  value={assetInput}
+                  onChange={(e) => setAssetInput(formatAmountInput(e.target.value))}
+                  className="w-full bg-transparent px-2 py-2.5 text-base font-semibold tabular-nums text-[#2F240E] focus:outline-none"
+                />
+              </div>
+              <Button type="submit" disabled={!assetInput}>
+                Simpan
+              </Button>
+            </div>
+            {assetError ? (
+              <p className="text-[11px] text-[#C43737]">{assetError}</p>
+            ) : (
+              <p className="text-[11px] text-[#736B60]">
+                Kantong Utama jadi total ini dikurangi isi kantong ({formatRupiah(totals.inPockets)}).
+              </p>
+            )}
+          </form>
+          {assetsSet && (
           <div className="overflow-hidden rounded-[18px] border border-[#E9E5DD] divide-y divide-[#F0EEE9]">
             <div className="flex items-center justify-between px-3.5 py-3 text-xs">
               <span className="flex items-center gap-2 text-[#736B60]">
@@ -937,6 +995,7 @@ export default function PocketsPage() {
               <span className="font-bold tabular-nums text-[#2F240E]">{formatRupiah(totals.all)}</span>
             </div>
           </div>
+          )}
         </div>
       </Modal>
 
