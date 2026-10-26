@@ -1132,6 +1132,7 @@ export default function PocketsPage() {
 
       {/* MODAL: DETAIL KANTONG */}
       <Modal
+        variant="sheet"
         isOpen={!!selectedPocket}
         onClose={closeDetail}
         title={selectedPocket ? `Kantong ${selectedPocket.name}` : "Kantong"}
