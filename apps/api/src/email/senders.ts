@@ -69,6 +69,11 @@ export function fixedCategory(provider: string): EmailCategory | undefined {
   return s?.defaultCategory === "travel" ? "travel" : undefined;
 }
 
+/** Campaign and announcement addresses of otherwise listed senders (announcement@info.blubybcadigital.id). */
+export const isMarketingAddress = (from: string) =>
+  /^(?:announcement|newsletter|promo|promotion|marketing|news|campaign|event)s?[@.]/i.test(from) ||
+  /@(?:info|news|promo|marketing|campaign)\./i.test(from);
+
 export function findSender(fromDomain: string): Sender | undefined {
   const d = fromDomain.toLowerCase();
   return ALLOWED_SENDERS.find((s) => s.domains.some((x) => d === x || d.endsWith(`.${x}`)));
@@ -81,7 +86,8 @@ export function findSender(fromDomain: string): Sender | undefined {
  */
 export function gmailSenderQuery(days: number): string {
   const domains = ALLOWED_SENDERS.flatMap((s) => s.domains);
-  return `(from:(${domains.join(" OR ")}) OR category:purchases) newer_than:${days}d`;
+  // Gmail's own Promotions tab is never a receipt: banks' campaign mail lands there
+  return `(from:(${domains.join(" OR ")}) OR category:purchases) -category:promotions newer_than:${days}d`;
 }
 
 /** "Anthropic, PBC" / "no-reply@mail.foo.co.id" -> a short provider name for unlisted senders. */

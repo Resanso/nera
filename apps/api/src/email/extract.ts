@@ -88,7 +88,7 @@ function kindFromSubject(subject: string): EmailCategory | "income" | null {
   if (TRANSFER.test(subject)) return "transfer";
   return null;
 }
-const PROMO = /promo|diskon|voucher|flash sale|penawaran|newsletter|cashback hingga|\bsale\b|wishlist|recommended deals/i;
+const PROMO = /promo|diskon|voucher|flash sale|penawaran|newsletter|cashback hingga|\bsale\b|wishlist|recommended deals|hadiah|undian|giveaway|berkesempatan|perayaan|ulang tahun|kuis/i;
 
 /** "Rp 25.000" / "Rp25,000" / "IDR 25.000,00" -> 25000 */
 export function parseRupiah(raw: string): number {
@@ -100,8 +100,11 @@ function findTotal(text: string): { amount: number; keyword: boolean } | null {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   for (const kw of TOTAL_KEYWORDS) {
     for (let i = 0; i < lines.length; i++) {
-      const at = lines[i].toLowerCase().indexOf(kw);
-      if (at < 0) continue;
+      // a label, not prose: at the start of a line or a table cell ("hadiah dengan total
+      // Rp5.000.000" in a promo is not a receipt total)
+      const m = new RegExp(`(?:^|\\s{2,}|[|:])\\s*${kw}`, "i").exec(lines[i]);
+      if (!m) continue;
+      const at = m.index + m[0].length - kw.length;
       // amount after the keyword on the same line, or on the next lines (table layouts)
       const sameLine = lines[i].slice(at + kw.length).match(AMOUNT);
       const next = lines.slice(i + 1, i + 3).join(" ").match(AMOUNT);

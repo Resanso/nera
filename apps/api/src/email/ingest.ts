@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { simpleParser } from "mailparser";
 import { FAILED, SHIPPING, UNPAID, extractWithAI, extractWithRules } from "./extract";
-import { findSender, fixedCategory, isInvestmentDomain, isTrustedReceiptDomain, providerFromSender } from "./senders";
+import { findSender, fixedCategory, isInvestmentDomain, isMarketingAddress, isTrustedReceiptDomain, providerFromSender } from "./senders";
 import { emailStore } from "./store";
 import { isOwnMoneyMove, merchantKey, type EmailTransaction, type IngestResult, type ParsedEmail } from "./types";
 
@@ -71,7 +71,8 @@ export async function ingestEmail(
 
   // "Pembayaran Tidak Berhasil" still shows an amount; nothing was paid.
   // Shipping updates repeat an order that was already paid; an unpaid invoice may never be.
-  if (FAILED.test(email.subject) || SHIPPING.test(email.subject) || UNPAID.test(email.subject)) return { status: "ignored", reason: "not_a_transaction" };
+  if (FAILED.test(email.subject) || SHIPPING.test(email.subject) || UNPAID.test(email.subject) || isMarketingAddress(email.from))
+    return { status: "ignored", reason: "not_a_transaction" };
 
   const messageHash = hash(email.messageId || `${email.from}|${email.subject}|${email.date.toISOString()}`);
   if (await emailStore.hasMessage(opts.userId, messageHash)) return { status: "duplicate" };
