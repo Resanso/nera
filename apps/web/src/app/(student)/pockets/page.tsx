@@ -15,6 +15,7 @@ import { dueLabel, perDayNow, type ProfilePlan } from "../../../lib/pocketProfil
 import { usePushState } from "../../../lib/push";
 import { onWalletError } from "../../../lib/wallet";
 import { ReminderToggle } from "../../../components/insights/ReminderToggle";
+import { IncomeDayPicker } from "../../../components/insights/IncomeDayPicker";
 import { EmailPlanningConsent } from "../../../components/consent/ConsentCard";
 import { useEmailBalance, useEmailBalanceSync } from "../../../lib/emailBalance";
 import { Modal, Button, cn } from "@nera/ui";
@@ -1222,26 +1223,9 @@ export default function PocketsPage() {
                 Simpan
               </Button>
             </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="income-day" className="text-[12px] text-[#2F240E]">
-                Biasanya masuk tanggal
-              </label>
-              <select
-                id="income-day"
-                value={incomeDayInput ?? ""}
-                onChange={(e) => setIncomeDayInput(e.target.value ? Number(e.target.value) : null)}
-                className="rounded-lg border border-[#E9E5DD] bg-white px-2 py-1.5 text-[13px] font-semibold tabular-nums text-[#2F240E] focus:border-[#76520E] focus:outline-none"
-              >
-                <option value="">Belum tahu</option>
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <IncomeDayPicker value={incomeDayInput} onChange={setIncomeDayInput} />
             <p className="text-[11px] text-[#736B60]">
-              {monthlyIncome ? `Sekarang ${formatRupiah(monthlyIncome)}${incomeDay ? `, berikutnya ${shortDay(nextIncome(incomeDay).date)}` : ""}. ` : "Belum diisi. "}
+              {monthlyIncome ? `Sekarang ${formatRupiah(monthlyIncome)}. ` : "Belum diisi. "}
               Dipakai untuk membandingkan budget{incomeDay ? " dan membagi saldo per hari sampai uangnya masuk" : ""}.
             </p>
           </form>

@@ -525,8 +525,8 @@ export default function HomePage() {
                         </span>
                       </div>
                     </div>
-                    <p className="text-lg font-bold text-[#2F240E] shrink-0 tabular-nums" title={formatRupiah(emailSpending.monthTotal)}>
-                      {formatRupiahShort(emailSpending.monthTotal)}
+                    <p className="text-base font-bold text-[#2F240E] shrink-0 tabular-nums">
+                      {formatRupiah(emailSpending.monthTotal)}
                     </p>
                   </Link>
 
