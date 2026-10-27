@@ -1145,7 +1145,7 @@ export default function PocketsPage() {
       )}
 
       {/* SALDO */}
-      <Modal isOpen={isSaldoOpen} onClose={() => setIsSaldoOpen(false)} title="Saldo & pemasukan">
+      <Modal variant="sheet" isOpen={isSaldoOpen} onClose={() => setIsSaldoOpen(false)} title="Saldo & pemasukan">
         <div className="space-y-5">
           <form
             onSubmit={(e) => {
