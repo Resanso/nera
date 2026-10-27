@@ -8,6 +8,7 @@ import { POCKET_CATEGORIES, useEmailSpending, useEmailSpendingStore, weeklyJump 
 import { EmailPlanningConsent } from "../../components/consent/ConsentCard";
 import { useEmailBalanceSync } from "../../lib/emailBalance";
 import { emailApi } from "../../lib/emailImport";
+import { nextIncome } from "../../lib/period";
 import { NeraOrb } from "../../components/mascot/NeraOrb";
 import type { NeraMood } from "../../components/mascot/moods";
 import type { EmailCategory, EmailTransaction } from "../../lib/emailImport";
@@ -94,6 +95,7 @@ export default function HomePage() {
     budgetPockets,
     assetsSet,
     pocketActivity,
+    incomeDay,
   } = useFinancialStore();
 
   const [isPayKosOpen, setIsPayKosOpen] = useState(false);
@@ -173,8 +175,10 @@ export default function HomePage() {
     const balance = dailyPocket + budgetPockets.reduce((sum, p) => sum + p.balance, 0);
     const runway = perDay > 0 ? Math.floor(balance / perDay) : 99;
     const budgetLeftPerDay = monthBudget > 0 ? Math.max(0, monthBudget - monthSpent) / daysLeftInMonth : Infinity;
-    return { runway: Math.min(99, runway), perDay, balance, perDayBudget: Math.min(budgetLeftPerDay, balance / daysLeftInMonth) };
-  }, [assetsSet, planningConsent, emailSpending.ready, emailSpending.spends, pocketActivity, dailyPocket, budgetPockets, monthBudget, monthSpent, daysLeftInMonth]);
+    // the balance has to last until the next income when the user set its day (Kantong), else to the month end
+    const balanceDays = incomeDay ? nextIncome(incomeDay).days : daysLeftInMonth;
+    return { runway: Math.min(99, runway), perDay, balance, perDayBudget: Math.min(budgetLeftPerDay, balance / balanceDays) };
+  }, [assetsSet, planningConsent, emailSpending.ready, emailSpending.spends, pocketActivity, dailyPocket, budgetPockets, monthBudget, monthSpent, daysLeftInMonth, incomeDay]);
   const shownRunway = estimate?.runway ?? runwayDays;
   const shownBudgetPerDay = estimate ? Math.round(estimate.perDayBudget) : dailyBudgetSafe;
   const runwayEndDate = (() => {

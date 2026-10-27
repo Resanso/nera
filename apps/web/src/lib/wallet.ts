@@ -53,6 +53,7 @@ function importLocal() {
     main: Math.max(0, Math.round(s.dailyPocket)),
     assetsSet: s.assetsSet,
     monthlyIncome: s.monthlyIncome,
+    incomeDay: s.incomeDay,
     pockets: s.budgetPockets.map((p) => ({
       id: p.id,
       name: p.name.slice(0, 40),

@@ -8,7 +8,7 @@ import { BudgetPlanSheet, type ChosenLine } from "../../../components/insights/B
 import { CATEGORY_LABEL, emailApi, type EmailTransaction } from "../../../lib/emailImport";
 import { PocketHistory } from "../../../components/insights/PocketHistory";
 import { TransactionSheet, type TransactionEdit } from "../../../components/insights/TransactionSheet";
-import { inPeriod, presetPeriod } from "../../../lib/period";
+import { inPeriod, nextIncome, presetPeriod } from "../../../lib/period";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { PocketProfileSheet } from "../../../components/insights/PocketProfileSheet";
 import { dueLabel, perDayNow, type ProfilePlan } from "../../../lib/pocketProfile";
@@ -242,6 +242,7 @@ const daysLeftInMonth = () => {
   const d = now();
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() - d.getDate() + 1;
 };
+const shortDay = (d: Date) => d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 const monthEnd = () => {
   const d = now();
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
@@ -343,6 +344,7 @@ export default function PocketsPage() {
     setBudgetPocketTarget,
     pocketActivity,
     monthlyIncome,
+    incomeDay,
     setMonthlyIncome,
     assetsSet,
     setTotalAssets,
@@ -385,7 +387,11 @@ export default function PocketsPage() {
   const uncoveredTotal = uncovered.reduce((s, c) => s + c.amount, 0);
   const setAside = goals.reduce((s, p) => s + p.balance, 0);
   const total = spendable + setAside;
-  const perDayLeft = Math.max(0, Math.floor(spendable / daysLeftInMonth() / 1000) * 1000);
+  // "Bisa dipakai" has to last until the next income when the user told us when it comes,
+  // otherwise until the month ends
+  const payday = incomeDay ? nextIncome(incomeDay) : null;
+  const perDayLeft = Math.max(0, Math.floor(spendable / (payday?.days ?? daysLeftInMonth()) / 1000) * 1000);
+  const lastsUntil = payday ? `pemasukan ${shortDay(payday.date)}` : monthEnd();
 
   // the whole budget proposed from email history ("Pakai budget ini")
   const plan = useMemo(() => (emailSpending.ready ? planBudget(emailSpending.spends, pockets) : null), [emailSpending.ready, emailSpending.spends, pockets]);
@@ -453,10 +459,12 @@ export default function PocketsPage() {
   const [assetInput, setAssetInput] = useState("");
   const [assetError, setAssetError] = useState<string | null>(null);
   const [incomeInput, setIncomeInput] = useState("");
+  const [incomeDayInput, setIncomeDayInput] = useState<number | null>(null);
   const openSaldo = () => {
     setAssetInput("");
     setAssetError(null);
     setIncomeInput("");
+    setIncomeDayInput(incomeDay);
     setIsSaldoOpen(true);
   };
 
@@ -539,7 +547,7 @@ export default function PocketsPage() {
           <p className={cn("text-[28px] font-bold leading-tight tabular-nums", spendable < 0 ? "text-[#A92F2F]" : "text-[#2F240E]")}>{money(spendable)}</p>
           {assetsSet ? (
             <p className="mt-0.5 text-[12px] text-[#736B60]">
-              ≈ <span className="font-semibold tabular-nums text-[#2F240E]">{showBalances ? formatRupiah(perDayLeft) : "Rp —"}</span>/hari sampai {monthEnd()}
+              ≈ <span className="font-semibold tabular-nums text-[#2F240E]">{showBalances ? formatRupiah(perDayLeft) : "Rp —"}</span>/hari sampai {lastsUntil}
             </p>
           ) : (
             <p className="mt-0.5 text-[12px] text-[#736B60]">Belum diisi. Mulai dari langkah di bawah.</p>
@@ -1183,10 +1191,14 @@ export default function PocketsPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const income = parseAmount(incomeInput);
-              setMonthlyIncome(income > 0 ? income : null);
+              const income = incomeInput ? parseAmount(incomeInput) : (monthlyIncome ?? 0);
+              setMonthlyIncome(income > 0 ? income : null, incomeDayInput);
               setIncomeInput("");
-              triggerToast(income > 0 ? `Pemasukan diatur ke ${formatRupiah(income)}/bulan` : "Pemasukan dikosongkan");
+              triggerToast(
+                income > 0
+                  ? `Pemasukan ${formatRupiah(income)}/bulan${incomeDayInput ? `, masuk tiap tanggal ${incomeDayInput}` : ""}`
+                  : "Pemasukan dikosongkan",
+              );
             }}
             className="space-y-2"
           >
@@ -1206,11 +1218,32 @@ export default function PocketsPage() {
                   className="w-full bg-transparent px-2 py-2.5 text-base font-semibold tabular-nums text-[#2F240E] focus:outline-none"
                 />
               </div>
-              <Button type="submit" variant="outline" disabled={!incomeInput}>
+              <Button type="submit" variant="outline" disabled={!incomeInput && incomeDayInput === incomeDay}>
                 Simpan
               </Button>
             </div>
-            <p className="text-[11px] text-[#736B60]">{monthlyIncome ? `Sekarang ${formatRupiah(monthlyIncome)}. ` : "Belum diisi. "}Dipakai untuk membandingkan budget.</p>
+            <div className="flex items-center gap-2">
+              <label htmlFor="income-day" className="text-[12px] text-[#2F240E]">
+                Biasanya masuk tanggal
+              </label>
+              <select
+                id="income-day"
+                value={incomeDayInput ?? ""}
+                onChange={(e) => setIncomeDayInput(e.target.value ? Number(e.target.value) : null)}
+                className="rounded-lg border border-[#E9E5DD] bg-white px-2 py-1.5 text-[13px] font-semibold tabular-nums text-[#2F240E] focus:border-[#76520E] focus:outline-none"
+              >
+                <option value="">Belum tahu</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-[11px] text-[#736B60]">
+              {monthlyIncome ? `Sekarang ${formatRupiah(monthlyIncome)}${incomeDay ? `, berikutnya ${shortDay(nextIncome(incomeDay).date)}` : ""}. ` : "Belum diisi. "}
+              Dipakai untuk membandingkan budget{incomeDay ? " dan membagi saldo per hari sampai uangnya masuk" : ""}.
+            </p>
           </form>
 
           {assetsSet && (

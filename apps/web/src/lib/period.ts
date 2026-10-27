@@ -54,3 +54,16 @@ export const inPeriod = (iso: string, p: Period) => {
 /** <input type="date"> value for a Date, local time. */
 export const dateInputValue = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * When the monthly income should arrive next, from the day of the month the user set (31 falls
+ * on the month's last day). `days` counts today up to the day before, the days the money
+ * left now has to last; on payday itself the next one is a month away.
+ */
+export function nextIncome(day: number, now = new Date()) {
+  const on = (y: number, m: number) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let date = on(today.getFullYear(), today.getMonth());
+  if (date <= today) date = on(today.getFullYear(), today.getMonth() + 1);
+  return { date, days: Math.round((date.getTime() - today.getTime()) / 86_400_000) };
+}

@@ -42,7 +42,7 @@ export type PocketActivity = {
  */
 export type WalletOp =
   | { op: "setAssets"; total: number }
-  | { op: "setIncome"; monthlyIncome: number | null }
+  | { op: "setIncome"; monthlyIncome: number | null; incomeDay?: number | null }
   | { op: "confirmBalance" }
   | { op: "createPocket"; id: string; name: string; kind: BudgetPocket["kind"]; icon: BudgetPocket["icon"]; tone: BudgetPocket["tone"]; target: number; initial: number }
   | {
@@ -66,6 +66,7 @@ export type WalletView = {
   main: number;
   assetsSet: boolean;
   monthlyIncome: number | null;
+  incomeDay?: number | null;
   anchorAt: string | null;
   emailDeduction: { amount: number; receipts: number; since: string } | null;
   pockets: (Omit<BudgetPocket, "targetAmount" | "spentThisMonth"> & { target: number; spentThisMonth: number })[];
@@ -110,6 +111,8 @@ export interface FinancialStoreState extends FinancialStateData {
   emailDeduction: WalletView["emailDeduction"];
   /** monthly income the user entered; null until then */
   monthlyIncome: number | null;
+  /** day of the month the income usually arrives (1-31); null until set */
+  incomeDay: number | null;
   /** the wallet comes from the server (signed in); false: this device only */
   walletSynced: boolean;
 
@@ -151,7 +154,7 @@ export interface FinancialStoreState extends FinancialStateData {
   setTotalAssets: (total: number) => boolean;
   /** the user says the balance Nera shows is right: it becomes the new anchor */
   confirmBalance: () => void;
-  setMonthlyIncome: (amount: number | null) => void;
+  setMonthlyIncome: (amount: number | null, incomeDay?: number | null) => void;
   /** replaces the user's money with the server's (signed in) */
   hydrateWallet: (v: WalletView) => void;
 }
@@ -308,6 +311,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
       balanceAnchorAt: null,
       emailDeduction: null,
       monthlyIncome: null,
+      incomeDay: null,
       walletSynced: false,
       budgetPockets: INITIAL_BUDGET_POCKETS,
 
@@ -734,9 +738,9 @@ export const useFinancialStore = create<FinancialStoreState>()(
         mirror({ op: "confirmBalance" });
       },
 
-      setMonthlyIncome: (amount) => {
-        set({ monthlyIncome: amount });
-        mirror({ op: "setIncome", monthlyIncome: amount });
+      setMonthlyIncome: (amount, incomeDay) => {
+        set(incomeDay === undefined ? { monthlyIncome: amount } : { monthlyIncome: amount, incomeDay });
+        mirror({ op: "setIncome", monthlyIncome: amount, ...(incomeDay !== undefined && { incomeDay }) });
       },
 
       hydrateWallet: (v) => {
@@ -744,6 +748,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           dailyPocket: v.main,
           assetsSet: v.assetsSet,
           monthlyIncome: v.monthlyIncome,
+          incomeDay: v.incomeDay ?? null,
           balanceAnchorAt: v.anchorAt,
           emailDeduction: v.emailDeduction,
           budgetPockets: v.pockets.map(({ target, ...p }) => ({ ...p, targetAmount: target })),
@@ -780,6 +785,7 @@ export const useFinancialStore = create<FinancialStoreState>()(
           balanceAnchorAt: null,
           emailDeduction: null,
           monthlyIncome: null,
+          incomeDay: null,
           walletSynced: false,
         });
       },

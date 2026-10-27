@@ -53,6 +53,7 @@ create table if not exists nera_wallets (
   updated_at timestamptz not null default now()
 );
 alter table nera_wallets add column if not exists balance_anchor_at timestamptz;
+alter table nera_wallets add column if not exists income_day smallint;
 create table if not exists nera_pockets (
   user_id text not null,
   id text not null,
@@ -128,7 +129,7 @@ class PgWalletStore implements WalletStore {
   }
 
   private async load(c: PoolClient | Pool, userId: string, lock: boolean): Promise<WalletState | null> {
-    const w = await c.query<{ main_balance: string; assets_set: boolean; monthly_income: string | null; balance_anchor_at: Date | null }>(
+    const w = await c.query<{ main_balance: string; assets_set: boolean; monthly_income: string | null; income_day: number | null; balance_anchor_at: Date | null }>(
       `select * from nera_wallets where user_id = $1${lock ? " for update" : ""}`,
       [userId],
     );
@@ -138,6 +139,7 @@ class PgWalletStore implements WalletStore {
       main: Number(w.rows[0].main_balance),
       assetsSet: w.rows[0].assets_set,
       monthlyIncome: w.rows[0].monthly_income === null ? null : Number(w.rows[0].monthly_income),
+      incomeDay: w.rows[0].income_day,
       anchorAt: w.rows[0].balance_anchor_at?.toISOString() ?? null,
       pockets: p.rows.map((r) => ({
         id: r.id,
@@ -156,11 +158,11 @@ class PgWalletStore implements WalletStore {
 
   private async save(c: PoolClient, userId: string, s: WalletState, activity: ActivityRow[], deleted: string[]) {
     await c.query(
-      `insert into nera_wallets (user_id, main_balance, assets_set, monthly_income, balance_anchor_at, updated_at)
-       values ($1, $2, $3, $4, $5, now())
+      `insert into nera_wallets (user_id, main_balance, assets_set, monthly_income, income_day, balance_anchor_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, now())
        on conflict (user_id) do update set main_balance = excluded.main_balance, assets_set = excluded.assets_set,
-         monthly_income = excluded.monthly_income, balance_anchor_at = excluded.balance_anchor_at, updated_at = now()`,
-      [userId, s.main, s.assetsSet, s.monthlyIncome, s.anchorAt],
+         monthly_income = excluded.monthly_income, income_day = excluded.income_day, balance_anchor_at = excluded.balance_anchor_at, updated_at = now()`,
+      [userId, s.main, s.assetsSet, s.monthlyIncome, s.incomeDay, s.anchorAt],
     );
     if (deleted.length) {
       await c.query("delete from nera_pockets where user_id = $1 and id = any($2)", [userId, deleted]);

@@ -41,6 +41,7 @@ async function view(userId: string, s: WalletState) {
     main: s.main - (deduction?.amount ?? 0),
     assetsSet: s.assetsSet,
     monthlyIncome: s.monthlyIncome,
+    incomeDay: s.incomeDay,
     anchorAt: s.anchorAt,
     emailDeduction: deduction,
     pockets: s.pockets.map(({ reachedTarget: _r, ...p }) => ({ ...p, spentThisMonth: spent.get(p.id) ?? 0 })),
@@ -67,6 +68,7 @@ walletRouter.post("/import", async (req, res) => {
     main: d.assetsSet ? d.main : 0,
     assetsSet: d.assetsSet,
     monthlyIncome: d.monthlyIncome,
+    incomeDay: d.incomeDay ?? null,
     anchorAt: d.assetsSet ? new Date().toISOString() : null,
     pockets: d.pockets.map((p) => ({ ...p, balance: d.assetsSet ? p.balance : 0 })),
   };

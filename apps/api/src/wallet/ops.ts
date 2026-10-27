@@ -35,6 +35,8 @@ export type WalletState = {
   main: number;
   assetsSet: boolean;
   monthlyIncome: number | null;
+  /** day of the month the income usually arrives (1-31); null when not set */
+  incomeDay: number | null;
   /** when the user last entered or confirmed their total; email receipts after it lower Kantong Utama */
   anchorAt: string | null;
   pockets: PocketRow[];
@@ -52,6 +54,7 @@ export type ActivityRow = {
 export class OpError extends Error {}
 
 const money = z.number().int().min(0).max(10_000_000_000);
+const incomeDay = z.number().int().min(1).max(31);
 const pocketId = z.string().regex(/^[\w-]{1,80}$/);
 const name = z.string().trim().min(1).max(40);
 const profile = z.object({
@@ -62,7 +65,8 @@ const profile = z.object({
 
 export const Op = z.discriminatedUnion("op", [
   z.object({ op: z.literal("setAssets"), total: money }),
-  z.object({ op: z.literal("setIncome"), monthlyIncome: money.nullable() }),
+  /** incomeDay left out keeps the saved day */
+  z.object({ op: z.literal("setIncome"), monthlyIncome: money.nullable(), incomeDay: incomeDay.nullable().optional() }),
   /** the balance Nera shows is right: it becomes the new anchor */
   z.object({ op: z.literal("confirmBalance") }),
   z.object({
@@ -129,7 +133,11 @@ export function applyOp(s: WalletState, op: Op, now = new Date()): { state: Wall
     case "confirmBalance":
       return { state: { ...s, pockets, anchorAt: at }, activity, deleted: [] };
     case "setIncome":
-      return { state: { ...s, pockets, monthlyIncome: op.monthlyIncome }, activity, deleted: [] };
+      return {
+        state: { ...s, pockets, monthlyIncome: op.monthlyIncome, incomeDay: op.incomeDay === undefined ? s.incomeDay : op.incomeDay },
+        activity,
+        deleted: [],
+      };
     case "createPocket": {
       if (pockets.some((p) => p.id === op.id)) throw new OpError("Kantong sudah ada");
       // a budget holds no money; only a goal starts with some
@@ -216,6 +224,7 @@ export const ImportInput = z.object({
   main: money,
   assetsSet: z.boolean(),
   monthlyIncome: money.nullable(),
+  incomeDay: incomeDay.nullable().optional(),
   pockets: z
     .array(
       z.object({
