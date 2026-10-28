@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MessageCircle, RefreshCw } from "lucide-react";
+import { MessageCircleIcon, RefreshIcon } from "@nera/ui/icons";
 import { NeraOrb } from "../mascot/NeraOrb";
 import { emailApi, type MoneyInsights } from "../../lib/emailImport";
 import type { Period } from "../../lib/period";
@@ -54,7 +54,7 @@ export function MoneyInsightsCard({ refreshKey, period }: { refreshKey?: number;
           )}
         </div>
         <button type="button" onClick={load} aria-label="Hitung ulang" className="rounded-full p-2 text-[#76520E] hover:bg-[#FFF3D6]">
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          <RefreshIcon size={16} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
@@ -111,7 +111,7 @@ export function MoneyInsightsCard({ refreshKey, period }: { refreshKey?: number;
               href="/recovery?ask=kemana-uangku"
               className="mt-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-[14px] bg-[#FFB900] text-sm font-semibold text-[#352500] hover:bg-[#E6A700]"
             >
-              <MessageCircle size={16} />
+              <MessageCircleIcon size={16} />
               Konsultasi lebih lanjut dengan Nera
             </Link>
           )}

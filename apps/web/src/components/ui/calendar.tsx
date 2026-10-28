@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "@nera/ui/icons";
 import { DayPicker, getDefaultClassNames, type DayPickerProps } from "react-day-picker";
 import { id } from "react-day-picker/locale";
 import { cn } from "@nera/ui";
@@ -49,7 +49,7 @@ export function Calendar({ className, classNames, showOutsideDays = true, ...pro
       }}
       components={{
         Chevron: ({ orientation, className: c }) =>
-          orientation === "left" ? <ChevronLeft size={18} className={c} /> : <ChevronRight size={18} className={c} />,
+          orientation === "left" ? <ChevronLeftIcon size={18} className={c} /> : <ChevronRightIcon size={18} className={c} />,
       }}
       {...props}
     />

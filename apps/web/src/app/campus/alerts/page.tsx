@@ -3,12 +3,12 @@
 import React from "react";
 import { CAMPUS_INTERVENTION_ALERTS } from "@nera/core";
 import { Card } from "@nera/ui";
-import { AlertOctagon, AlertTriangle, Info, ArrowRight } from "lucide-react";
+import { AlertOctagonIcon, AlertTriangleIcon, InfoIcon, ArrowRightIcon } from "@nera/ui/icons";
 
 const SEVERITY_CONFIG = {
-  critical: { icon: AlertOctagon, bg: "bg-[#FBE4DE]", border: "border-[#EF4444]/30", text: "text-[#EF4444]", label: "Kritis" },
-  warning: { icon: AlertTriangle, bg: "bg-[#FFF3D6]", border: "border-[#FBBF24]/30", text: "text-[#B45309]", label: "Perhatian" },
-  info: { icon: Info, bg: "bg-[#FFF3D6]", border: "border-[#A36A00]/30", text: "text-[#76520E]", label: "Info" },
+  critical: { icon: AlertOctagonIcon, bg: "bg-[#FBE4DE]", border: "border-[#EF4444]/30", text: "text-[#EF4444]", label: "Kritis" },
+  warning: { icon: AlertTriangleIcon, bg: "bg-[#FFF3D6]", border: "border-[#FBBF24]/30", text: "text-[#B45309]", label: "Perhatian" },
+  info: { icon: InfoIcon, bg: "bg-[#FFF3D6]", border: "border-[#A36A00]/30", text: "text-[#76520E]", label: "Info" },
 } as const;
 
 export default function CampusAlertsPage() {
@@ -46,7 +46,7 @@ export default function CampusAlertsPage() {
               <p className="text-xs text-[#736B60] leading-relaxed">{alert.description}</p>
 
               <div className="flex items-center gap-2 pt-2 border-t border-[#F7F5F0] text-xs">
-                <ArrowRight size={12} className="text-[#5B410C] shrink-0" />
+                <ArrowRightIcon size={12} className="text-[#5B410C] shrink-0" />
                 <span className="text-[#2F240E] font-medium">{alert.recommendedAction}</span>
               </div>
             </Card>

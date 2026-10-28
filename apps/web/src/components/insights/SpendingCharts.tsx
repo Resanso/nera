@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRightIcon } from "@nera/ui/icons";
 import type { EmailTransaction } from "../../lib/emailImport";
 import { TxListSheet } from "./TxListSheet";
 import type { Period } from "../../lib/period";
@@ -199,7 +199,7 @@ function MerchantList({ txs, onList }: { txs: EmailTransaction[]; onList: (title
               <span className="block text-[11px] text-[#736B60]">{r.count}× transaksi</span>
             </span>
             <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#2F240E]">{rpShort(r.amount)}</span>
-            <ChevronRight size={16} className="shrink-0 text-[#A89F90]" />
+            <ChevronRightIcon size={16} className="shrink-0 text-[#A89F90]" />
             </button>
           </li>
         ))}

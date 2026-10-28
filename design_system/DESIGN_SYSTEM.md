@@ -7,7 +7,7 @@ Panduan ini mencatat gaya aplikasi yang digunakan di beranda, layar mahasiswa, o
 - Logo header: `/logos/nera-home-logo.webp`.
 - Maskot beranda: `/images/nera-home-mascot.webp`.
 - Font UI: Inter melalui `next/font/google`, dengan `system-ui` sebagai fallback.
-- Ikon: `lucide-react`, garis umumnya 2 px. Wadah ikon memakai kotak membulat saat perlu penekanan.
+- Ikon: Nera Icons dari `@nera/ui/icons` (contoh `HomeIcon`, `WalletIcon`), bukan library ikon. Grid 24 px, garis 2 px membulat. Varian `duo` (bawaan) mengisi bentuk utama dengan warna ikon tipis; beri `accent="#FFB900"` untuk keadaan aktif ala Gojek. Varian `line` untuk navigasi tidak aktif. Geometri ada di `packages/ui/src/icons/paths.ts` dan papan "NERA · Icon Set" di pen.dev. Wadah ikon memakai kotak membulat saat perlu penekanan.
 
 ## Warna
 

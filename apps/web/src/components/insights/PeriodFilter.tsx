@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CalendarIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "@nera/ui/icons";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "../ui/calendar";
 import { PERIOD_PRESETS, customPeriod, dateInputValue, presetPeriod, type Period } from "../../lib/period";
@@ -34,9 +34,9 @@ export function PeriodFilter({ value, onChange }: { value: Period; onChange: (p:
         aria-haspopup="dialog"
         className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#E9E5DD] bg-white pl-2.5 pr-2 text-[12px] font-semibold text-[#2F240E] transition-colors hover:bg-[#FFF8E6] active:scale-[0.98]"
       >
-        <CalendarDays size={14} className="text-[#A36A00]" />
+        <CalendarIcon size={14} className="text-[#A36A00]" />
         {value.key === "custom" ? "Rentang tanggal" : value.label}
-        <ChevronDown size={14} className="text-[#A89F90]" />
+        <ChevronDownIcon size={14} className="text-[#A89F90]" />
       </button>
       {open && <PeriodSheet value={value} onClose={() => setOpen(false)} onChange={(p) => (onChange(p), setOpen(false))} />}
     </>
@@ -70,12 +70,12 @@ function PeriodSheet({ value, onChange, onClose }: { value: Period; onChange: (p
           <div className="flex items-center gap-1 px-2 pb-2">
             {view === "range" && (
               <button type="button" onClick={() => setView("presets")} aria-label="Kembali" className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-                <ChevronLeft size={20} />
+                <ChevronLeftIcon size={20} />
               </button>
             )}
             <p className="flex-1 text-[15px] font-bold text-[#2F240E]">{view === "range" ? "Rentang tanggal" : "Pilih periode"}</p>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-              <X size={18} />
+              <XIcon size={18} />
             </button>
           </div>
 
@@ -97,7 +97,7 @@ function PeriodSheet({ value, onChange, onClose }: { value: Period; onChange: (p
                         <span className="block text-[13px] font-semibold text-[#2F240E]">{preset.label}</span>
                         <span className="block text-[11px] text-[#736B60]">{periodRange(p)}</span>
                       </span>
-                      {selected && <Check size={18} className="shrink-0 text-[#A36A00]" />}
+                      {selected && <CheckIcon size={18} className="shrink-0 text-[#A36A00]" />}
                     </button>
                   </li>
                 );
@@ -114,7 +114,7 @@ function PeriodSheet({ value, onChange, onClose }: { value: Period; onChange: (p
                     <span className="block text-[13px] font-semibold text-[#2F240E]">Rentang tanggal</span>
                     <span className="block text-[11px] text-[#736B60]">{value.key === "custom" ? periodRange(value) : "Pilih tanggal sendiri"}</span>
                   </span>
-                  <ChevronRight size={18} className="shrink-0 text-[#A89F90]" />
+                  <ChevronRightIcon size={18} className="shrink-0 text-[#A89F90]" />
                 </button>
               </li>
             </ul>

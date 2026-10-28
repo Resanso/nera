@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronLeft, EyeOff, Mail, Pencil, X } from "lucide-react";
+import { CheckIcon, ChevronLeftIcon, EyeOffIcon, MailIcon, PencilIcon, XIcon } from "@nera/ui/icons";
 import { useEmailSpendingStore } from "../../lib/emailSpending";
 import { CATEGORY_LABEL, emailApi, type EmailCategory, type EmailTransaction, type OriginalEmail } from "../../lib/emailImport";
 
@@ -116,7 +116,7 @@ export function TransactionSheet({
           <span className="block text-[13px] font-semibold text-[#2F240E]">{label}</span>
           {hint && <span className="block text-[11px] text-[#736B60]">{hint}</span>}
         </span>
-        {selected && <Check size={18} className="shrink-0 text-[#A36A00]" />}
+        {selected && <CheckIcon size={18} className="shrink-0 text-[#A36A00]" />}
       </button>
     );
   };
@@ -135,7 +135,7 @@ export function TransactionSheet({
                 aria-label="Kembali"
                 className="-ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeftIcon size={20} />
               </button>
             )}
             <div className="min-w-0 flex-1">
@@ -145,7 +145,7 @@ export function TransactionSheet({
               </p>
             </div>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-              <X size={18} />
+              <XIcon size={18} />
             </button>
           </div>
 
@@ -176,7 +176,7 @@ export function TransactionSheet({
                     onClick={openEmail}
                     className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#FFB900] text-[13px] font-semibold text-[#352500] hover:bg-[#E6A700] active:scale-[0.96]"
                   >
-                    <Mail size={16} />
+                    <MailIcon size={16} />
                     Lihat email asli
                   </button>
                   <button
@@ -184,7 +184,7 @@ export function TransactionSheet({
                     onClick={() => setView("edit")}
                     className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#E9E5DD] text-[13px] font-semibold text-[#2F240E] hover:bg-[#FFF8E6] active:scale-[0.96]"
                   >
-                    <Pencil size={15} />
+                    <PencilIcon size={15} />
                     Ubah / sembunyikan
                   </button>
                 </div>
@@ -243,7 +243,7 @@ export function TransactionSheet({
                   onClick={() => setConfirmHide(true)}
                   className="mt-2 flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[#A92F2F] hover:bg-[#FBEDED]"
                 >
-                  <EyeOff size={16} className="shrink-0" />
+                  <EyeOffIcon size={16} className="shrink-0" />
                   <span className="text-[13px] font-semibold">Nera salah baca, sembunyikan</span>
                 </button>
               </>

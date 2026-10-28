@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "../tokens";
-import { Check } from "lucide-react";
+import { CheckIcon } from "../icons";
 
 export interface StepProgressItem {
   id: string;
@@ -46,7 +46,7 @@ export const StepProgress: React.FC<StepProgressProps> = ({
                 }
               >
                 {step.isCompleted ? (
-                  <Check size={14} strokeWidth={3} />
+                  <CheckIcon size={14} strokeWidth={3} />
                 ) : (
                   idx + 1
                 )}

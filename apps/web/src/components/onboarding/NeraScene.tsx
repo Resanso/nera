@@ -3,7 +3,7 @@
 import React from "react";
 import { NeraOrb } from "../mascot/NeraOrb";
 import type { NeraMood } from "../mascot/moods";
-import { Check, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckIcon, LockIcon, ShieldCheckIcon, SparklesIcon } from "@nera/ui/icons";
 
 type SceneVariant = "welcome" | "goal" | "profile" | "consent" | "ready";
 
@@ -56,9 +56,9 @@ const MASCOT: Record<SceneVariant, { mood: NeraMood; size: number }> = {
 };
 
 const iconMap = {
-  check: Check,
-  lock: Lock,
-  shield: ShieldCheck,
+  check: CheckIcon,
+  lock: LockIcon,
+  shield: ShieldCheckIcon,
 };
 
 export const NeraScene: React.FC<NeraSceneProps> = ({ variant = "welcome", message, caption, compact }) => {
@@ -74,7 +74,7 @@ export const NeraScene: React.FC<NeraSceneProps> = ({ variant = "welcome", messa
         </div>
 
         {chips.map((chip) => {
-          const Icon = chip.icon ? iconMap[chip.icon] : Sparkles;
+          const Icon = chip.icon ? iconMap[chip.icon] : SparklesIcon;
           return (
             <div
               key={chip.label}

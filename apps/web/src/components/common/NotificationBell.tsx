@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Bell, CalendarClock, CircleCheck, ListChecks, ShieldAlert, Wallet, X } from "lucide-react";
+import { BellIcon, CalendarClockIcon, CheckCircleIcon, ListChecksIcon, ShieldAlertIcon, WalletIcon, XIcon } from "@nera/ui/icons";
 import { useFinancialStore } from "../../context/FinancialStore";
 import { useEmailSpendingStore } from "../../lib/emailSpending";
 import { useEmailBalance } from "../../lib/emailBalance";
@@ -46,7 +46,7 @@ function useNotifications(): Item[] {
     if (consentOutdated)
       items.push({
         id: "consent-outdated",
-        icon: ShieldAlert,
+        icon: ShieldAlertIcon,
         tone: "bg-[#FBEDED] text-[#A92F2F]",
         title: "Perbarui persetujuan impor email",
         body: "Isi persetujuannya berubah. Struk baru belum masuk sampai kamu setuju lagi.",
@@ -55,7 +55,7 @@ function useNotifications(): Item[] {
     if (balance.needsCheck)
       items.push({
         id: `balance-check-${today}`,
-        icon: Wallet,
+        icon: WalletIcon,
         tone: "bg-[#FFF3D6] text-[#76520E]",
         title: "Saldomu perlu dicek",
         body: "Saldo yang bisa dipakai mengikuti struk email. Pastikan angkanya masih sama dengan saldo rekeningmu.",
@@ -68,7 +68,7 @@ function useNotifications(): Item[] {
       if (p.balance >= p.targetAmount && p.targetAmount > 0) {
         items.push({
           id: `reached-${p.id}-${p.targetAmount}`,
-          icon: CircleCheck,
+          icon: CheckCircleIcon,
           tone: "bg-[#E3F3E9] text-[#277449]",
           title: `${p.name} sudah terkumpul`,
           body: `Uang untuk ${p.profile.occasion} siap dipakai.`,
@@ -81,7 +81,7 @@ function useNotifications(): Item[] {
       if (toppedUpToday || amount <= 0) continue;
       items.push({
         id: `setaside-${p.id}-${today}`,
-        icon: CalendarClock,
+        icon: CalendarClockIcon,
         tone: "bg-[#FFF0BD] text-[#6D4C00]",
         title: daysUntil(p.profile.dueDate) === 0 ? `Hari ini: ${p.name}` : `Sisihkan ${rp(amount)} untuk ${p.name}`,
         body: daysUntil(p.profile.dueDate) === 0 ? `Kantongnya masih kurang ${rp(amount)}.` : `${due.date} · ${due.relative}`,
@@ -93,7 +93,7 @@ function useNotifications(): Item[] {
       if (review > 0)
         items.push({
           id: `review-${review}`,
-          icon: ListChecks,
+          icon: ListChecksIcon,
           tone: "bg-[#F1F2F4] text-[#2F240E]",
           title: `${review} transaksi perlu dicek`,
           body: "Belum dihitung ke pengeluaranmu sampai kamu konfirmasi.",
@@ -136,7 +136,7 @@ export function NotificationBell() {
         className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#F5F5F5] text-[#2F240E] transition-colors hover:bg-[#FFF3D6] sm:h-9 sm:w-9"
         aria-label={unread ? `Notifikasi, ${unread} belum dibaca` : "Notifikasi"}
       >
-        <Bell size={22} className="text-[#2F240E]" />
+        <BellIcon size={22} className="text-[#2F240E]" />
         {unread > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#FFB900] ring-2 ring-white" />}
       </button>
       {open && <NotificationSheet items={items} onClose={() => setOpen(false)} />}
@@ -167,7 +167,7 @@ function NotificationSheet({ items, onClose }: { items: Item[]; onClose: () => v
           <div className="flex shrink-0 items-center justify-between gap-2">
             <h2 className="text-[17px] font-bold text-[#2F240E]">Notifikasi</h2>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-9 w-9 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-              <X size={18} />
+              <XIcon size={18} />
             </button>
           </div>
 

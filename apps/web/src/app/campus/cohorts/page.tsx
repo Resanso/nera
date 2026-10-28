@@ -3,7 +3,7 @@
 import React from "react";
 import { CAMPUS_COHORT_RISK } from "@nera/core";
 import { Card } from "@nera/ui";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheckIcon } from "@nera/ui/icons";
 
 export default function CampusCohortsPage() {
   return (
@@ -16,7 +16,7 @@ export default function CampusCohortsPage() {
       </div>
 
       <div className="flex items-start gap-2.5 bg-[#FFF3D6] border border-[#A36A00]/30 rounded-xl p-3.5">
-        <ShieldCheck size={16} className="text-[#5B410C] shrink-0 mt-0.5" />
+        <ShieldCheckIcon size={16} className="text-[#5B410C] shrink-0 mt-0.5" />
         <p className="text-xs text-[#2F240E] leading-relaxed">
           Data pada tabel ini <strong>teragregasi dan anonim</strong> — tidak ada nama mahasiswa, NIM, atau data mutasi individual yang ditampilkan ke pihak kampus.
         </p>

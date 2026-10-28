@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight, MessageCircle, ShieldAlert, UploadCloud, X } from "lucide-react";
+import { ArrowRightIcon, MessageCircleIcon, ShieldAlertIcon, UploadCloudIcon, XIcon } from "@nera/ui/icons";
 
 export interface CenterActionSheetProps {
   open: boolean;
@@ -55,7 +55,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
                 aria-label="Tutup"
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#736B60] transition-colors hover:bg-[#EFE7D8] hover:text-[#2F240E]"
               >
-                <X size={18} />
+                <XIcon size={18} />
               </button>
             </div>
           </div>
@@ -63,7 +63,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
           <div className="space-y-2.5">
             <Link href="/risk-check" onClick={onClose} className={CARD_CLASS}>
               <span className={ICON_WRAP_CLASS}>
-                <ShieldAlert size={22} strokeWidth={2.1} />
+                <ShieldAlertIcon size={22} strokeWidth={2.1} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-bold leading-tight text-[#2F240E]">
@@ -73,7 +73,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
                   Deteksi pinjol dan simulasi cicilan yang aman
                 </span>
               </span>
-              <ArrowRight
+              <ArrowRightIcon
                 size={18}
                 className="shrink-0 text-[#A89F90] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-[#76520E]"
               />
@@ -81,7 +81,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
 
             <Link href="/upload-transaction" onClick={onClose} className={CARD_CLASS}>
               <span className={ICON_WRAP_CLASS}>
-                <UploadCloud size={22} strokeWidth={2.1} />
+                <UploadCloudIcon size={22} strokeWidth={2.1} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-bold leading-tight text-[#2F240E]">
@@ -91,7 +91,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
                   Impor mutasi rekening atau struk untuk dianalisis
                 </span>
               </span>
-              <ArrowRight
+              <ArrowRightIcon
                 size={18}
                 className="shrink-0 text-[#A89F90] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-[#76520E]"
               />
@@ -99,7 +99,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
 
             <Link href="/recovery" onClick={onClose} className={CARD_CLASS}>
               <span className={ICON_WRAP_CLASS}>
-                <MessageCircle size={22} strokeWidth={2.1} />
+                <MessageCircleIcon size={22} strokeWidth={2.1} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-bold leading-tight text-[#2F240E]">
@@ -109,7 +109,7 @@ export const CenterActionSheet: React.FC<CenterActionSheetProps> = ({ open, onCl
                   Tanya kondisi keuanganmu ke konsultan AI Nera
                 </span>
               </span>
-              <ArrowRight
+              <ArrowRightIcon
                 size={18}
                 className="shrink-0 text-[#A89F90] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-[#76520E]"
               />

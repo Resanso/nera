@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@nera/ui/icons";
 import { FullscreenButton } from "../common/FullscreenButton";
 
 export interface OnboardingChromeProps {
@@ -50,7 +50,7 @@ export const OnboardingChrome: React.FC<OnboardingChromeProps> = ({
                 aria-label="Kembali"
                 className="-ml-1 flex h-9 w-9 items-center justify-center rounded-full text-[#2F240E] transition-colors hover:bg-[#FFF3D6]"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeftIcon size={20} />
               </button>
             ) : (
               <Image

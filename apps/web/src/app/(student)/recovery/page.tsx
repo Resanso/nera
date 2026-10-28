@@ -9,15 +9,15 @@ import { spendingSummary, useEmailSpending } from "../../../lib/emailSpending";
 import { emailApi, insightsAsContext } from "../../../lib/emailImport";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import {
-  Send,
-  ThumbsUp,
-  ThumbsDown,
-  Copy,
-  Check,
-  RotateCcw,
-  PlusCircle,
-  X,
-} from "lucide-react";
+  SendIcon,
+  ThumbsUpIcon,
+  ThumbsDownIcon,
+  CopyIcon,
+  CheckIcon,
+  RotateCcwIcon,
+  PlusCircleIcon,
+  XIcon,
+} from "@nera/ui/icons";
 import { Button } from "@nera/ui";
 
 interface ChatMessage {
@@ -378,7 +378,7 @@ export default function RecoveryPage() {
                     title="Tidak Membantu"
                     aria-label="Thumbs Down"
                   >
-                    <ThumbsDown size={13} />
+                    <ThumbsDownIcon size={13} />
                   </button>
                   <button
                     onClick={() => handleFeedback(msg.id, "up")}
@@ -388,7 +388,7 @@ export default function RecoveryPage() {
                     title="Sangat Membantu"
                     aria-label="Thumbs Up"
                   >
-                    <ThumbsUp size={13} />
+                    <ThumbsUpIcon size={13} />
                   </button>
                   <button
                     onClick={() => handleCopyText(msg.id, msg.content)}
@@ -397,9 +397,9 @@ export default function RecoveryPage() {
                     aria-label="Salin Saran"
                   >
                     {copiedId === msg.id ? (
-                      <Check size={13} className="text-[#15803D]" />
+                      <CheckIcon size={13} className="text-[#15803D]" />
                     ) : (
-                      <Copy size={13} />
+                      <CopyIcon size={13} />
                     )}
                   </button>
                 </div>
@@ -430,7 +430,7 @@ export default function RecoveryPage() {
             className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F7F5F0] hover:bg-slate-200 transition-colors rounded-full text-[11px] text-[#736B60] border border-[#E9E5DD] shrink-0"
             title="Reset Chat"
           >
-            <RotateCcw size={12} />
+            <RotateCcwIcon size={12} />
             <span>Reset</span>
           </button>
         </div>
@@ -459,7 +459,7 @@ export default function RecoveryPage() {
             className="w-9 h-9 rounded-full bg-[#BA8500] hover:bg-[#966600] disabled:bg-[#D8D3C9] active:scale-95 text-white flex items-center justify-center transition-all shadow-xs shrink-0"
             aria-label="Kirim Pesan"
           >
-            <Send size={14} className="-ml-0.5" />
+            <SendIcon size={14} className="-ml-0.5" />
           </button>
         </form>
       </div>
@@ -470,13 +470,13 @@ export default function RecoveryPage() {
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in slide-in-from-bottom-6">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h4 className="text-sm font-bold text-[#2F240E] flex items-center gap-1.5">
-                <PlusCircle size={16} className="text-[#BA8500]" /> Catat Kewajiban / Pinjaman
+                <PlusCircleIcon size={16} className="text-[#BA8500]" /> Catat Kewajiban / Pinjaman
               </h4>
               <button
                 onClick={() => setIsAddDebtOpen(false)}
                 className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X size={16} />
+                <XIcon size={16} />
               </button>
             </div>
 

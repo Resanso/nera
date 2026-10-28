@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, Button, TrustBanner } from "@nera/ui";
-import { KeyRound, CheckCircle2, ShieldCheck } from "lucide-react";
+import { KeyRoundIcon, CheckCircleIcon, ShieldCheckIcon } from "@nera/ui/icons";
 import { useFinancialStore } from "../../context/FinancialStore";
 
 const MOCK_PAIRING_CODE = "NERA-PAIR-BUDI-1301";
@@ -36,7 +36,7 @@ export const ParentPairingCard: React.FC = () => {
                 transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
                 className="w-16 h-16 rounded-full bg-[#DDF0E6] text-[#22C55E] flex items-center justify-center"
               >
-                <CheckCircle2 size={34} />
+                <CheckCircleIcon size={34} />
               </motion.div>
               <h3 className="text-base font-bold text-[#2F240E]">Akun Berhasil Terhubung!</h3>
               <p className="text-xs text-[#736B60] leading-relaxed">
@@ -54,7 +54,7 @@ export const ParentPairingCard: React.FC = () => {
           >
             <Card className="p-0 overflow-hidden">
               <TrustBanner
-                icon={<ShieldCheck size={18} />}
+                icon={<ShieldCheckIcon size={18} />}
                 eyebrow="Nera Family Hub"
                 title="Hubungkan Akun Keluarga"
               >
@@ -68,7 +68,7 @@ export const ParentPairingCard: React.FC = () => {
                     Kode Pairing
                   </label>
                   <div className="relative">
-                    <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#817B70]" />
+                    <KeyRoundIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#817B70]" />
                     <input
                       type="text"
                       value={code}

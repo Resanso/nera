@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { MaximizeIcon, MinimizeIcon } from "@nera/ui/icons";
 
 export function FullscreenButton() {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -34,7 +34,7 @@ export function FullscreenButton() {
     }
   };
 
-  const Icon = isFullscreen ? Minimize2 : Maximize2;
+  const Icon = isFullscreen ? MinimizeIcon : MaximizeIcon;
   const label = isFullscreen ? "Keluar dari fullscreen" : "Masuk fullscreen";
 
   return (

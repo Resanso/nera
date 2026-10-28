@@ -12,17 +12,17 @@ import {
   CAMPUS_SAFER_ALTERNATIVES,
 } from "@nera/core";
 import {
-  ShieldAlert,
-  Clock,
-  AlertTriangle,
-  ArrowRight,
-  TrendingDown,
-  Building2,
-  AlertOctagon,
-  Siren,
-  Ban,
-  Sparkles,
-} from "lucide-react";
+  ShieldAlertIcon,
+  ClockIcon,
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  TrendingDownIcon,
+  BuildingIcon,
+  AlertOctagonIcon,
+  SirenIcon,
+  BanIcon,
+  SparklesIcon,
+} from "@nera/ui/icons";
 
 export default function RiskCheckPage() {
   const {
@@ -107,7 +107,7 @@ export default function RiskCheckPage() {
                 className="p-4 bg-[#FBE4DE] border-[#EF4444]/40 space-y-3"
               >
                 <div className="flex items-center gap-2 text-[#EF4444]">
-                  <Siren size={18} className="animate-pulse" />
+                  <SirenIcon size={18} className="animate-pulse" />
                   <h3 className="text-xs font-bold uppercase tracking-wider">
                     {alert.matchedPattern.riskLabel}
                   </h3>
@@ -146,7 +146,7 @@ export default function RiskCheckPage() {
         {isCoolingActive && (
           <Card className="p-5 space-y-4 border-[#C43737]/20 bg-[#FBE4DE]/50">
             <div className="flex items-center gap-2 text-[#EF4444]">
-              <AlertOctagon size={18} />
+              <AlertOctagonIcon size={18} />
               <h3 className="text-xs font-bold uppercase tracking-wider">
                 24-Hour Cooling-Off Guardrail
               </h3>
@@ -189,7 +189,7 @@ export default function RiskCheckPage() {
         {/* LOAN SIMULATOR FORM */}
         <Card className="p-4 space-y-4">
           <div className="flex items-center gap-2">
-            <ShieldAlert size={16} className="text-[#76520E]" />
+            <ShieldAlertIcon size={16} className="text-[#76520E]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
               Simulator Risiko Cicilan
             </h3>
@@ -282,7 +282,7 @@ export default function RiskCheckPage() {
               {/* REALITY CHECK: Real Deficit Callout */}
               {simulationResult.isDangerous && simulationResult.monthlyDeficitAmount > 0 && (
                 <div className="p-4 bg-[#EF4444] rounded-2xl text-white text-center space-y-1">
-                  <TrendingDown size={24} className="mx-auto" />
+                  <TrendingDownIcon size={24} className="mx-auto" />
                   <p className="text-lg font-black">
                     Tekor {formatRupiah(simulationResult.monthlyDeficitAmount)}
                   </p>
@@ -334,7 +334,7 @@ export default function RiskCheckPage() {
                   onClick={() => startCoolingOff(24)}
                   className="rounded-xl text-xs gap-1.5"
                 >
-                  <Clock size={16} /> Aktifkan 24-Hour Cooling-Off Timer
+                  <ClockIcon size={16} /> Aktifkan 24-Hour Cooling-Off Timer
                 </Button>
               )}
             </Card>
@@ -350,7 +350,7 @@ export default function RiskCheckPage() {
                   <Card key={alt.id} className="p-3.5 space-y-2 border-l-4 border-l-[#5B410C]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <Building2 size={14} className="text-[#5B410C]" />
+                        <BuildingIcon size={14} className="text-[#5B410C]" />
                         <h4 className="text-xs font-bold text-[#2F240E]">{alt.title}</h4>
                       </div>
                       <span className="text-[10px] bg-[#DDF0E6] text-[#15803D] font-bold px-2 py-0.5 rounded-full">
@@ -368,7 +368,7 @@ export default function RiskCheckPage() {
                         rel="noreferrer"
                         className="text-xs font-bold text-[#76520E] hover:underline flex items-center gap-1"
                       >
-                        Ajukan Resmi <ArrowRight size={12} />
+                        Ajukan Resmi <ArrowRightIcon size={12} />
                       </a>
                     </div>
                   </Card>

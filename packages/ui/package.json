@@ -4,6 +4,10 @@
   "private": true,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./icons": "./src/icons/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
@@ -19,7 +23,6 @@
   "dependencies": {
     "@nera/core": "workspace:*",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.475.0",
     "tailwind-merge": "^3.0.1"
   },
   "peerDependencies": {

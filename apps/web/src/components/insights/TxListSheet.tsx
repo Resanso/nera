@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRightIcon, XIcon } from "@nera/ui/icons";
 import type { EmailTransaction } from "../../lib/emailImport";
 
 const rp = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`;
@@ -46,7 +46,7 @@ export function TxListSheet({
               </p>
             </div>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-              <X size={18} />
+              <XIcon size={18} />
             </button>
           </div>
           <ul className="min-h-0 flex-1 divide-y divide-[#F1EEE8] overflow-y-auto overscroll-contain">
@@ -60,7 +60,7 @@ export function TxListSheet({
                     </span>
                   </span>
                   <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#2F240E]">−{rp(t.amount)}</span>
-                  <ChevronRight size={16} className="shrink-0 text-[#A89F90]" />
+                  <ChevronRightIcon size={16} className="shrink-0 text-[#A89F90]" />
                 </button>
               </li>
             ))}

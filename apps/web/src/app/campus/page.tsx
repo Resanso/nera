@@ -10,19 +10,19 @@ import {
 } from "@nera/core";
 import { Card } from "@nera/ui";
 import {
-  Users,
-  TrendingUp,
-  AlertTriangle,
-  Calendar,
-  ChevronDown,
-  Sparkles,
-  Wallet,
-  PieChart as PieChartIcon,
-  CreditCard,
-  Info,
-  ArrowUpRight,
-  ArrowDownRight,
-} from "lucide-react";
+  UsersIcon,
+  TrendingUpIcon,
+  AlertTriangleIcon,
+  CalendarIcon,
+  ChevronDownIcon,
+  SparklesIcon,
+  WalletIcon,
+  PieChartIcon,
+  CreditCardIcon,
+  InfoIcon,
+  ArrowUpRightIcon,
+  ArrowDownRightIcon,
+} from "@nera/ui/icons";
 import {
   LineChart,
   Line,
@@ -58,16 +58,16 @@ const ACCENT_HEX: Record<string, string> = {
 };
 
 const METRIC_ICONS: Record<string, React.ElementType> = {
-  students: Users,
-  avg_score: TrendingUp,
-  critical_pct: AlertTriangle,
+  students: UsersIcon,
+  avg_score: TrendingUpIcon,
+  critical_pct: AlertTriangleIcon,
 };
 
 const INDICATOR_ICONS: Record<string, React.ElementType> = {
-  cashflow: Wallet,
+  cashflow: WalletIcon,
   savings: PieChartIcon,
-  installment: CreditCard,
-  risky_spend: AlertTriangle,
+  installment: CreditCardIcon,
+  risky_spend: AlertTriangleIcon,
 };
 
 function CardSkeleton({ className = "" }: { className?: string }) {
@@ -95,9 +95,9 @@ export default function CampusOverviewPage() {
           </p>
         </div>
         <button className="flex items-center gap-2 bg-white border border-[#E9E5DD] rounded-xl px-4 py-2.5 text-sm font-medium text-[#2F240E]">
-          <Calendar size={16} className="text-[#736B60]" />
+          <CalendarIcon size={16} className="text-[#736B60]" />
           1 Mei 2026 – 31 Mei 2026
-          <ChevronDown size={14} className="text-[#817B70]" />
+          <ChevronDownIcon size={14} className="text-[#817B70]" />
         </button>
       </div>
 
@@ -111,10 +111,10 @@ export default function CampusOverviewPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {CAMPUS_METRIC_CARDS.map((metric) => {
-            const Icon = METRIC_ICONS[metric.id] || TrendingUp;
+            const Icon = METRIC_ICONS[metric.id] || TrendingUpIcon;
             const accent = ACCENT_HEX[metric.accent];
             const isUp = metric.trendPct >= 0;
-            const TrendIcon = isUp ? ArrowUpRight : ArrowDownRight;
+            const TrendIcon = isUp ? ArrowUpRightIcon : ArrowDownRightIcon;
             const trendColor = metric.trendIsPositive ? "#22C55E" : "#EF4444";
             const sparklineData = metric.sparkline.map((v, i) => ({ i, v }));
 
@@ -175,7 +175,7 @@ export default function CampusOverviewPage() {
                 </h3>
                 <button className="flex items-center gap-2 bg-white border border-[#E9E5DD] rounded-xl px-3 py-2 text-xs font-medium text-[#2F240E]">
                   Semester Genap 2025/2026
-                  <ChevronDown size={12} className="text-[#817B70]" />
+                  <ChevronDownIcon size={12} className="text-[#817B70]" />
                 </button>
               </div>
 
@@ -197,7 +197,7 @@ export default function CampusOverviewPage() {
               </ResponsiveContainer>
 
               <div className="flex items-center gap-2.5 bg-[#FFF3D6] rounded-2xl p-4">
-                <Sparkles size={16} className="text-[#76520E] shrink-0" />
+                <SparklesIcon size={16} className="text-[#76520E] shrink-0" />
                 <p className="text-xs text-[#2F240E] leading-relaxed">
                   Skor rata-rata saat ini berada di zona{" "}
                   <strong className="text-[#76520E]">Aman</strong>. Pertahankan tren positif ini!
@@ -214,7 +214,7 @@ export default function CampusOverviewPage() {
             <Card className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[#2F240E]">Distribusi Skor Mahasiswa</h3>
-                <Info size={14} className="text-[#817B70]" />
+                <InfoIcon size={14} className="text-[#817B70]" />
               </div>
 
               <div className="flex items-center gap-4">
@@ -265,7 +265,7 @@ export default function CampusOverviewPage() {
               <h3 className="text-sm font-bold text-[#2F240E] mb-3">Insight Utama</h3>
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-[#FFF3D6] flex items-center justify-center shrink-0">
-                  <TrendingUp size={18} className="text-[#76520E]" />
+                  <TrendingUpIcon size={18} className="text-[#76520E]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-[#2F240E] leading-snug">
@@ -275,7 +275,7 @@ export default function CampusOverviewPage() {
                     {CAMPUS_KEY_INSIGHT.description}
                   </p>
                 </div>
-                <ChevronDown size={16} className="text-[#817B70] -rotate-90 shrink-0" />
+                <ChevronDownIcon size={16} className="text-[#817B70] -rotate-90 shrink-0" />
               </div>
             </Card>
           )}
@@ -290,12 +290,12 @@ export default function CampusOverviewPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-[#2F240E]">Indikator Kesehatan Finansial</h3>
             <button className="text-xs font-bold text-[#76520E] flex items-center gap-1">
-              Lihat Detail <ChevronDown size={12} className="-rotate-90" />
+              Lihat Detail <ChevronDownIcon size={12} className="-rotate-90" />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {CAMPUS_HEALTH_INDICATORS.map((indicator) => {
-              const Icon = INDICATOR_ICONS[indicator.id] || Wallet;
+              const Icon = INDICATOR_ICONS[indicator.id] || WalletIcon;
               const accent = ACCENT_HEX[indicator.accent];
               return (
                 <div key={indicator.id} className="flex items-center gap-3">

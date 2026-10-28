@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HelpCircle, X, GraduationCap, Users, Building2, RotateCcw, Sparkles } from "lucide-react";
+import { HelpCircleIcon, XIcon, GraduationCapIcon, UsersIcon, BuildingIcon, RotateCcwIcon, SparklesIcon } from "@nera/ui/icons";
 import { PERSONA_LABELS, DEMO_PERSONA_SCENARIOS, PersonaId } from "@nera/core";
 import { useFinancialStore } from "../../context/FinancialStore";
 import { useUiPreferencesStore } from "../../context/UiPreferencesStore";
@@ -21,9 +21,9 @@ const PERSONA_ORDER: PersonaId[] = [
 const HEX_COLOR_PATTERN = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
 const VIEW_LINKS = [
-  { href: "/", label: "Tampilan Mahasiswa", icon: GraduationCap },
-  { href: "/parent", label: "Tampilan Orang Tua", icon: Users },
-  { href: "/campus", label: "Tampilan Kampus", icon: Building2 },
+  { href: "/", label: "Tampilan Mahasiswa", icon: GraduationCapIcon },
+  { href: "/parent", label: "Tampilan Orang Tua", icon: UsersIcon },
+  { href: "/campus", label: "Tampilan Kampus", icon: BuildingIcon },
 ];
 
 export const DemoControlPanel: React.FC = () => {
@@ -68,7 +68,7 @@ export const DemoControlPanel: React.FC = () => {
         aria-label="Menu Demo"
         title="Menu Demo"
       >
-        <HelpCircle size={19} />
+        <HelpCircleIcon size={19} />
       </button>
 
       {isOpen && (
@@ -82,7 +82,7 @@ export const DemoControlPanel: React.FC = () => {
               className="text-[#817B70] hover:text-[#2F240E]"
               aria-label="Tutup"
             >
-              <X size={14} />
+              <XIcon size={14} />
             </button>
           </div>
 
@@ -116,7 +116,7 @@ export const DemoControlPanel: React.FC = () => {
             onClick={handleReplayOnboarding}
             className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-[#76520E]/8 transition-colors text-left"
           >
-            <Sparkles size={14} className="text-[#76520E] shrink-0" />
+            <SparklesIcon size={14} className="text-[#76520E] shrink-0" />
             <span className="min-w-0">
               <span className="block text-xs font-semibold text-[#2F240E]">Putar Ulang Onboarding</span>
               <span className="block text-[10px] text-[#736B60] leading-snug">
@@ -155,7 +155,7 @@ export const DemoControlPanel: React.FC = () => {
               aria-label="Reset warna latar"
               title="Reset ke warna default"
             >
-              <RotateCcw size={14} />
+              <RotateCcwIcon size={14} />
             </button>
           </div>
 

@@ -8,12 +8,12 @@ import { useFinancialStore } from "../../../context/FinancialStore";
 import { Button, Card, cn } from "@nera/ui";
 import { Transaction } from "@nera/core";
 import {
-  ArrowRight,
-  Camera,
-  CheckCircle2,
-  FileSpreadsheet,
-  Images,
-} from "lucide-react";
+  ArrowRightIcon,
+  CameraIcon,
+  CheckCircleIcon,
+  FileSpreadsheetIcon,
+  ImagesIcon,
+} from "@nera/ui/icons";
 
 type TabId = "manual" | "upload";
 
@@ -36,14 +36,14 @@ const UPLOAD_METHODS: {
     id: "file",
     title: "Upload Mutasi / File Transaksi",
     desc: "Gunakan PDF, Excel, CSV, atau format lainnya.",
-    icon: FileSpreadsheet,
+    icon: FileSpreadsheetIcon,
     accept: ".pdf,.csv,.xlsx,.xls,image/*",
   },
   {
     id: "camera",
     title: "Ambil Foto",
     desc: "Arahkan kamera ke struk pembayaran atau mutasi rekening.",
-    icon: Camera,
+    icon: CameraIcon,
     accept: "image/*",
     capture: true,
   },
@@ -51,7 +51,7 @@ const UPLOAD_METHODS: {
     id: "gallery",
     title: "Pilih dari Galeri",
     desc: "Pilih foto struk atau screenshot mutasi dari galeri.",
-    icon: Images,
+    icon: ImagesIcon,
     accept: "image/*",
   },
 ];
@@ -195,7 +195,7 @@ export default function UploadTransactionPage() {
                   onClick={scrollPasteZoneIntoView}
                   className="mt-2 inline-flex items-center gap-1 text-[13px] font-bold text-[#76520E] transition-colors hover:text-[#3A2800]"
                 >
-                  Coba Sekarang <ArrowRight size={15} />
+                  Coba Sekarang <ArrowRightIcon size={15} />
                 </button>
               </div>
             </div>
@@ -299,7 +299,7 @@ export default function UploadTransactionPage() {
                             href="/"
                             className="inline-flex items-center gap-1 text-[12px] font-bold text-[#817B70] transition-colors hover:text-[#2F240E]"
                           >
-                            Cek Beranda <ArrowRight size={13} />
+                            Cek Beranda <ArrowRightIcon size={13} />
                           </Link>
                         </div>
                       </>
@@ -392,7 +392,7 @@ export default function UploadTransactionPage() {
 
             {isManualSaved && (
               <div className="animate-overlay-in flex items-center gap-2 rounded-2xl bg-[#DDF0E6] px-3.5 py-2.5 text-[11px] font-semibold text-[#277449]">
-                <CheckCircle2 size={15} /> Tersimpan! Cek riwayat di Beranda.
+                <CheckCircleIcon size={15} /> Tersimpan! Cek riwayat di Beranda.
               </div>
             )}
           </Card>

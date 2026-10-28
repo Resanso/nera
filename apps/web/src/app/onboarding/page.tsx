@@ -3,22 +3,22 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight,
-  Banknote,
-  CreditCard,
-  Eye,
-  GraduationCap,
-  Landmark,
-  Lock,
-  QrCode,
-  ShieldAlert,
-  ShieldCheck,
-  Smartphone,
-  Sparkles,
-  Target,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+  ArrowRightIcon,
+  BanknoteIcon,
+  CreditCardIcon,
+  EyeIcon,
+  GraduationCapIcon,
+  LandmarkIcon,
+  LockIcon,
+  QrCodeIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
+  SmartphoneIcon,
+  SparklesIcon,
+  TargetIcon,
+  WalletIcon,
+  type NeraIcon,
+} from "@nera/ui/icons";
 import { Button } from "@nera/ui";
 import { OnboardingChrome } from "../../components/onboarding/OnboardingChrome";
 import { NeraScene } from "../../components/onboarding/NeraScene";
@@ -38,11 +38,11 @@ import {
   type PaymentMethod,
 } from "../../context/OnboardingStore";
 
-const GOAL_ICONS: Record<OnboardingGoal, LucideIcon> = {
-  spending: Wallet,
-  insight: Eye,
-  saving: Target,
-  security: ShieldAlert,
+const GOAL_ICONS: Record<OnboardingGoal, NeraIcon> = {
+  spending: WalletIcon,
+  insight: EyeIcon,
+  saving: TargetIcon,
+  security: ShieldAlertIcon,
 };
 
 const GOAL_ORDER: OnboardingGoal[] = ["spending", "insight", "saving", "security"];
@@ -51,12 +51,12 @@ const SOURCE_ORDER: IncomeSource[] = ["orang_tua", "beasiswa", "gaji", "usaha", 
 const RANGE_ORDER: IncomeRange[] = ["lt1", "1to2", "2to3", "3to5", "gt5"];
 const PAYMENT_ORDER: PaymentMethod[] = ["qris", "transfer", "ewallet", "debit", "tunai"];
 
-const PAYMENT_ICONS: Record<PaymentMethod, LucideIcon> = {
-  qris: QrCode,
-  transfer: Landmark,
-  ewallet: Smartphone,
-  debit: CreditCard,
-  tunai: Banknote,
+const PAYMENT_ICONS: Record<PaymentMethod, NeraIcon> = {
+  qris: QrCodeIcon,
+  transfer: LandmarkIcon,
+  ewallet: SmartphoneIcon,
+  debit: CreditCardIcon,
+  tunai: BanknoteIcon,
 };
 
 const STEP_TOTAL = 5;
@@ -133,7 +133,7 @@ export default function OnboardingPage() {
     return (
       <div className="flex min-h-full items-center justify-center bg-[#FFFBF0] py-24">
         <div className="flex flex-col items-center gap-3">
-          <Sparkles size={22} className="animate-pulse text-[#A36A00]" />
+          <SparklesIcon size={22} className="animate-pulse text-[#A36A00]" />
           <p className="text-xs text-[#817B70]">Menyiapkan rencanamu…</p>
         </div>
       </div>
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
           <Button variant="primary" size="lg" fullWidth onClick={handleNext} disabled={!canContinue}>
             <span className="inline-flex items-center gap-2">
               {step >= STEP_TOTAL - 1 ? "Masuk ke Beranda" : "Lanjut"}
-              <ArrowRight size={18} strokeWidth={2.4} />
+              <ArrowRightIcon size={18} strokeWidth={2.4} />
             </span>
           </Button>
           {step === STEP_TOTAL - 1 ? (
@@ -228,9 +228,9 @@ export default function OnboardingPage() {
 
           <div className="space-y-2">
             {[
-              { icon: Eye, title: "Lihat kondisi finansial", desc: "Runway, skor, dan insight dalam bahasa manusia." },
-              { icon: Wallet, title: "Atur uang ke kantong", desc: "Budget harian dan tabungan terpisah otomatis." },
-              { icon: ShieldCheck, title: "Hindari jebakan", desc: "Deteksi transaksi berisiko dan pinjol sebelum terlambat." },
+              { icon: EyeIcon, title: "Lihat kondisi finansial", desc: "Runway, skor, dan insight dalam bahasa manusia." },
+              { icon: WalletIcon, title: "Atur uang ke kantong", desc: "Budget harian dan tabungan terpisah otomatis." },
+              { icon: ShieldCheckIcon, title: "Hindari jebakan", desc: "Deteksi transaksi berisiko dan pinjol sebelum terlambat." },
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
@@ -295,7 +295,7 @@ export default function OnboardingPage() {
                   label={STATUS_LABELS[id]}
                   selected={status === id}
                   onClick={() => setStatus(id)}
-                  icon={id === "mahasiswa" ? GraduationCap : undefined}
+                  icon={id === "mahasiswa" ? GraduationCapIcon : undefined}
                 />
               ))}
             </div>
@@ -345,7 +345,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="flex items-start gap-2 rounded-[14px] bg-[#F7F5F0] px-3 py-2.5">
-            <Lock size={13} className="mt-0.5 shrink-0 text-[#817B70]" />
+            <LockIcon size={13} className="mt-0.5 shrink-0 text-[#817B70]" />
             <p className="text-[10px] leading-relaxed text-[#817B70]">
               Data ini tidak dibagikan ke pihak lain dan tidak memengaruhi skor kreditmu.
             </p>
@@ -365,7 +365,7 @@ export default function OnboardingPage() {
             <ToggleCard
               title="Analisis transaksi otomatis"
               description="Nera membaca kategori dan nominal transaksi untuk menghitung runway, skor, dan insight harian."
-              icon={Eye}
+              icon={EyeIcon}
               badge="Disarankan"
               checked={consent.transactionAnalysis}
               onChange={(value) => setConsent("transactionAnalysis", value)}
@@ -373,7 +373,7 @@ export default function OnboardingPage() {
             <ToggleCard
               title="Hubungkan rekening BNI"
               description="Sinkronkan saldo dan mutasi secara otomatis. Bisa diputuskan kapan saja dari Pengaturan."
-              icon={Landmark}
+              icon={LandmarkIcon}
               checked={consent.bankConnection}
               onChange={(value) => setConsent("bankConnection", value)}
             />
@@ -381,7 +381,7 @@ export default function OnboardingPage() {
 
           <div className="rounded-[18px] border border-[#E8F0E9] bg-[#F4FCF8] p-3.5">
             <div className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-[#277449]" />
+              <ShieldCheckIcon size={16} className="text-[#277449]" />
               <p className="text-[12px] font-bold text-[#1F5E3C]">Komitmen privasi Nera</p>
             </div>
             <ul className="mt-2 space-y-1.5">

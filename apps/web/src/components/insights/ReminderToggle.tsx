@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, BellOff, Share } from "lucide-react";
+import { BellIcon, BellOffIcon, ShareIcon } from "@nera/ui/icons";
 import { disablePush, enablePush, pushApi, type PushState } from "../../lib/push";
 
 /**
@@ -27,9 +27,9 @@ export function ReminderToggle({
   if (state === "install")
     return (
       <div className="flex items-start gap-2.5 rounded-xl bg-[#F7F5F0] px-3 py-2.5 text-[12px] leading-snug text-[#5C4A1E]">
-        <Bell size={16} className="mt-px shrink-0 text-[#76520E]" />
+        <BellIcon size={16} className="mt-px shrink-0 text-[#76520E]" />
         <p>
-          Mau diingatkan tiap malam? Di iPhone, pasang Nera dulu: ketuk <Share size={12} className="inline align-[-1px]" /> Bagikan, lalu{" "}
+          Mau diingatkan tiap malam? Di iPhone, pasang Nera dulu: ketuk <ShareIcon size={12} className="inline align-[-1px]" /> Bagikan, lalu{" "}
           <b>Tambah ke Layar Utama</b>, dan buka Nera dari sana.
         </p>
       </div>
@@ -38,7 +38,7 @@ export function ReminderToggle({
   if (state === "denied")
     return (
       <div className="flex items-start gap-2.5 rounded-xl bg-[#F7F5F0] px-3 py-2.5 text-[12px] leading-snug text-[#5C4A1E]">
-        <BellOff size={16} className="mt-px shrink-0 text-[#736B60]" />
+        <BellOffIcon size={16} className="mt-px shrink-0 text-[#736B60]" />
         <p>Notifikasi untuk Nera diblokir. Izinkan lewat pengaturan situs di browser kalau mau diingatkan.</p>
       </div>
     );
@@ -65,7 +65,7 @@ export function ReminderToggle({
   return (
     <div className="rounded-xl bg-[#F7F5F0] px-3 py-2.5">
       <div className="flex items-center gap-2.5">
-        {state === "on" ? <Bell size={16} className="shrink-0 text-[#76520E]" /> : <BellOff size={16} className="shrink-0 text-[#736B60]" />}
+        {state === "on" ? <BellIcon size={16} className="shrink-0 text-[#76520E]" /> : <BellOffIcon size={16} className="shrink-0 text-[#736B60]" />}
         <p className="min-w-0 flex-1 text-[12px] leading-snug text-[#5C4A1E]">
           {state === "on" ? "Pengingat menyala: tiap malam pukul 19.00 kalau hari itu belum menyisihkan." : "Ingatkan aku tiap malam kalau belum menyisihkan."}
         </p>

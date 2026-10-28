@@ -2,7 +2,7 @@
 
 import React, { useContext } from "react";
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@nera/ui/icons";
 import { useRouter } from "next/navigation";
 import { DemoControlPanel } from "./DemoControlPanel";
 import { FullscreenButton } from "./FullscreenButton";
@@ -31,7 +31,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({ title, showBack = false })
                 className="w-8 h-8 rounded-full flex items-center justify-center text-[#2F240E] hover:bg-[#FFF3D6] transition-colors -ml-1"
                 aria-label="Kembali"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeftIcon size={20} />
               </button>
             )}
             <h1 className="truncate text-base font-bold text-[#2F240E]">{title}</h1>

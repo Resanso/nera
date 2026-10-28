@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Mail, ReceiptText } from "lucide-react";
+import { ArrowDownToLineIcon, ArrowUpFromLineIcon, ChevronRightIcon, MailIcon, ReceiptIcon } from "@nera/ui/icons";
 import type { PocketActivity } from "../../context/FinancialStore";
 import type { EmailTransaction } from "../../lib/emailImport";
 
@@ -15,9 +15,9 @@ type Row =
   | { kind: "activity"; at: string; a: PocketActivity };
 
 const ACTIVITY = {
-  topup: { label: "Disisihkan dari saldo", icon: ArrowDownToLine, sign: "+" },
-  withdraw: { label: "Ditarik ke saldo", icon: ArrowUpFromLine, sign: "−" },
-  spend: { label: "Pengeluaran", icon: ReceiptText, sign: "−" },
+  topup: { label: "Disisihkan dari saldo", icon: ArrowDownToLineIcon, sign: "+" },
+  withdraw: { label: "Ditarik ke saldo", icon: ArrowUpFromLineIcon, sign: "−" },
+  spend: { label: "Pengeluaran", icon: ReceiptIcon, sign: "−" },
 } as const;
 
 /**
@@ -79,7 +79,7 @@ export function PocketHistory({
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[#FFF8E6]"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0BD] text-[#6D4C00]">
-                      <Mail size={15} />
+                      <MailIcon size={15} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-semibold text-[#2F240E]">{t.merchant}</span>
@@ -88,7 +88,7 @@ export function PocketHistory({
                       </span>
                     </span>
                     <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#2F240E]">−{rp(t.amount)}</span>
-                    <ChevronRight size={16} className="shrink-0 text-[#A89F90]" />
+                    <ChevronRightIcon size={16} className="shrink-0 text-[#A89F90]" />
                   </button>
                 </li>
               );
@@ -118,7 +118,7 @@ export function PocketHistory({
           {earlier > 0 && shown >= rows.length && (
             <li className="flex items-center gap-3 px-3 py-2.5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F2F4] text-[#2F240E]">
-                <ReceiptText size={15} />
+                <ReceiptIcon size={15} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold text-[#2F240E]">Pengeluaran sebelumnya (demo)</span>

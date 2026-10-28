@@ -6,35 +6,35 @@ import { useFinancialStore } from "../../../context/FinancialStore";
 import { Card, Button, Modal, TrustBanner } from "@nera/ui";
 import { classifyPersonas, BNI_OFFERS } from "@nera/core";
 import {
-  Sparkles,
-  ShieldCheck,
-  BadgeCheck,
-  ArrowUpRight,
-  Wallet,
-  TrendingUp,
-  CreditCard,
-  Umbrella,
-  FileCheck2,
-  Store,
-  LifeBuoy,
-} from "lucide-react";
+  SparklesIcon,
+  ShieldCheckIcon,
+  BadgeCheckIcon,
+  ArrowUpRightIcon,
+  WalletIcon,
+  TrendingUpIcon,
+  CreditCardIcon,
+  UmbrellaIcon,
+  FileCheckIcon,
+  StoreIcon,
+  LifeBuoyIcon,
+} from "@nera/ui/icons";
 
 const PERSONA_ICONS: Record<string, React.ElementType> = {
-  konsisten_nabung: Wallet,
-  pejuang_runway: TrendingUp,
-  anak_rantau: Umbrella,
-  calon_mapan: CreditCard,
-  wirausaha_kampus: Store,
-  pejuang_pemulihan: LifeBuoy,
+  konsisten_nabung: WalletIcon,
+  pejuang_runway: TrendingUpIcon,
+  anak_rantau: UmbrellaIcon,
+  calon_mapan: CreditCardIcon,
+  wirausaha_kampus: StoreIcon,
+  pejuang_pemulihan: LifeBuoyIcon,
 };
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  Tabungan: Wallet,
-  Investasi: TrendingUp,
-  "Kartu Kredit": CreditCard,
-  Proteksi: Umbrella,
-  "Pinjaman Resmi": FileCheck2,
-  Wirausaha: Store,
+  Tabungan: WalletIcon,
+  Investasi: TrendingUpIcon,
+  "Kartu Kredit": CreditCardIcon,
+  Proteksi: UmbrellaIcon,
+  "Pinjaman Resmi": FileCheckIcon,
+  Wirausaha: StoreIcon,
 };
 
 export default function PrivilegesPage() {
@@ -90,7 +90,7 @@ export default function PrivilegesPage() {
       <main className="flex-1 px-4 py-4 space-y-4">
         {/* TRANSPARENCY / CONSENT BANNER */}
         <Card className="p-0 overflow-hidden">
-          <TrustBanner icon={<ShieldCheck size={20} />}>
+          <TrustBanner icon={<ShieldCheckIcon size={20} />}>
             Skor dan pola transaksimu dipakai <strong className="text-white">read-only</strong> untuk mencocokkan manfaat ini. Tidak ada data yang dibagikan ke pihak luar tanpa persetujuanmu.
           </TrustBanner>
         </Card>
@@ -98,7 +98,7 @@ export default function PrivilegesPage() {
         {state !== "AMAN" && (
           <Card className="p-4 bg-[#FFF3D6]/40 border-[#FBBF24]/40 space-y-1.5">
             <div className="flex items-center gap-2 text-[#92400E]">
-              <BadgeCheck size={16} />
+              <BadgeCheckIcon size={16} />
               <h3 className="text-xs font-bold uppercase tracking-wider">Mode Proteksi Reputasi Aktif</h3>
             </div>
             <p className="text-xs text-[#2F240E] leading-relaxed">
@@ -108,7 +108,7 @@ export default function PrivilegesPage() {
         )}
 
         {personas.map((persona) => {
-          const Icon = PERSONA_ICONS[persona.id] || Sparkles;
+          const Icon = PERSONA_ICONS[persona.id] || SparklesIcon;
           const offers = BNI_OFFERS.filter((o) => o.personaId === persona.id);
 
           return (
@@ -137,7 +137,7 @@ export default function PrivilegesPage() {
 
               <div className="space-y-2">
                 {offers.map((offer) => {
-                  const OfferIcon = CATEGORY_ICONS[offer.category] || Sparkles;
+                  const OfferIcon = CATEGORY_ICONS[offer.category] || SparklesIcon;
                   return (
                     <Card key={offer.id} className="p-4 space-y-2.5">
                       <div className="flex items-start justify-between gap-2">
@@ -167,7 +167,7 @@ export default function PrivilegesPage() {
                             onClick={() => setActiveOffer(offer.id)}
                             className="text-xs h-8 px-3 rounded-full gap-1"
                           >
-                            {offer.actionLabel} <ArrowUpRight size={12} />
+                            {offer.actionLabel} <ArrowUpRightIcon size={12} />
                           </Button>
                         ) : (
                           <a
@@ -176,7 +176,7 @@ export default function PrivilegesPage() {
                             rel="noreferrer"
                             className="text-xs font-bold text-[#76520E] hover:underline flex items-center gap-1"
                           >
-                            {offer.actionLabel} <ArrowUpRight size={12} />
+                            {offer.actionLabel} <ArrowUpRightIcon size={12} />
                           </a>
                         )}
                       </div>
@@ -197,7 +197,7 @@ export default function PrivilegesPage() {
       >
         <div className="space-y-4 text-center py-2">
           <div className="w-14 h-14 bg-[#FFF3D6] text-[#76520E] rounded-2xl flex items-center justify-center mx-auto">
-            <Sparkles size={28} />
+            <SparklesIcon size={28} />
           </div>
           <div>
             <h4 className="text-sm font-bold text-[#2F240E]">{activeOfferData?.productName}</h4>

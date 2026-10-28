@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../tokens";
-import { X } from "lucide-react";
+import { XIcon } from "../icons";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -65,7 +65,7 @@ export const Modal: React.FC<ModalProps> = ({
                 aria-label="Tutup"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] transition-colors hover:bg-[#F7F5F0]"
               >
-                <X size={20} />
+                <XIcon size={20} />
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
@@ -90,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
             onClick={onClose}
             className="p-1 rounded-full text-[#736B60] hover:bg-[#F7F5F0] transition-colors"
           >
-            <X size={20} />
+            <XIcon size={20} />
           </button>
         </div>
         <div>{children}</div>

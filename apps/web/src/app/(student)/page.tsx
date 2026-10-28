@@ -17,41 +17,41 @@ import { GOAL_META, useOnboardingHydrated, useOnboardingStore } from "../../cont
 import { Modal, Button } from "@nera/ui";
 import { classifyPersonas, type BudgetPocket } from "@nera/core";
 import {
-  FileText,
-  Wallet,
-  Lock,
-  QrCode,
-  ArrowUpRight,
-  WalletCards,
-  Home,
-  Coffee,
-  ChevronRight,
-  ChevronDown,
-  CheckCircle2,
-  Sparkles,
-  TrendingDown,
-  CalendarClock,
-  ArrowDownLeft,
-  ArrowUpFromLine,
-  GraduationCap,
-  Bus,
-  ShoppingBag,
-  Banknote,
-  PiggyBank,
-  Gift,
-  ReceiptText,
-  LifeBuoy,
-  Mail,
-} from "lucide-react";
+  FileTextIcon,
+  WalletIcon,
+  LockIcon,
+  QrCodeIcon,
+  ArrowUpRightIcon,
+  WalletCardsIcon,
+  HomeIcon,
+  CoffeeIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  CheckCircleIcon,
+  SparklesIcon,
+  TrendingDownIcon,
+  CalendarClockIcon,
+  ArrowDownLeftIcon,
+  ArrowUpFromLineIcon,
+  GraduationCapIcon,
+  BusIcon,
+  ShoppingBagIcon,
+  BanknoteIcon,
+  PiggyBankIcon,
+  GiftIcon,
+  ReceiptIcon,
+  LifeBuoyIcon,
+  MailIcon,
+} from "@nera/ui/icons";
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  allowance: ArrowDownLeft,
-  food: Coffee,
-  transport: Bus,
-  education: GraduationCap,
-  loan: Banknote,
-  saving: PiggyBank,
-  other: ShoppingBag,
+  allowance: ArrowDownLeftIcon,
+  food: CoffeeIcon,
+  transport: BusIcon,
+  education: GraduationCapIcon,
+  loan: BanknoteIcon,
+  saving: PiggyBankIcon,
+  other: ShoppingBagIcon,
 };
 
 const HERO_MOOD: Record<string, NeraMood> = { AMAN: "idle", WASPADA: "thinking", KRITIS: "alert" };
@@ -331,7 +331,7 @@ export default function HomePage() {
               href="/recovery"
               className="inline-flex items-center gap-1 rounded-full px-2 py-1 -mr-1 text-[11px] font-semibold text-[#76520E] transition-colors hover:bg-[#FFF3D6] hover:text-[#5B410C]"
             >
-              <LifeBuoy size={13} strokeWidth={2.2} />
+              <LifeBuoyIcon size={13} strokeWidth={2.2} />
               Pemulihan
             </Link>
           </div>
@@ -383,14 +383,14 @@ export default function HomePage() {
             {activeSlide === 0 ? (
               <>
                 <div className="flex items-center gap-1.5 text-xs text-[#817B70]">
-                  <FileText size={14} className="shrink-0 text-[#A36A00]" />
+                  <FileTextIcon size={14} className="shrink-0 text-[#A36A00]" />
                   <span>
                     Rekomendasi budget: <strong className="text-[#533A08] font-semibold tabular-nums">{formatRupiah(shownBudgetPerDay)}</strong> / hari
                   </span>
                 </div>
                 {estimate ? (
                   <div className="flex items-start gap-1.5 text-xs text-[#817B70]">
-                    <Mail size={14} className="mt-px shrink-0 text-[#A36A00]" />
+                    <MailIcon size={14} className="mt-px shrink-0 text-[#A36A00]" />
                     <span>
                       Dari saldo <strong className="font-semibold text-[#533A08] tabular-nums">{formatRupiah(estimate.balance)}</strong> dan
                       pengeluaran nyata <strong className="font-semibold text-[#533A08] tabular-nums">{formatRupiah(Math.round(estimate.perDay))}</strong>/hari (30 hari terakhir)
@@ -398,12 +398,12 @@ export default function HomePage() {
                   </div>
                 ) : hasEmailData && !assetsSet ? (
                   <Link href="/pockets" className="flex items-start gap-1.5 text-xs font-semibold text-[#76520E]">
-                    <Mail size={14} className="mt-px shrink-0" />
+                    <MailIcon size={14} className="mt-px shrink-0" />
                     <span className="underline underline-offset-2">Atur saldomu supaya estimasi ini memakai uang dan pengeluaranmu sendiri</span>
                   </Link>
                 ) : hasEmailData && !planningConsent ? (
                   <button type="button" onClick={() => setIsPlanningConsentOpen(true)} className="flex items-start gap-1.5 text-left text-xs font-semibold text-[#76520E]">
-                    <Mail size={14} className="mt-px shrink-0" />
+                    <MailIcon size={14} className="mt-px shrink-0" />
                     <span className="underline underline-offset-2">Pakai pengeluaran dari struk email untuk estimasi ini</span>
                   </button>
                 ) : (
@@ -413,7 +413,7 @@ export default function HomePage() {
             ) : (
               <>
                 <div className="flex items-center gap-1.5 text-xs text-[#817B70]">
-                  <FileText size={14} className="shrink-0 text-[#A36A00]" />
+                  <FileTextIcon size={14} className="shrink-0 text-[#A36A00]" />
                   <span>
                     {monthBudget > monthSpent ? (
                       <>
@@ -426,7 +426,7 @@ export default function HomePage() {
                 </div>
                 {emailSpending.byCategory[0] && (
                   <Link href="/email" className="flex items-center gap-1.5 text-xs text-[#817B70]">
-                    <Mail size={14} className="shrink-0 text-[#A36A00]" />
+                    <MailIcon size={14} className="shrink-0 text-[#A36A00]" />
                     <span>
                       Terbesar dari email: <strong className="font-semibold text-[#533A08]">{emailSpending.byCategory[0].label}</strong>{" "}
                       <span className="tabular-nums">{formatRupiah(emailSpending.byCategory[0].amount)}</span>
@@ -453,7 +453,7 @@ export default function HomePage() {
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <div className="w-10 h-10 rounded-[13px] bg-white shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
-                        <Wallet size={18} />
+                        <WalletIcon size={18} />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-[#2F240E] leading-tight">Daily Pocket</p>
@@ -475,7 +475,7 @@ export default function HomePage() {
                     className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#E9E5DD] bg-white/80 px-4 py-2.5 text-xs font-bold text-[#736B60] transition-colors hover:border-[#EEDB9A] hover:bg-white hover:text-[#76520E]"
                   >
                     Recent Activity
-                    <ChevronDown
+                    <ChevronDownIcon
                       size={14}
                       className={`transition-transform duration-200 ${
                         recentOpen === "daily" ? "rotate-180" : ""
@@ -516,7 +516,7 @@ export default function HomePage() {
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <div className="w-10 h-10 rounded-[13px] bg-white/75 shadow-sm flex items-center justify-center text-[#76520E] shrink-0">
-                        <ReceiptText size={18} />
+                        <ReceiptIcon size={18} />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-[#2F240E] leading-tight">Pengeluaran</p>
@@ -538,7 +538,7 @@ export default function HomePage() {
                       className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#EEDB9A]/70 bg-white/80 px-4 py-2.5 text-xs font-bold text-[#76520E] transition-colors hover:bg-white"
                     >
                       Recent Activity
-                      <ChevronDown size={14} className={`transition-transform duration-200 ${recentOpen === "spend" ? "rotate-180" : ""}`} />
+                      <ChevronDownIcon size={14} className={`transition-transform duration-200 ${recentOpen === "spend" ? "rotate-180" : ""}`} />
                     </button>
                   ) : (
                     <Link
@@ -546,7 +546,7 @@ export default function HomePage() {
                       className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full bg-white/80 px-4 py-2.5 text-xs font-bold text-[#76520E] hover:bg-white"
                     >
                       Hubungkan Gmail
-                      <ChevronRight size={14} />
+                      <ChevronRightIcon size={14} />
                     </Link>
                   )}
 
@@ -596,7 +596,7 @@ export default function HomePage() {
                   onClick={() => setActiveActionModal("Transfer Saldo BNI")}
                   className="flex items-center justify-center gap-2 rounded-full border border-[#F0EEE9] bg-white px-4 py-3.5 text-[13px] font-bold text-[#2F240E] shadow-sm transition-colors hover:border-[#EEDB9A] hover:bg-[#FFF8E6]"
                 >
-                  <Banknote size={17} className="text-[#76520E]" />
+                  <BanknoteIcon size={17} className="text-[#76520E]" />
                   Transfer &amp; Pay
                 </button>
                 <button
@@ -604,7 +604,7 @@ export default function HomePage() {
                   onClick={() => setIsQuickSpendOpen(true)}
                   className="flex items-center justify-center gap-2 rounded-full border border-[#F0EEE9] bg-white px-4 py-3.5 text-[13px] font-bold text-[#2F240E] shadow-sm transition-colors hover:border-[#EEDB9A] hover:bg-[#FFF8E6]"
                 >
-                  <QrCode size={17} className="text-[#76520E]" />
+                  <QrCodeIcon size={17} className="text-[#76520E]" />
                   Scan QRIS
                 </button>
               </div>
@@ -620,7 +620,7 @@ export default function HomePage() {
           >
             <div className="flex items-start gap-3.5">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#FFB900] text-[#352500]">
-                <Sparkles size={20} strokeWidth={2.2} />
+                <SparklesIcon size={20} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -636,7 +636,7 @@ export default function HomePage() {
                   {planMeta.recommendation}
                 </p>
               </div>
-              <ChevronRight size={18} className="mt-1 shrink-0 text-[#A36A00]" />
+              <ChevronRightIcon size={18} className="mt-1 shrink-0 text-[#A36A00]" />
             </div>
           </Link>
         )}
@@ -659,7 +659,7 @@ export default function HomePage() {
                 className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-[15px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BA8500]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#FFF0BD] text-[#6D4C00]">
-                  <QrCode size={21} strokeWidth={2} />
+                  <QrCodeIcon size={21} strokeWidth={2} />
                 </div>
                 <span className="text-[11px] font-semibold text-[#2F240E] text-center leading-tight">
                   Scan QRIS
@@ -672,7 +672,7 @@ export default function HomePage() {
                 className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-[15px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BA8500]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#FFF0BD] text-[#6D4C00]">
-                  <ArrowUpRight size={21} strokeWidth={2} />
+                  <ArrowUpRightIcon size={21} strokeWidth={2} />
                 </div>
                 <span className="text-[11px] font-semibold text-[#2F240E] text-center leading-tight">
                   Transfer
@@ -685,7 +685,7 @@ export default function HomePage() {
                 className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-[15px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BA8500]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#FFF0BD] text-[#6D4C00]">
-                  <FileText size={21} strokeWidth={2} />
+                  <FileTextIcon size={21} strokeWidth={2} />
                 </div>
                 <span className="text-[11px] font-semibold text-[#2F240E] text-center leading-tight">
                   Bayar<br />Tagihan
@@ -698,7 +698,7 @@ export default function HomePage() {
                 className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-[15px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BA8500]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#FFF0BD] text-[#6D4C00]">
-                  <WalletCards size={21} strokeWidth={2} />
+                  <WalletCardsIcon size={21} strokeWidth={2} />
                 </div>
                 <span className="text-[11px] font-semibold text-[#2F240E] text-center leading-tight">
                   Top Up
@@ -716,7 +716,7 @@ export default function HomePage() {
             {nudges.find((n) => n.category === "BILL_KOS") && (
               <div className="p-4 flex gap-3.5">
                 <div className="w-10 h-10 rounded-[13px] bg-[#FFF0BD] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
-                  <Home size={21} strokeWidth={2} />
+                  <HomeIcon size={21} strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-[#2F240E]">
@@ -741,7 +741,7 @@ export default function HomePage() {
             {nudges.find((n) => n.category === "BILL_UKT") && (
               <div className="p-4 flex gap-3.5">
                 <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
-                  <GraduationCap size={21} strokeWidth={2} />
+                  <GraduationCapIcon size={21} strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -763,7 +763,7 @@ export default function HomePage() {
             {nudges.find((n) => n.category === "SWEEP_LEFTOVER") && (
               <div className="p-4 flex gap-3.5">
                 <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
-                  <ArrowUpFromLine size={21} strokeWidth={2} />
+                  <ArrowUpFromLineIcon size={21} strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-[#2F240E]">
@@ -788,7 +788,7 @@ export default function HomePage() {
             {overBudget.length > 0 && (
               <Link href="/pockets" className="p-4 flex gap-3.5 transition-colors hover:bg-[#FFFBF0]">
                 <div className="w-10 h-10 rounded-[13px] bg-[#FBE4DE] text-[#A92F2F] flex items-center justify-center shrink-0 mt-0.5">
-                  <Wallet size={21} strokeWidth={2} />
+                  <WalletIcon size={21} strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-[#2F240E]">
@@ -800,7 +800,7 @@ export default function HomePage() {
                     {overBudget.length > 1 ? `. ${overBudget.length - 1} kantong lain juga di atas 90%.` : "."} Lihat rekomendasi budget di Kantong.
                   </p>
                 </div>
-                <ChevronRight size={18} className="text-[#A89F90] shrink-0 self-center" />
+                <ChevronRightIcon size={18} className="text-[#A89F90] shrink-0 self-center" />
               </Link>
             )}
 
@@ -808,7 +808,7 @@ export default function HomePage() {
             {jump ? (
               <Link href="/email" className="p-4 flex gap-3.5 transition-colors hover:bg-[#FFFBF0]">
                 <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
-                  <Coffee size={21} strokeWidth={2} />
+                  <CoffeeIcon size={21} strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-[#2F240E]">Pengeluaran {jump.label} Naik</h4>
@@ -817,13 +817,13 @@ export default function HomePage() {
                     mingguanmu ({formatRupiah(Math.round(jump.avgWeek))}). Dari struk email.
                   </p>
                 </div>
-                <ChevronRight size={18} className="text-[#A89F90] shrink-0 self-center" />
+                <ChevronRightIcon size={18} className="text-[#A89F90] shrink-0 self-center" />
               </Link>
             ) : (
               !hasEmailData && (
                 <div className="p-4 flex gap-3.5">
                   <div className="w-10 h-10 rounded-[13px] bg-[#F7F5F0] text-[#76520E] flex items-center justify-center shrink-0 mt-0.5">
-                    <Coffee size={21} strokeWidth={2} />
+                    <CoffeeIcon size={21} strokeWidth={2} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-[#2F240E]">Pengeluaran Jajan Naik</h4>
@@ -844,13 +844,13 @@ export default function HomePage() {
             <Link href="/privileges">
               <div className="bg-[#FFD568] rounded-[22px] p-4 flex items-center gap-3.5 active:scale-[0.99] transition-transform">
                 <div className="w-12 h-12 rounded-[15px] bg-white/55 text-[#47310A] flex items-center justify-center shrink-0">
-                  <Gift size={22} className="stroke-[2]" />
+                  <GiftIcon size={22} className="stroke-[2]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold text-[#352500] tracking-tight">{topPersona.label}</h4>
                   <p className="text-xs text-[#5C471A] leading-relaxed mt-0.5">{topPersona.tagline}</p>
                 </div>
-                <ChevronRight size={20} className="text-[#5C471A] stroke-[2] shrink-0" />
+                <ChevronRightIcon size={20} className="text-[#5C471A] stroke-[2] shrink-0" />
               </div>
             </Link>
           </section>
@@ -869,12 +869,12 @@ export default function HomePage() {
               className="block rounded-[19px] bg-[#FFF3D6] px-4 py-3.5 text-[#5B410C] transition-colors hover:bg-[#FFEBC0]"
             >
               <div className="flex items-center gap-3">
-                <Mail size={18} className="shrink-0" />
+                <MailIcon size={18} className="shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium">Pengeluaran di luar BNI bulan ini</p>
                   <p className="text-base font-bold tabular-nums text-[#2F240E]">{formatRupiah(emailSpending.monthTotal)}</p>
                 </div>
-                <ChevronRight size={16} className="shrink-0" />
+                <ChevronRightIcon size={16} className="shrink-0" />
               </div>
             </Link>
           ) : (
@@ -882,17 +882,17 @@ export default function HomePage() {
               href="/email"
               className="flex items-center gap-3 rounded-[19px] bg-[#FFF3D6] px-4 py-3 text-[#5B410C] transition-colors hover:bg-[#FFEBC0]"
             >
-              <Mail size={18} className="shrink-0" />
+              <MailIcon size={18} className="shrink-0" />
               <span className="flex-1 text-xs font-semibold leading-snug">
                 Ada transaksi GoPay, OVO atau Shopee? Impor dari email
               </span>
-              <ChevronRight size={16} className="shrink-0" />
+              <ChevronRightIcon size={16} className="shrink-0" />
             </Link>
           )}
 
           <div className="bg-white rounded-[24px] overflow-hidden">
             {combinedRecent.map((tx, idx) => {
-              const IconComp = CATEGORY_ICONS[tx.category] || ShoppingBag;
+              const IconComp = CATEGORY_ICONS[tx.category] || ShoppingBagIcon;
               const color = CATEGORY_COLORS[tx.category] || "#7D766B";
               const isLast = idx === combinedRecent.length - 1;
               const isIncome = tx.type === "income";
@@ -927,7 +927,7 @@ export default function HomePage() {
                   >
                     {isIncome ? "+" : "-"}{formatRupiah(tx.amount)}
                   </span>
-                  {emailTx && <ChevronRight size={16} className="-mr-1 shrink-0 text-[#A89F90]" />}
+                  {emailTx && <ChevronRightIcon size={16} className="-mr-1 shrink-0 text-[#A89F90]" />}
                 </Row>
               );
             })}
@@ -998,7 +998,7 @@ export default function HomePage() {
 
           <div className="p-3 bg-[#EBF5FF] rounded-xl border border-[#A36A00]/30 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <Wallet size={16} className="text-[#76520E]" />
+              <WalletIcon size={16} className="text-[#76520E]" />
               <span className="text-[#2F240E] font-medium">Daily Pocket</span>
             </div>
             <span className="font-bold text-[#76520E]">Sisa {formatRupiah(dailyPocket)}</span>
@@ -1076,7 +1076,7 @@ export default function HomePage() {
         <div className="space-y-4">
           <div className="text-center py-3">
             <div className="w-16 h-16 bg-[#DDF0E6] text-[#22C55E] rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <ArrowUpFromLine size={32} />
+              <ArrowUpFromLineIcon size={32} />
             </div>
             <h4 className="text-base font-bold text-[#2F240E]">
               Sapu Sisa Saldo Harian
@@ -1116,7 +1116,7 @@ export default function HomePage() {
       >
         <div className="space-y-4 text-center py-2">
           <div className="w-14 h-14 bg-[#FFF3D6] text-[#76520E] rounded-2xl flex items-center justify-center mx-auto">
-            <Sparkles size={28} />
+            <SparklesIcon size={28} />
           </div>
           <div>
             <h4 className="text-sm font-bold text-[#2F240E]">{activeActionModal}</h4>

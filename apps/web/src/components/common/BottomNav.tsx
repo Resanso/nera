@@ -3,18 +3,18 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Wallet, Users, TrendingUp, Plus } from "lucide-react";
+import { HomeIcon, WalletIcon, UsersIcon, TrendingUpIcon, PlusIcon } from "@nera/ui/icons";
 import { cn } from "@nera/ui";
 import { CenterActionSheet } from "./CenterActionSheet";
 
 const LEFT_ITEMS = [
-  { label: "Beranda", href: "/", icon: Home },
-  { label: "Kantong", href: "/pockets", icon: Wallet },
+  { label: "Beranda", href: "/", icon: HomeIcon },
+  { label: "Kantong", href: "/pockets", icon: WalletIcon },
 ];
 
 const RIGHT_ITEMS = [
-  { label: "Keluarga", href: "/family-hub", icon: Users },
-  { label: "Investasi", href: "/wealth-engine", icon: TrendingUp },
+  { label: "Keluarga", href: "/family-hub", icon: UsersIcon },
+  { label: "Investasi", href: "/wealth-engine", icon: TrendingUpIcon },
 ];
 
 export const BottomNav: React.FC = () => {
@@ -37,7 +37,12 @@ export const BottomNav: React.FC = () => {
             isActive ? "bg-[#FFF3D6] text-[#76520E]" : "text-[#736B60] hover:text-[#2F240E]"
           )}
         >
-          <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+          <Icon
+            size={20}
+            strokeWidth={isActive ? 2.2 : 1.8}
+            variant={isActive ? "duo" : "line"}
+            accent={isActive ? "#FFB900" : undefined}
+          />
         </span>
         <span
           className={cn("text-[10px] leading-none tracking-tight transition-colors duration-150", {
@@ -77,7 +82,7 @@ export const BottomNav: React.FC = () => {
               : "bg-[#FFB900] text-[#352500] shadow-[0_6px_16px_rgba(255,185,0,0.35)]"
           )}
         >
-          <Plus size={26} strokeWidth={2.4} />
+          <PlusIcon size={26} strokeWidth={2.4} />
         </button>
       </nav>
     </>

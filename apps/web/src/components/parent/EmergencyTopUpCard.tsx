@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Card, Button } from "@nera/ui";
-import { AlertCircle, Wallet } from "lucide-react";
+import { AlertCircleIcon, WalletIcon } from "@nera/ui/icons";
 import { EmergencyTopUpRequest } from "@nera/core";
 import { useFinancialStore } from "../../context/FinancialStore";
 
@@ -29,7 +29,7 @@ export const EmergencyTopUpCard: React.FC<EmergencyTopUpCardProps> = ({ request 
     >
       <Card className="p-4 space-y-3 bg-[#FFF3D6]/40 border-[#FBBF24]/40">
         <div className="flex items-center gap-2 text-[#92400E]">
-          <AlertCircle size={18} />
+          <AlertCircleIcon size={18} />
           <h3 className="text-xs font-bold uppercase tracking-wider">Permintaan Top Up</h3>
         </div>
 
@@ -37,7 +37,7 @@ export const EmergencyTopUpCard: React.FC<EmergencyTopUpCardProps> = ({ request 
 
         <div className="p-3 bg-white rounded-xl border border-[#E9E5DD] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Wallet size={16} className="text-[#5B410C]" />
+            <WalletIcon size={16} className="text-[#5B410C]" />
             <span className="text-xs text-[#736B60]">Rekomendasi Top Up</span>
           </div>
           <span className="text-sm font-bold text-[#5B410C]">

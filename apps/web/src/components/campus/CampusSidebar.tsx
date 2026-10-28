@@ -4,14 +4,14 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, ShieldCheck, BellRing, ChevronDown, MapPin, GraduationCap, Users } from "lucide-react";
+import { LayoutGridIcon, ShieldCheckIcon, BellRingIcon, ChevronDownIcon, MapPinIcon, GraduationCapIcon, UsersIcon } from "@nera/ui/icons";
 import { cn } from "@nera/ui";
 import { CAMPUS_PROFILE } from "@nera/core";
 
 const NAV_ITEMS = [
-  { label: "Ringkasan", href: "/campus", icon: LayoutGrid },
-  { label: "Kohort Risiko", href: "/campus/cohorts", icon: ShieldCheck },
-  { label: "Peringatan", href: "/campus/alerts", icon: BellRing },
+  { label: "Ringkasan", href: "/campus", icon: LayoutGridIcon },
+  { label: "Kohort Risiko", href: "/campus/cohorts", icon: ShieldCheckIcon },
+  { label: "Peringatan", href: "/campus/alerts", icon: BellRingIcon },
 ];
 
 export const CampusSidebar: React.FC = () => {
@@ -61,11 +61,11 @@ export const CampusSidebar: React.FC = () => {
         <div className="flex items-center justify-center gap-3 text-[10px] font-medium text-[#817B70]">
           <span>Lihat sebagai:</span>
           <Link href="/" className="flex items-center gap-1 hover:text-[#76520E] transition-colors">
-            <GraduationCap size={11} /> Mahasiswa
+            <GraduationCapIcon size={11} /> Mahasiswa
           </Link>
           <span>·</span>
           <Link href="/parent" className="flex items-center gap-1 hover:text-[#76520E] transition-colors">
-            <Users size={11} /> Orang Tua
+            <UsersIcon size={11} /> Orang Tua
           </Link>
         </div>
 
@@ -75,14 +75,14 @@ export const CampusSidebar: React.FC = () => {
               N
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white border-2 border-[#FFF3D6] flex items-center justify-center">
-              <MapPin size={9} className="text-[#76520E]" />
+              <MapPinIcon size={9} className="text-[#76520E]" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-[#2F240E] truncate">{CAMPUS_PROFILE.name}</p>
             <p className="text-[11px] text-[#736B60] truncate">{CAMPUS_PROFILE.institution}</p>
           </div>
-          <ChevronDown size={16} className="text-[#817B70] shrink-0" />
+          <ChevronDownIcon size={16} className="text-[#817B70] shrink-0" />
         </div>
       </div>
     </aside>

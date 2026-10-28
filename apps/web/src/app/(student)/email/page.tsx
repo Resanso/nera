@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@nera/ui";
-import { Check, Copy, Inbox, LogOut, Mail, Plus, RefreshCw, ShieldCheck, Sparkles, Trash2, Unplug } from "lucide-react";
+import { CheckIcon, CopyIcon, InboxIcon, LogOutIcon, MailIcon, PlusIcon, RefreshIcon, ShieldCheckIcon, SparklesIcon, TrashIcon, UnplugIcon } from "@nera/ui/icons";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { NeraOrb } from "../../../components/mascot/NeraOrb";
 import { MoneyInsightsCard } from "../../../components/insights/MoneyInsightsCard";
@@ -314,7 +314,7 @@ export default function EmailImportPage() {
                       }}
                       className="flex shrink-0 items-center gap-1 text-xs font-semibold text-[#76520E]"
                     >
-                      <LogOut size={14} />
+                      <LogOutIcon size={14} />
                       Keluar
                     </button>
                   </div>
@@ -341,7 +341,7 @@ export default function EmailImportPage() {
                 {/* PRIVACY */}
                 <section className="rounded-[24px] bg-white p-5">
                   <div className="flex items-center gap-2 text-[#2F240E]">
-                    <ShieldCheck size={18} className="text-[#76520E]" />
+                    <ShieldCheckIcon size={18} className="text-[#76520E]" />
                     <h3 className="text-sm font-bold">Yang dibaca Nera</h3>
                   </div>
                   <p className="mt-2 text-[13px] leading-relaxed text-[#736B60]">
@@ -366,7 +366,7 @@ export default function EmailImportPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#FFF3D6] text-[#76520E]">
-                        <Mail size={18} />
+                        <MailIcon size={18} />
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-[#2F240E]">Hubungkan Gmail</h3>
@@ -403,7 +403,7 @@ export default function EmailImportPage() {
                             }
                             className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-[#A92F2F] hover:bg-white disabled:opacity-50"
                           >
-                            <Unplug size={13} />
+                            <UnplugIcon size={13} />
                             Putuskan
                           </button>
                         </li>
@@ -431,7 +431,7 @@ export default function EmailImportPage() {
                           isLoading={busy === "gmail-sync"}
                           onClick={() => run("gmail-sync", async () => summaryText(await emailApi.syncGmail()))}
                         >
-                          <RefreshCw size={16} className="mr-1.5" />
+                          <RefreshIcon size={16} className="mr-1.5" />
                           Sinkronkan
                         </Button>
                         <Button
@@ -442,7 +442,7 @@ export default function EmailImportPage() {
                             window.location.href = emailApi.gmailConnectUrl();
                           }}
                         >
-                          <Plus size={16} className="mr-1.5" />
+                          <PlusIcon size={16} className="mr-1.5" />
                           Tambah akun
                         </Button>
                       </>
@@ -527,7 +527,7 @@ export default function EmailImportPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#FFF3D6] text-[#76520E]">
-                        <Inbox size={18} />
+                        <InboxIcon size={18} />
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-[#2F240E]">Teruskan struk ke Nera</h3>
@@ -560,7 +560,7 @@ export default function EmailImportPage() {
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#76520E] hover:bg-white"
                           aria-label="Salin alamat"
                         >
-                          {copied === "address" ? <Check size={16} /> : <Copy size={16} />}
+                          {copied === "address" ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
                         </button>
                       </div>
 
@@ -582,7 +582,7 @@ export default function EmailImportPage() {
                                 className="ml-1 inline-flex items-center gap-1 rounded-lg bg-[#FFF3D6] px-2 py-0.5 font-mono font-bold text-[#76520E]"
                               >
                                 {status.forward.confirmationCode}
-                                {copied === "code" ? <Check size={13} /> : <Copy size={13} />}
+                                {copied === "code" ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
                               </button>
                             ) : (
                               status.forward.status === "waiting" && <span className="text-[#736B60]">Kodenya akan muncul di sini.</span>
@@ -599,7 +599,7 @@ export default function EmailImportPage() {
                               className="mt-1.5 flex w-full items-center gap-2 rounded-xl bg-[#F7F7F7] px-3 py-2 text-left font-mono text-[11px] text-[#736B60]"
                             >
                               <span className="min-w-0 flex-1 truncate">{filterQuery}</span>
-                              {copied === "filter" ? <Check size={13} /> : <Copy size={13} />}
+                              {copied === "filter" ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
                             </button>
                           </span>
                         </li>
@@ -623,7 +623,7 @@ export default function EmailImportPage() {
                   isLoading={busy === "demo"}
                   onClick={() => run("demo", async () => summaryText(await emailApi.importDemo()))}
                 >
-                  <Sparkles size={16} className="mr-1.5" />
+                  <SparklesIcon size={16} className="mr-1.5" />
                   Coba dengan contoh struk
                 </Button>
 
@@ -757,7 +757,7 @@ export default function EmailImportPage() {
                 isLoading={busy === "wipe"}
                 onClick={() => run("wipe", async () => (await emailApi.deleteAll(), "Semua koneksi email dan datanya sudah dihapus."))}
               >
-                <Trash2 size={16} className="mr-1.5" />
+                <TrashIcon size={16} className="mr-1.5" />
                 Putuskan & hapus semua data email
               </Button>
             )}
@@ -783,7 +783,7 @@ function Step({ n, done }: { n: number; done: boolean }) {
         done ? "bg-[#58A83C] text-white" : "bg-[#FFF3D6] text-[#76520E]"
       }`}
     >
-      {done ? <Check size={13} /> : n}
+      {done ? <CheckIcon size={13} /> : n}
     </span>
   );
 }

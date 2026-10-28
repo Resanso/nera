@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { Card, Button } from "@nera/ui";
-import { Sliders, ArrowDownLeft, Wallet, Lock, CheckCircle2, Sparkles } from "lucide-react";
+import { SlidersIcon, ArrowDownLeftIcon, WalletIcon, LockIcon, CheckCircleIcon, SparklesIcon } from "@nera/ui/icons";
 
 export default function ParentAllowancePage() {
   const { monthlyAllowance, setAllowanceSplit } = useFinancialStore();
@@ -36,7 +36,7 @@ export default function ParentAllowancePage() {
       <main className="flex-1 px-4 pt-3.5 pb-6 space-y-4">
         <Card className="p-4 space-y-4">
           <div className="flex items-center gap-2">
-            <Sliders size={16} className="text-[#76520E]" />
+            <SlidersIcon size={16} className="text-[#76520E]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
               Transfer Uang Saku Bulanan
             </h3>
@@ -72,12 +72,12 @@ export default function ParentAllowancePage() {
 
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-[10px] text-[#736B60] font-semibold uppercase tracking-wider">
-              <Sparkles size={10} className="text-[#76520E]" /> Pratinjau Alokasi Real-Time
+              <SparklesIcon size={10} className="text-[#76520E]" /> Pratinjau Alokasi Real-Time
             </div>
 
             <div className="p-3 bg-[#F1F2F4] rounded-xl border border-[#E9E5DD] flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-[#DDF0E6] flex items-center justify-center">
-                <ArrowDownLeft size={14} className="text-[#22C55E]" />
+                <ArrowDownLeftIcon size={14} className="text-[#22C55E]" />
               </div>
               <div className="flex-1">
                 <p className="text-[10px] text-[#736B60]">Transfer per Bulan</p>
@@ -88,14 +88,14 @@ export default function ParentAllowancePage() {
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 bg-[#FFF3D6] rounded-xl border border-[#A36A00]/30 space-y-0.5">
                 <div className="flex items-center gap-1 text-[11px] text-[#A36A00] font-semibold">
-                  <Wallet size={12} /> Daily Pocket
+                  <WalletIcon size={12} /> Daily Pocket
                 </div>
                 <p className="text-sm font-black text-[#2F240E]">{formatRupiah(pocketAmount)}</p>
               </div>
 
               <div className="p-3 bg-[#DDF0E6] rounded-xl border border-[#22C55E]/30 space-y-0.5">
                 <div className="flex items-center gap-1 text-[11px] text-[#15803D] font-semibold">
-                  <Lock size={12} /> Lock Pocket
+                  <LockIcon size={12} /> Lock Pocket
                 </div>
                 <p className="text-sm font-black text-[#2F240E]">{formatRupiah(lockAmount)}</p>
               </div>
@@ -105,7 +105,7 @@ export default function ParentAllowancePage() {
           <Button variant="primary" fullWidth onClick={handleSave} className="rounded-xl mt-2">
             {isSaved ? (
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={16} /> Tersimpan Otomatis!
+                <CheckCircleIcon size={16} /> Tersimpan Otomatis!
               </span>
             ) : (
               "Simpan & Aktifkan Transfer Otomatis"

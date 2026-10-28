@@ -6,23 +6,23 @@ import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { Card, Button, Modal, TrustBanner } from "@nera/ui";
 import {
-  Users,
-  ShieldCheck,
-  QrCode,
-  Share2,
-  Sliders,
-  CheckCircle2,
-  Lock,
-  Wallet,
-  ArrowRight,
-  Info,
-  Eye,
-  EyeOff,
-  Fingerprint,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Sparkles,
-} from "lucide-react";
+  UsersIcon,
+  ShieldCheckIcon,
+  QrCodeIcon,
+  ShareNodesIcon,
+  SlidersIcon,
+  CheckCircleIcon,
+  LockIcon,
+  WalletIcon,
+  ArrowRightIcon,
+  InfoIcon,
+  EyeIcon,
+  EyeOffIcon,
+  FingerprintIcon,
+  ArrowDownLeftIcon,
+  ArrowUpRightIcon,
+  SparklesIcon,
+} from "@nera/ui/icons";
 
 export default function FamilyHubPage() {
   const {
@@ -64,7 +64,7 @@ export default function FamilyHubPage() {
         {/* SECTION 1: PERMISSION & ONBOARDING — "Batasan Sebelum Manfaat" */}
         <Card className="p-0 overflow-hidden">
           <TrustBanner
-            icon={<Fingerprint size={18} />}
+            icon={<FingerprintIcon size={18} />}
             eyebrow="Izin Akses Transparan"
             title={<>&quot;Batasan Sebelum Manfaat&quot;</>}
             showSparkles
@@ -76,7 +76,7 @@ export default function FamilyHubPage() {
             {/* Permission toggles */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Eye size={14} className="text-[#5B410C]" />
+                <EyeIcon size={14} className="text-[#5B410C]" />
                 <span className="text-xs font-medium text-[#2F240E]">Baca Kategori Mutasi</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -89,7 +89,7 @@ export default function FamilyHubPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <EyeOff size={14} className="text-[#736B60]" />
+                <EyeOffIcon size={14} className="text-[#736B60]" />
                 <span className="text-xs font-medium text-[#2F240E]">Akses Detail Rekening</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -103,7 +103,7 @@ export default function FamilyHubPage() {
             <div className="flex items-center justify-between pt-1 border-t border-[#E9E5DD]">
               <span className="text-xs font-medium text-[#2F240E]">Status Proteksi Data</span>
               <span className="inline-flex items-center gap-1 text-[#22C55E] font-semibold text-xs bg-[#DDF0E6] px-2.5 py-1 rounded-full">
-                <ShieldCheck size={12} /> Terenkripsi BNI
+                <ShieldCheckIcon size={12} /> Terenkripsi BNI
               </span>
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function FamilyHubPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-[12px] bg-[#FFF0BD] flex items-center justify-center text-[#76520E]">
-                <Users size={18} />
+                <UsersIcon size={18} />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-[#2F240E]">Akun Terhubung</h4>
@@ -122,7 +122,7 @@ export default function FamilyHubPage() {
               </div>
             </div>
             <span className="text-[10px] bg-[#DDF0E6] text-[#15803D] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
-              <CheckCircle2 size={10} /> TERVERIFIKASI
+              <CheckCircleIcon size={10} /> TERVERIFIKASI
             </span>
           </div>
 
@@ -149,7 +149,7 @@ export default function FamilyHubPage() {
               onClick={() => setIsQrModalOpen(true)}
               className="text-xs h-9 rounded-xl gap-1.5"
             >
-              <QrCode size={14} /> Tampilkan QR
+              <QrCodeIcon size={14} /> Tampilkan QR
             </Button>
             <Button
               variant="outline"
@@ -157,7 +157,7 @@ export default function FamilyHubPage() {
               onClick={() => alert("Link undangan pairing telah disalin!")}
               className="text-xs h-9 rounded-xl gap-1.5"
             >
-              <Share2 size={14} /> Share Link
+              <ShareNodesIcon size={14} /> Share Link
             </Button>
           </div>
         </Card>
@@ -166,7 +166,7 @@ export default function FamilyHubPage() {
         <Card className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sliders size={16} className="text-[#76520E]" />
+              <SlidersIcon size={16} className="text-[#76520E]" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
                 Smart Allowance Splitter
               </h3>
@@ -208,7 +208,7 @@ export default function FamilyHubPage() {
           {/* Auto-routing Visualization */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-[10px] text-[#736B60] font-semibold uppercase tracking-wider">
-              <Sparkles size={10} className="text-[#76520E]" /> Pratinjau Alokasi Otomatis
+              <SparklesIcon size={10} className="text-[#76520E]" /> Pratinjau Alokasi Otomatis
             </div>
 
             {/* Flow visualization */}
@@ -216,7 +216,7 @@ export default function FamilyHubPage() {
               {/* Source */}
               <div className="p-3 bg-[#F1F2F4] rounded-xl border border-[#E9E5DD] flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-[#DDF0E6] flex items-center justify-center">
-                  <ArrowDownLeft size={14} className="text-[#22C55E]" />
+                  <ArrowDownLeftIcon size={14} className="text-[#22C55E]" />
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] text-[#736B60]">Uang Saku Masuk</p>
@@ -228,7 +228,7 @@ export default function FamilyHubPage() {
               <div className="flex justify-center py-1.5">
                 <div className="flex flex-col items-center gap-0.5">
                   <div className="w-0.5 h-3 bg-[#76520E]/30" />
-                  <ArrowRight size={12} className="text-[#76520E] rotate-90" />
+                  <ArrowRightIcon size={12} className="text-[#76520E] rotate-90" />
                 </div>
               </div>
 
@@ -236,7 +236,7 @@ export default function FamilyHubPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 bg-[#FFF3D6] rounded-xl border border-[#A36A00]/30 space-y-0.5">
                   <div className="flex items-center gap-1 text-[11px] text-[#A36A00] font-semibold">
-                    <Wallet size={12} /> Daily Pocket
+                    <WalletIcon size={12} /> Daily Pocket
                   </div>
                   <p className="text-sm font-black text-[#2F240E]">{formatRupiah(pocketAmount)}</p>
                   <p className="text-[10px] text-[#736B60]">~{formatRupiah(Math.round(pocketAmount / 30))}/hari</p>
@@ -244,7 +244,7 @@ export default function FamilyHubPage() {
 
                 <div className="p-3 bg-[#DDF0E6] rounded-xl border border-[#22C55E]/30 space-y-0.5">
                   <div className="flex items-center gap-1 text-[11px] text-[#15803D] font-semibold">
-                    <Lock size={12} /> BNI Life Goals
+                    <LockIcon size={12} /> BNI Life Goals
                   </div>
                   <p className="text-sm font-black text-[#2F240E]">{formatRupiah(lockAmount)}</p>
                   <p className="text-[10px] text-[#15803D]">Tabungan Wajib Aman</p>
@@ -261,7 +261,7 @@ export default function FamilyHubPage() {
           >
             {isSaved ? (
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={16} /> Tersimpan Otomatis!
+                <CheckCircleIcon size={16} /> Tersimpan Otomatis!
               </span>
             ) : (
               "Terapkan Alokasi Otomatis"
@@ -272,7 +272,7 @@ export default function FamilyHubPage() {
         {/* SECTION 4: NEXT MONTH PREVIEW */}
         <Card className="p-4 space-y-2 bg-[#FFF8E6] border-[#EEDB9A]">
           <div className="flex items-center gap-1.5 text-[11px] text-[#A36A00] font-semibold uppercase tracking-wider">
-            <Sparkles size={12} /> Pratinjau Bulan Depan
+            <SparklesIcon size={12} /> Pratinjau Bulan Depan
           </div>
           <p className="text-xs text-[#736B60] leading-relaxed">
             Saat uang saku <strong className="text-[#2F240E]">{formatRupiah(allowanceInput)}</strong> masuk bulan depan,
@@ -291,7 +291,7 @@ export default function FamilyHubPage() {
       >
         <div className="text-center space-y-4">
           <div className="w-48 h-48 mx-auto bg-[#FFF8E6] rounded-2xl border-2 border-dashed border-[#BA8500] flex flex-col items-center justify-center p-4">
-            <QrCode size={110} className="text-[#76520E]" />
+            <QrCodeIcon size={110} className="text-[#76520E]" />
             <span className="text-[10px] font-mono text-[#736B60] mt-2">NERA-PAIR-BUDI-1301</span>
           </div>
           <p className="text-xs text-[#736B60]">

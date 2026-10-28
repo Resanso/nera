@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, X } from "lucide-react";
+import { CheckIcon, XIcon } from "@nera/ui/icons";
 import type { BudgetLine, BudgetPlan } from "../../lib/emailSpending";
 
 const rp = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`;
@@ -67,7 +67,7 @@ export function BudgetPlanSheet({
               </p>
             </div>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-              <X size={18} />
+              <XIcon size={18} />
             </button>
           </div>
 
@@ -89,7 +89,7 @@ export function BudgetPlanSheet({
                     onClick={() => update(i, { on: !r.on })}
                     className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${r.on ? "border-[#A36A00] bg-[#A36A00] text-white" : "border-[#D8D3C9] bg-white"}`}
                   >
-                    {r.on && <Check size={13} strokeWidth={3} />}
+                    {r.on && <CheckIcon size={13} strokeWidth={3} />}
                   </button>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">

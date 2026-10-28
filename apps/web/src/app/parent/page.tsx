@@ -6,7 +6,7 @@ import { useFinancialStore } from "../../context/FinancialStore";
 import { Card, RiskGauge } from "@nera/ui";
 import { ParentPairingCard } from "../../components/parent/ParentPairingCard";
 import { EmergencyTopUpCard } from "../../components/parent/EmergencyTopUpCard";
-import { ShieldCheck, EyeOff, ChevronDown } from "lucide-react";
+import { ShieldCheckIcon, EyeOffIcon, ChevronDownIcon } from "@nera/ui/icons";
 
 // PRIVACY NOTE: this page must never render individual transactions or
 // merchant names — only the aggregate score/status, mirroring the
@@ -54,7 +54,7 @@ export default function ParentDashboardPage() {
             {userName.charAt(0).toUpperCase()}
           </div>
           <span className="text-sm font-bold text-[#2F240E]">{userName}</span>
-          <ChevronDown size={14} className="text-[#817B70]" />
+          <ChevronDownIcon size={14} className="text-[#817B70]" />
         </button>
 
         <p className="text-sm text-[#736B60] -mt-2">Ringkasan untuk orang tua</p>
@@ -67,7 +67,7 @@ export default function ParentDashboardPage() {
                 Status Keamanan Finansial
               </p>
               <div className="flex items-center gap-2 mt-1.5">
-                <ShieldCheck size={22} style={{ color: stateConfig.color }} />
+                <ShieldCheckIcon size={22} style={{ color: stateConfig.color }} />
                 <h2 className="text-[28px] font-bold text-[#2F240E] tracking-tight leading-none">
                   {stateConfig.label}
                 </h2>
@@ -81,7 +81,7 @@ export default function ParentDashboardPage() {
         </div>
 
         <Card className="p-3.5 bg-white border-dashed flex items-start gap-2.5">
-          <EyeOff size={16} className="text-[#76520E] shrink-0 mt-0.5" />
+          <EyeOffIcon size={16} className="text-[#76520E] shrink-0 mt-0.5" />
           <p className="text-[11px] text-[#736B60] leading-relaxed">
             Demi privasi anak Anda, Nera <strong className="text-[#2F240E]">tidak menampilkan</strong> riwayat transaksi atau nama merchant — hanya status keamanan finansial secara umum.
           </p>
@@ -98,7 +98,7 @@ export default function ParentDashboardPage() {
 
         <Card className="p-4 space-y-2 bg-[#FFF3D6] border-[#76520E]/20">
           <div className="flex items-center gap-2 text-[#76520E]">
-            <ShieldCheck size={16} />
+            <ShieldCheckIcon size={16} />
             <h3 className="text-xs font-bold uppercase tracking-wider">Terenkripsi BNI</h3>
           </div>
           <p className="text-xs text-[#2F240E] leading-relaxed">

@@ -3,15 +3,15 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, SlidersHorizontal } from "lucide-react";
+import { LayoutDashboardIcon, SlidersIcon } from "@nera/ui/icons";
 import { cn } from "@nera/ui";
 
 export const ParentBottomNav: React.FC = () => {
   const pathname = usePathname();
 
   const navItems = [
-    { label: "Ringkasan", href: "/parent", icon: LayoutDashboard },
-    { label: "Alokasi", href: "/parent/allowance", icon: SlidersHorizontal },
+    { label: "Ringkasan", href: "/parent", icon: LayoutDashboardIcon },
+    { label: "Alokasi", href: "/parent/allowance", icon: SlidersIcon },
   ];
 
   return (
@@ -34,7 +34,12 @@ export const ParentBottomNav: React.FC = () => {
                   isActive ? "bg-[#FFF3D6] text-[#76520E]" : "text-[#736B60] hover:text-[#2F240E]"
                 )}
               >
-                <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+                <Icon
+                  size={20}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  variant={isActive ? "duo" : "line"}
+                  accent={isActive ? "#FFB900" : undefined}
+                />
               </span>
               <span
                 className={cn("text-[10px] leading-none tracking-tight transition-colors duration-150", {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, CalendarDays, X } from "lucide-react";
+import { ArrowUpIcon, CalendarIcon, XIcon } from "@nera/ui/icons";
 import type { BudgetPocket, BudgetPocketIcon, BudgetPocketTone } from "@nera/core";
 import { NeraOrb } from "../mascot/NeraOrb";
 import { dueLabel, planProfile, type ProfileDraft, type ProfilePlan } from "../../lib/pocketProfile";
@@ -99,7 +99,7 @@ export function PocketProfileSheet({
               <p className="truncate text-[11px] text-[#736B60]">Cerita ke Nera, nanti dibuatkan kantongnya</p>
             </div>
             <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-9 w-9 items-center justify-center rounded-full text-[#736B60] hover:bg-[#F7F5F0]">
-              <X size={18} />
+              <XIcon size={18} />
             </button>
           </div>
 
@@ -173,7 +173,7 @@ export function PocketProfileSheet({
               aria-label="Kirim"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFB900] text-[#352500] transition-transform duration-150 hover:bg-[#E6A700] active:scale-[0.96] disabled:opacity-40"
             >
-              <ArrowUp size={19} strokeWidth={2.4} />
+              <ArrowUpIcon size={19} strokeWidth={2.4} />
             </button>
           </form>
         </div>
@@ -222,7 +222,7 @@ function ProfileCard({
         <div className="min-w-0 flex-1">
           <p className={`truncate text-[15px] font-bold ${tone.title}`}>{draft.name}</p>
           <p className={`flex items-center gap-1 text-[11px] ${tone.muted}`}>
-            <CalendarDays size={12} />
+            <CalendarIcon size={12} />
             {due.date} · {due.relative}
           </p>
         </div>

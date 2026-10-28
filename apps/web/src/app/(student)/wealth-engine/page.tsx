@@ -5,22 +5,22 @@ import { TopAppBar } from "../../../components/common/TopAppBar";
 import { useFinancialStore } from "../../../context/FinancialStore";
 import { Card, Button, Modal, StatusBadge, ProgressRing } from "@nera/ui";
 import {
-  TrendingUp,
-  ShieldCheck,
-  Lock,
-  Unlock,
-  CheckCircle2,
-  AlertTriangle,
-  Coins,
-  ArrowRight,
-  PlusCircle,
-  Sparkles,
-  Calendar,
-  Star,
-  Trophy,
-  Target,
-  Landmark,
-} from "lucide-react";
+  TrendingUpIcon,
+  ShieldCheckIcon,
+  LockIcon,
+  UnlockIcon,
+  CheckCircleIcon,
+  AlertTriangleIcon,
+  CoinsIcon,
+  ArrowRightIcon,
+  PlusCircleIcon,
+  SparklesIcon,
+  CalendarIcon,
+  StarIcon,
+  TrophyIcon,
+  TargetIcon,
+  LandmarkIcon,
+} from "@nera/ui/icons";
 
 export default function WealthEnginePage() {
   const {
@@ -69,9 +69,9 @@ export default function WealthEnginePage() {
 
   // Tier styling
   const tierConfig = [
-    { icon: ShieldCheck, iconBg: "bg-[#FFF0BD]" },
-    { icon: Coins, iconBg: "bg-[#FFF0BD]" },
-    { icon: Landmark, iconBg: "bg-[#FFF0BD]" },
+    { icon: ShieldCheckIcon, iconBg: "bg-[#FFF0BD]" },
+    { icon: CoinsIcon, iconBg: "bg-[#FFF0BD]" },
+    { icon: LandmarkIcon, iconBg: "bg-[#FFF0BD]" },
   ];
 
   return (
@@ -91,7 +91,7 @@ export default function WealthEnginePage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <TrendingUp
+              <TrendingUpIcon
                 size={18}
                 className={isFullyEligible ? "text-[#5B410C]" : "text-[#EF4444]"}
               />
@@ -114,7 +114,7 @@ export default function WealthEnginePage() {
         {/* GREEN STREAK CALENDAR */}
         <Card className="p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-[#76520E]" />
+            <CalendarIcon size={14} className="text-[#76520E]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
               Streak Hijau ({safeConsecutiveMonths}/2 Bulan)
             </h3>
@@ -148,7 +148,7 @@ export default function WealthEnginePage() {
 
           {hasTwoMonthStreak && (
             <div className="p-2.5 bg-[#DDF0E6] rounded-xl flex items-center gap-2">
-              <Trophy size={14} className="text-[#22C55E]" />
+              <TrophyIcon size={14} className="text-[#22C55E]" />
               <span className="text-[11px] text-[#15803D] font-semibold">
                 Selamat! Streak 2 bulan tercapai — fitur investasi terbuka!
               </span>
@@ -159,7 +159,7 @@ export default function WealthEnginePage() {
         {/* 3-TIER STAGED WEALTH LADDER */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Star size={14} className="text-[#76520E]" />
+            <StarIcon size={14} className="text-[#76520E]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#2F240E]">
               Tangga Kemapanan Finansial
             </h3>
@@ -260,7 +260,7 @@ export default function WealthEnginePage() {
                               onClick={() => setIsDepositOpen(true)}
                               className="text-xs h-7 px-3 rounded-full"
                             >
-                              <PlusCircle size={12} className="mr-1" /> Tambah
+                              <PlusCircleIcon size={12} className="mr-1" /> Tambah
                             </Button>
                           </div>
                         </div>
@@ -290,11 +290,11 @@ export default function WealthEnginePage() {
                               onClick={() => alert(`Membuka katalog ${tier.productName} wondr by BNI...`)}
                               className="text-xs h-7 px-3 rounded-full"
                             >
-                              Beli <ArrowRight size={12} className="ml-1" />
+                              Beli <ArrowRightIcon size={12} className="ml-1" />
                             </Button>
                           ) : (
                             <span className="flex items-center gap-1 text-xs text-slate-400 font-medium">
-                              <Lock size={12} /> Terkunci
+                              <LockIcon size={12} /> Terkunci
                             </span>
                           )}
                         </div>

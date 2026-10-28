@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import type { LucideIcon } from "lucide-react";
-import { Check } from "lucide-react";
+import type { NeraIcon } from "@nera/ui/icons";
+import { CheckIcon } from "@nera/ui/icons";
 import { cn } from "@nera/ui";
 
 type Tone = "yellow" | "mint" | "sky" | "peach";
@@ -37,7 +37,7 @@ const TONE_STYLES: Record<Tone, { iconBg: string; iconText: string; selectedBord
 export interface OptionCardProps {
   title: string;
   description?: string;
-  icon: LucideIcon;
+  icon: NeraIcon;
   selected: boolean;
   onClick: () => void;
   tone?: Tone;
@@ -79,7 +79,7 @@ export const OptionCard: React.FC<OptionCardProps> = ({
         )}
         aria-hidden
       >
-        <Check size={12} strokeWidth={3.2} />
+        <CheckIcon size={12} strokeWidth={3.2} />
       </span>
     </button>
   );
@@ -89,7 +89,7 @@ export interface ChipProps {
   label: string;
   selected: boolean;
   onClick: () => void;
-  icon?: LucideIcon;
+  icon?: NeraIcon;
 }
 
 export const Chip: React.FC<ChipProps> = ({ label, selected, onClick, icon: Icon }) => (
@@ -128,7 +128,7 @@ export interface ToggleCardProps {
   description: string;
   checked: boolean;
   onChange: (value: boolean) => void;
-  icon: LucideIcon;
+  icon: NeraIcon;
   badge?: string;
 }
 

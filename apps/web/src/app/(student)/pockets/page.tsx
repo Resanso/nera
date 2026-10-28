@@ -21,33 +21,33 @@ import { useEmailBalance, useEmailBalanceSync } from "../../../lib/emailBalance"
 import { Modal, Button, cn } from "@nera/ui";
 import type { BudgetPocket, BudgetPocketIcon, BudgetPocketKind, BudgetPocketTone } from "@nera/core";
 import {
-  Plus,
-  Utensils,
-  Bus,
-  GraduationCap,
-  Gamepad2,
-  ShoppingBag,
-  HeartPulse,
-  Plane,
-  Laptop,
-  Gift,
-  Home,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  History,
-  ReceiptText,
-  Target,
-  Trash2,
-  Eye,
-  EyeOff,
-  Zap,
-  CalendarDays,
-  Sparkles,
-  ArrowRight,
-  Check,
-  ChevronRight,
-  Pencil,
-} from "lucide-react";
+  PlusIcon,
+  UtensilsIcon,
+  BusIcon,
+  GraduationCapIcon,
+  GamepadIcon,
+  ShoppingBagIcon,
+  HeartPulseIcon,
+  PlaneIcon,
+  LaptopIcon,
+  GiftIcon,
+  HomeIcon,
+  ArrowDownToLineIcon,
+  ArrowUpFromLineIcon,
+  HistoryIcon,
+  ReceiptIcon,
+  TargetIcon,
+  TrashIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ZapIcon,
+  CalendarIcon,
+  SparklesIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  PencilIcon,
+} from "@nera/ui/icons";
 
 /*
  * Kantong, in three parts that each answer one question:
@@ -58,17 +58,17 @@ import {
  */
 
 const POCKET_ICONS: Record<BudgetPocketIcon, React.ElementType> = {
-  food: Utensils,
-  transport: Bus,
-  education: GraduationCap,
-  fun: Gamepad2,
-  shopping: ShoppingBag,
-  health: HeartPulse,
-  travel: Plane,
-  gadget: Laptop,
-  gift: Gift,
-  home: Home,
-  utility: Zap,
+  food: UtensilsIcon,
+  transport: BusIcon,
+  education: GraduationCapIcon,
+  fun: GamepadIcon,
+  shopping: ShoppingBagIcon,
+  health: HeartPulseIcon,
+  travel: PlaneIcon,
+  gadget: LaptopIcon,
+  gift: GiftIcon,
+  home: HomeIcon,
+  utility: ZapIcon,
 };
 
 const ICON_LABELS: Record<BudgetPocketIcon, string> = {
@@ -542,7 +542,7 @@ export default function PocketsPage() {
               aria-label={showBalances ? "Sembunyikan saldo" : "Tampilkan saldo"}
               className="flex h-8 w-8 items-center justify-center rounded-full text-[#2F240E] hover:bg-[#F1F2F4]"
             >
-              {showBalances ? <Eye size={18} /> : <EyeOff size={18} />}
+              {showBalances ? <EyeIcon size={18} /> : <EyeOffIcon size={18} />}
             </button>
           </div>
           <p className={cn("text-[28px] font-bold leading-tight tabular-nums", spendable < 0 ? "text-[#A92F2F]" : "text-[#2F240E]")}>{money(spendable)}</p>
@@ -563,7 +563,7 @@ export default function PocketsPage() {
               <p className="font-semibold tabular-nums text-[#2F240E]">{money(total)}</p>
             </div>
             <button type="button" onClick={openSaldo} className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-[#F1F2F4] px-3 font-semibold text-[#2F240E] hover:bg-[#FFF3D6]">
-              <Pencil size={13} />
+              <PencilIcon size={13} />
               Ubah
             </button>
           </div>
@@ -613,7 +613,7 @@ export default function PocketsPage() {
                       s.done ? "bg-[#E3F3E9] text-[#277449]" : "bg-[#FFF0BD] text-[#6D4C00]",
                     )}
                   >
-                    {s.done ? <Check size={14} strokeWidth={3} /> : i + 1}
+                    {s.done ? <CheckIcon size={14} strokeWidth={3} /> : i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className={cn("block text-[13px] font-semibold", s.done ? "text-[#736B60] line-through" : "text-[#2F240E]")}>{s.title}</span>
@@ -637,7 +637,7 @@ export default function PocketsPage() {
               Budget {monthName()}
             </h2>
             <button type="button" onClick={() => openCreate("spending")} className="flex h-8 items-center gap-1 rounded-full bg-[#F1F2F4] px-3 text-[12px] font-semibold text-[#2F240E] hover:bg-[#FFF3D6]">
-              <Plus size={14} />
+              <PlusIcon size={14} />
               Pos
             </button>
           </div>
@@ -680,7 +680,7 @@ export default function PocketsPage() {
                   {plan.lines.filter((l) => !l.occasional).length} pos · <span className="tabular-nums">{formatRupiah(plan.total)}</span>/bulan
                 </span>
               </span>
-              <ArrowRight size={17} className="shrink-0 text-[#76520E]" />
+              <ArrowRightIcon size={17} className="shrink-0 text-[#76520E]" />
             </button>
           )}
 
@@ -711,7 +711,7 @@ export default function PocketsPage() {
                         {formatRupiahShort(spent)} dari {formatRupiahShort(p.targetAmount)}
                       </span>
                     </span>
-                    <ChevronRight size={16} className="shrink-0 text-[#A89F90]" />
+                    <ChevronRightIcon size={16} className="shrink-0 text-[#A89F90]" />
                   </button>
                 </li>
               );
@@ -762,7 +762,7 @@ export default function PocketsPage() {
               Tabungan & rencana
             </h2>
             <button type="button" onClick={() => openCreate("saving")} className="flex h-8 items-center gap-1 rounded-full bg-white px-3 text-[12px] font-semibold text-[#2F240E] hover:bg-[#FFF3D6]">
-              <Plus size={14} />
+              <PlusIcon size={14} />
               Tabungan
             </button>
           </div>
@@ -773,13 +773,13 @@ export default function PocketsPage() {
             className="flex w-full items-center gap-3 rounded-[20px] bg-white px-4 py-3.5 text-left transition-transform duration-150 hover:bg-[#FFFBF0] active:scale-[0.96]"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#FFF0BD] text-[#76520E]">
-              <Sparkles size={19} />
+              <SparklesIcon size={19} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-bold text-[#2F240E]">Ada rencana dadakan?</span>
               <span className="block text-[11px] leading-snug text-[#736B60]">Diajak AYCE atau nonton? Nera hitung berapa yang perlu disisihkan per hari</span>
             </span>
-            <ArrowRight size={17} className="shrink-0 text-[#76520E]" />
+            <ArrowRightIcon size={17} className="shrink-0 text-[#76520E]" />
           </button>
 
           <div className="grid grid-cols-2 gap-3">
@@ -873,9 +873,9 @@ export default function PocketsPage() {
                       value={budgetTab}
                       onChange={(v) => (setBudgetTab(v), setAmountInput(""), setNoteInput(""))}
                       options={[
-                        { id: "history", label: "Riwayat", icon: History },
-                        { id: "log", label: "Catat", icon: ReceiptText },
-                        { id: "limit", label: "Budget", icon: Target },
+                        { id: "history", label: "Riwayat", icon: HistoryIcon },
+                        { id: "log", label: "Catat", icon: ReceiptIcon },
+                        { id: "limit", label: "Budget", icon: TargetIcon },
                       ]}
                     />
 
@@ -992,7 +992,7 @@ export default function PocketsPage() {
                       <div className="rounded-[18px] border border-[#F1EEE8] px-3.5 py-3">
                         <p className="text-[14px] font-bold text-[#2F240E]">{p.profile.occasion}</p>
                         <p className="flex items-center gap-1 text-[12px] text-[#736B60]">
-                          <CalendarDays size={13} />
+                          <CalendarIcon size={13} />
                           {due.date} · {due.relative}
                         </p>
                         {today > 0 && due.days >= 0 ? (
@@ -1027,11 +1027,11 @@ export default function PocketsPage() {
                       value={goalTab}
                       onChange={(v) => (setGoalTab(v), setAmountInput(""), setNoteInput(""))}
                       options={[
-                        { id: "history" as const, label: "Riwayat", icon: History },
-                        { id: "topup" as const, label: "Isi", icon: ArrowDownToLine },
-                        ...(p.profile ? [{ id: "spend" as const, label: "Bayar", icon: ReceiptText }] : []),
-                        { id: "withdraw" as const, label: "Tarik", icon: ArrowUpFromLine },
-                        ...(p.profile ? [] : [{ id: "target" as const, label: "Target", icon: Target }]),
+                        { id: "history" as const, label: "Riwayat", icon: HistoryIcon },
+                        { id: "topup" as const, label: "Isi", icon: ArrowDownToLineIcon },
+                        ...(p.profile ? [{ id: "spend" as const, label: "Bayar", icon: ReceiptIcon }] : []),
+                        { id: "withdraw" as const, label: "Tarik", icon: ArrowUpFromLineIcon },
+                        ...(p.profile ? [] : [{ id: "target" as const, label: "Target", icon: TargetIcon }]),
                       ]}
                     />
 
@@ -1370,7 +1370,7 @@ function DeleteRow({ confirming, setConfirming, text, onDelete }: { confirming: 
         </div>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} className="flex items-center gap-1.5 text-xs font-semibold text-[#C43737] hover:underline">
-          <Trash2 size={14} />
+          <TrashIcon size={14} />
           Hapus
         </button>
       )}

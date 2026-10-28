@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@nera/ui";
-import { CalendarClock, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarClockIcon, ShieldCheckIcon, SparklesIcon } from "@nera/ui/icons";
 import type { ConsentKind, EmailStatus } from "../../lib/emailImport";
 
 type Props = {
@@ -26,7 +26,7 @@ export function ConsentCard({ consent, busy, onChange }: Props) {
   return (
     <section id="consent" className="rounded-[24px] bg-white p-5">
       <div className="flex items-center gap-2 text-[#2F240E]">
-        <ShieldCheck size={18} className="text-[#76520E]" />
+        <ShieldCheckIcon size={18} className="text-[#76520E]" />
         <h3 className="text-sm font-bold">Persetujuan</h3>
       </div>
 
@@ -81,7 +81,7 @@ export function ConsentCard({ consent, busy, onChange }: Props) {
       <div className="mt-3 rounded-[16px] border border-[#F0E6D2] p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-1.5">
-            <Sparkles size={14} className="text-[#76520E]" />
+            <SparklesIcon size={14} className="text-[#76520E]" />
             <p className="text-xs font-bold text-[#2F240E]">Bantuan AI (opsional)</p>
           </div>
           <button
@@ -118,7 +118,7 @@ export function EmailPlanningConsent({ consent, busy, onChange }: Props) {
     <div className="mt-3 rounded-[16px] border border-[#F0E6D2] p-3.5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-1.5">
-          <CalendarClock size={14} className="text-[#76520E]" />
+          <CalendarClockIcon size={14} className="text-[#76520E]" />
           <p className="text-xs font-bold text-[#2F240E]">Estimasi dari struk email (opsional)</p>
         </div>
         <button
